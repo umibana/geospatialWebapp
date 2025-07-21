@@ -17,7 +17,11 @@
     "test:watch": "vitest watch",
     "test:unit": "vitest",
     "test:e2e": "playwright test",
-    "test:all": "vitest run && playwright test"
+    "test:all": "vitest run && playwright test",
+    "build:backend": "cd backend && python build_server.py",
+    "build:full": "npm run build:backend && npm run make",
+    "dev:backend": "cd backend && python simple_server.py",
+    "setup:backend": "cd backend && pip install -r requirements.txt"
   },
   "author": "ROG <luan.roger.2003@gmail.com>",
   "license": "MIT",

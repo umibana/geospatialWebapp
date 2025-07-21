@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from "electron";
 import registerListeners from "./helpers/ipc/listeners-register";
+import { backendManager } from "./helpers/backend_helpers";
 // "electron-squirrel-startup" seems broken when packaging with vite
 //import started from "electron-squirrel-startup";
 import path from "path";
@@ -10,7 +11,7 @@ import {
 
 const inDevelopment = process.env.NODE_ENV === "development";
 
-function createWindow() {
+async function createWindow() {
   const preload = path.join(__dirname, "preload.js");
   const mainWindow = new BrowserWindow({
     width: 800,
@@ -23,9 +24,12 @@ function createWindow() {
       preload: preload,
     },
     titleBarStyle: "default",
+    show: false, // Don't show until backend is ready
   });
+  
   registerListeners(mainWindow);
 
+  // Load the frontend first - don't wait for backend
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
@@ -33,6 +37,20 @@ function createWindow() {
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
     );
   }
+
+  // Show window immediately
+  mainWindow.show();
+
+  // Start Django backend in background (non-blocking)
+  console.log('Starting Django backend in background...');
+  backendManager.startBackend()
+    .then((backendInfo) => {
+      console.log('Django backend started successfully:', backendInfo);
+    })
+    .catch((error) => {
+      console.error('Failed to start Django backend:', error);
+      // Backend will show as unhealthy in the UI, which is fine
+    });
 }
 
 async function installExtensions() {
@@ -45,6 +63,14 @@ async function installExtensions() {
 }
 
 app.whenReady().then(createWindow).then(installExtensions);
+
+// Handle app shutdown
+app.on("before-quit", async (event) => {
+  event.preventDefault();
+  console.log('Shutting down Django backend...');
+  await backendManager.stopBackend();
+  app.exit(0);
+});
 
 //osX only
 app.on("window-all-closed", () => {

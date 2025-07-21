@@ -2,6 +2,7 @@ import React from "react";
 import ToggleTheme from "@/components/ToggleTheme";
 import { useTranslation } from "react-i18next";
 import LangToggle from "@/components/LangToggle";
+import { BackendStatus } from "@/components/BackendStatus";
 
 export default function HomePage() {
   const { t } = useTranslation();
@@ -17,6 +18,7 @@ export default function HomePage() {
         </span>
         <LangToggle />
         <ToggleTheme />
+        <BackendStatus className="mt-6 max-w-md" />
 
       </div>
     </div>

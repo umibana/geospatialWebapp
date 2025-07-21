@@ -19,7 +19,14 @@ interface ElectronWindow {
   getSize: () => Promise<{ width: number; height: number }>;
 }
 
+interface ElectronBackend {
+  getBackendUrl: () => Promise<string | null>;
+  healthCheck: () => Promise<boolean>;
+  restartBackend: () => Promise<{ port: number; url: string }>;
+}
+
 declare interface Window {
   themeMode: ThemeModeContext;
   electronWindow: ElectronWindow;
+  electronBackend: ElectronBackend;
 }
