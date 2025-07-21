@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { connectRpcClient } from '../helpers/connectrpc_client';
+import { grpcClient } from '../helpers/grpc_client';
 import { Button } from './ui/button';
 
 interface GeospatialFeature {
@@ -19,7 +19,7 @@ interface DataPoint {
   metadata: Record<string, string>;
 }
 
-export function ConnectRpcDemo() {
+export function GrpcDemo() {
   const [isConnected, setIsConnected] = useState(false);
   const [features, setFeatures] = useState<GeospatialFeature[]>([]);
   const [streamData, setStreamData] = useState<DataPoint[]>([]);
@@ -27,23 +27,23 @@ export function ConnectRpcDemo() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    initializeConnectRpc();
+    initializeGrpc();
   }, []);
 
-  const initializeConnectRpc = async () => {
+  const initializeGrpc = async () => {
     try {
       setLoading(true);
       
       // Update to correct port
-      await connectRpcClient.updatePort();
+      await grpcClient.updatePort();
       
       // Test connection
-      const health = await connectRpcClient.healthCheck();
+      const health = await grpcClient.healthCheck();
       setIsConnected(health.healthy);
       
-      console.log('✅ ConnectRPC initialized:', health);
+      console.log('✅ gRPC initialized:', health);
     } catch (error) {
-      console.error('❌ ConnectRPC initialization failed:', error);
+      console.error('❌ gRPC initialization failed:', error);
       setIsConnected(false);
     } finally {
       setLoading(false);
@@ -62,10 +62,10 @@ export function ConnectRpcDemo() {
         southwest: { latitude: 37.7749, longitude: -122.4194 }
       };
       
-      const result = await connectRpcClient.getFeatures(bounds, [], 20);
+      const result = await grpcClient.getFeatures(bounds, [], 20);
       setFeatures(result.features);
       
-      console.log(`📍 Loaded ${result.features.length} features`);
+      console.log(`📍 Loaded ${result.features.length} features via gRPC`);
     } catch (error) {
       console.error('Failed to load features:', error);
     } finally {
@@ -85,10 +85,10 @@ export function ConnectRpcDemo() {
         southwest: { latitude: 37.7749, longitude: -122.4194 }
       };
       
-      console.log('🔄 Starting real-time stream...');
+      console.log('🔄 Starting real-time gRPC stream...');
       
-      // This is the beauty of ConnectRPC - simple async iteration!
-      for await (const dataPoint of connectRpcClient.streamData(bounds, [], 5)) {
+      // This is the power of gRPC - simple async iteration!
+      for await (const dataPoint of grpcClient.streamData(bounds, [], 5)) {
         setStreamData(prev => {
           const newData = [...prev, dataPoint];
           // Keep only last 10 data points for display
@@ -99,7 +99,7 @@ export function ConnectRpcDemo() {
       console.error('Streaming error:', error);
     } finally {
       setStreaming(false);
-      console.log('🛑 Stream ended');
+      console.log('🛑 gRPC Stream ended');
     }
   };
 
@@ -112,7 +112,7 @@ export function ConnectRpcDemo() {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
         <h2 className="text-2xl font-bold mb-4 text-gray-800">
-          ConnectRPC Geospatial Demo
+          gRPC Geospatial Demo
         </h2>
         
         {/* Connection Status */}
@@ -124,13 +124,13 @@ export function ConnectRpcDemo() {
               }`}
             />
             <span className="font-semibold">
-              ConnectRPC Status: {isConnected ? 'Connected' : 'Disconnected'}
+              gRPC Status: {isConnected ? 'Connected' : 'Disconnected'}
             </span>
           </div>
           
           {!isConnected && (
             <Button 
-              onClick={initializeConnectRpc}
+              onClick={initializeGrpc}
               disabled={loading}
               className="mt-2"
             >
@@ -153,7 +153,7 @@ export function ConnectRpcDemo() {
           {features.length > 0 && (
             <div className="bg-blue-50 p-4 rounded-lg">
               <h4 className="font-semibold mb-2">
-                Loaded {features.length} features:
+                Loaded {features.length} features via gRPC:
               </h4>
               <div className="max-h-40 overflow-y-auto">
                 {features.slice(0, 5).map((feature) => (
@@ -161,6 +161,9 @@ export function ConnectRpcDemo() {
                     <strong>{feature.name}</strong> - 
                     {feature.location.latitude.toFixed(4)}, 
                     {feature.location.longitude.toFixed(4)}
+                    <span className="text-blue-600 ml-2">
+                      (Protocol: {feature.properties.protocol || 'gRPC'})
+                    </span>
                   </div>
                 ))}
                 {features.length > 5 && (
@@ -175,14 +178,14 @@ export function ConnectRpcDemo() {
 
         {/* Real-time Streaming */}
         <div>
-          <h3 className="text-lg font-semibold mb-3">Real-time Data Stream</h3>
+          <h3 className="text-lg font-semibold mb-3">Real-time gRPC Data Stream</h3>
           <div className="flex gap-2 mb-4">
             <Button 
               onClick={handleStartStreaming}
               disabled={!isConnected || streaming}
               className="bg-green-600 hover:bg-green-700"
             >
-              {streaming ? 'Streaming...' : 'Start Stream'}
+              {streaming ? 'Streaming...' : 'Start gRPC Stream'}
             </Button>
             
             {streaming && (
@@ -198,7 +201,7 @@ export function ConnectRpcDemo() {
           {streamData.length > 0 && (
             <div className="bg-green-50 p-4 rounded-lg">
               <h4 className="font-semibold mb-2">
-                Real-time Data ({streamData.length} points):
+                Real-time gRPC Data ({streamData.length} points):
               </h4>
               <div className="max-h-40 overflow-y-auto">
                 {streamData.slice().reverse().map((point) => (
@@ -207,6 +210,9 @@ export function ConnectRpcDemo() {
                     <span className="font-bold"> {point.value.toFixed(2)} {point.unit}</span>
                     <span className="text-gray-500 ml-2">
                       ({point.location.latitude.toFixed(4)}, {point.location.longitude.toFixed(4)})
+                    </span>
+                    <span className="text-green-600 ml-2">
+                      [gRPC]
                     </span>
                   </div>
                 ))}

@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package geospatial;
+
+// Common data types for geospatial operations
+
+message Coordinate {
+  double latitude = 1;
+  double longitude = 2;
+  optional double altitude = 3;
+}
+
+message BoundingBox {
+  Coordinate northeast = 1;
+  Coordinate southwest = 2;
+}
+
+message GeospatialFeature {
+  string id = 1;
+  string name = 2;
+  Coordinate location = 3;
+  map<string, string> properties = 4;
+  int64 timestamp = 5;
+}
+
+message DataPoint {
+  string id = 1;
+  Coordinate location = 2;
+  double value = 3;
+  string unit = 4;
+  int64 timestamp = 5;
+  map<string, string> metadata = 6;
+}
+
+// Request/Response messages for the service
+
+message GetFeaturesRequest {
+  BoundingBox bounds = 1;
+  repeated string feature_types = 2;
+  int32 limit = 3;
+}
+
+message GetFeaturesResponse {
+  repeated GeospatialFeature features = 1;
+  int32 total_count = 2;
+}
+
+message StreamDataRequest {
+  BoundingBox bounds = 1;
+  repeated string data_types = 2;
+  int32 max_points_per_second = 3;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  bool healthy = 1;
+  string version = 2;
+  map<string, string> status = 3;
+}
+
+// gRPC service definition
+service GeospatialService {
+  // Unary RPC for fetching features
+  rpc GetFeatures(GetFeaturesRequest) returns (GetFeaturesResponse);
+  
+  // Server streaming RPC for real-time data
+  rpc StreamData(StreamDataRequest) returns (stream DataPoint);
+  
+  // Health check
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+} 

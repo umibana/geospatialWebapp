@@ -1,6 +1,7 @@
-import React, { useRef, useEffect, useCallback } from "react";
+import React, { useRef, useCallback, useEffect } from "react";
+import * as echarts from "echarts";
 import { useQuery } from "@tanstack/react-query";
-import * as echarts from 'echarts';
+import { GrpcDemo } from "./GrpcDemo";
 
 // Type para data de prueba observablehq
 interface AthleteData {
@@ -12,25 +13,21 @@ interface AthleteData {
   [key: string]: string | number | null;
 }
 
-// CSV Parsing.
-const parseCSV = (text: string): AthleteData[] => {
-  const lines = text.trim().split('\n');
+// Parse CSV function
+function parseCSV(csvText: string) {
+  const lines = csvText.trim().split('\n');
   const headers = lines[0].split(',');
   
   return lines.slice(1).map(line => {
     const values = line.split(',');
-    const obj: Record<string, string | number | null> = {};
+    const obj: any = {};
     headers.forEach((header, index) => {
-      const value = values[index];
-      // Convert numeric fields
-      if (header === 'height' || header === 'weight') {
-        obj[header] = value ? parseFloat(value) : null;
-      } else {
-        obj[header] = value;
-      }
+      const value = values[index]?.trim();
+      // Try to parse as number, otherwise keep as string
+      obj[header.trim()] = isNaN(Number(value)) ? value : Number(value);
     });
-    return obj as AthleteData;
-  }); 
+    return obj;
+  });
 }
 
 export function Prueba2D() {
@@ -236,8 +233,17 @@ export function Prueba2D() {
 
 export function Prueba3D() {
   return (
-    <div className="w-full h-full flex items-center justify-center">
-      <h1 className="text-lg font-semibold">Vista 3D</h1>
+    <div className="p-4 text-center">
+      <h2 className="text-xl font-bold mb-4">Prueba 3D Component</h2>
+      <p>This is a 3D component placeholder.</p>
+      <div className="mt-4 p-4 bg-blue-50 rounded">
+        <p className="text-sm text-gray-600">
+          3D visualization would go here
+        </p>
+      </div>
     </div>
   );
 }
+
+// Export the gRPC Demo component
+export { GrpcDemo };

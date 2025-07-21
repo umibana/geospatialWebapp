@@ -1,4 +1,4 @@
-import {  Home, TestTube, TestTube2, TestTubeDiagonal } from "lucide-react"
+import {  Home, TestTube, TestTube2, TestTubeDiagonal, Wifi } from "lucide-react"
 
 import {
   Sidebar,
@@ -15,7 +15,8 @@ import { Link } from "@tanstack/react-router"
 import { useWindows } from "@/contexts/WindowContext"
 import { 
   Prueba2D,
-  Prueba3D
+  Prueba3D,
+  GrpcDemo
 } from "@/components/WindowComponents"
 import { t } from "i18next"
 
@@ -35,6 +36,12 @@ const navigationItems = [
 
 // Window items that can be opened
 const windowItems = [
+  {
+    title: "gRPC Demo",
+    icon: Wifi,
+    component: <GrpcDemo />,
+    size: { width: 800, height: 600 },
+  },
   {
     title: "Prueba 2D",
     icon: TestTube2,

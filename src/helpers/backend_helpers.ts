@@ -101,8 +101,8 @@ class BackendManager {
       const cwd = isDev ? path.join(process.cwd(), 'backend') : path.dirname(backendPath);
       
       if (isDev) {
-        // In development, run Python directly
-        this.config.process = spawn('python', ['server.py'], {
+        // In development, run the combined server (Django + gRPC)
+        this.config.process = spawn('python', ['combined_server.py'], {
           stdio: ['pipe', 'pipe', 'pipe'],
           cwd: cwd,
           env: { ...process.env, PYTHONUNBUFFERED: '1' },

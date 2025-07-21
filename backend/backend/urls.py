@@ -1,8 +1,7 @@
-from django.urls import path
-from . import views
+from django.contrib import admin
+from django.urls import path, include
 
 urlpatterns = [
-    path('health/', views.health_check, name='health_check'),
-    path('connectrpc-port/', views.connectrpc_port, name='connectrpc_port'),
-    path('data/', views.get_data, name='get_data'),
+    path('admin/', admin.site.urls),
+    path('api/', include('api.urls')),
 ] 
