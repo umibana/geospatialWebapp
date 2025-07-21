@@ -79,8 +79,8 @@ def main():
         # Give gRPC time to start
         time.sleep(2)
         
-        # Find a free port for Django
-        django_port = find_free_port(8000)
+        # Use fixed port for Django
+        django_port = 8077
         
         # Write Django port to file for Electron to read
         port_file = script_dir / 'server_port.txt'

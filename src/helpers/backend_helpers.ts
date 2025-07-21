@@ -30,54 +30,82 @@ class BackendManager {
 
     private async waitForPortFile(timeout = 10000): Promise<number> {
     const isDev = process.env.NODE_ENV === 'development';
-    let portFilePath: string;
     
     if (isDev) {
-      portFilePath = path.join(process.cwd(), 'backend', 'server_port.txt');
-    } else {
-      // In production, the port file is in the same directory as the executable
-      const backendPath = this.getBackendPath();
-      portFilePath = path.join(path.dirname(backendPath), 'server_port.txt');
-    }
-    
-    console.log('Looking for port file at:', portFilePath);
-    const startTime = Date.now();
+      // In development, Django always uses port 8077
+      const expectedPort = 8077;
+      
+      // Wait for the server to actually start by trying to connect
+      const startTime = Date.now();
+      
+      return new Promise((resolve, reject) => {
+        const checkConnection = async () => {
+          if (Date.now() - startTime > timeout) {
+            reject(new Error(`Timeout waiting for Django server on port ${expectedPort}`));
+            return;
+          }
 
-    return new Promise((resolve, reject) => {
-      const checkFile = () => {
-        if (Date.now() - startTime > timeout) {
-          reject(new Error('Timeout waiting for server port file'));
-          return;
-        }
-
-        if (fs.existsSync(portFilePath)) {
           try {
-            const port = parseInt(fs.readFileSync(portFilePath, 'utf8').trim());
-            if (!isNaN(port) && port > 0) {
-              resolve(port);
+            // Try to fetch from the health endpoint to verify server is running
+            const response = await fetch(`http://127.0.0.1:${expectedPort}/api/health/`);
+            if (response.ok) {
+              console.log(`✅ Django server ready on port ${expectedPort}`);
+              resolve(expectedPort);
               return;
             }
-          } catch {
-            // File exists but not readable yet, continue checking
+          } catch (error) {
+            // Server not ready yet, continue checking
           }
-        }
-        
-        // Check for error file
-        const errorFilePath = path.join(path.dirname(portFilePath), 'server_error.txt');
-        if (fs.existsSync(errorFilePath)) {
-          try {
-            const errorContent = fs.readFileSync(errorFilePath, 'utf8');
-            reject(new Error(`Django server failed: ${errorContent}`));
+          
+          setTimeout(checkConnection, 500);
+        };
+        checkConnection();
+      });
+    } else {
+      // In production, read from port file
+      let portFilePath: string;
+      const backendPath = this.getBackendPath();
+      portFilePath = path.join(path.dirname(backendPath), 'server_port.txt');
+      
+      console.log('Looking for port file at:', portFilePath);
+      const startTime = Date.now();
+
+      return new Promise((resolve, reject) => {
+        const checkFile = () => {
+          if (Date.now() - startTime > timeout) {
+            reject(new Error('Timeout waiting for server port file'));
             return;
-          } catch {
-            // Ignore error reading error file
           }
-        }
-        
-        setTimeout(checkFile, 100);
-      };
-      checkFile();
-    });
+
+          if (fs.existsSync(portFilePath)) {
+            try {
+              const port = parseInt(fs.readFileSync(portFilePath, 'utf8').trim());
+              if (!isNaN(port) && port > 0) {
+                resolve(port);
+                return;
+              }
+            } catch {
+              // File exists but not readable yet, continue checking
+            }
+          }
+          
+          // Check for error file
+          const errorFilePath = path.join(path.dirname(portFilePath), 'server_error.txt');
+          if (fs.existsSync(errorFilePath)) {
+            try {
+              const errorContent = fs.readFileSync(errorFilePath, 'utf8');
+              reject(new Error(`Django server failed: ${errorContent}`));
+              return;
+            } catch {
+              // Ignore error reading error file
+            }
+          }
+          
+          setTimeout(checkFile, 100);
+        };
+        checkFile();
+      });
+    }
   }
 
   async startBackend(): Promise<{ port: number; url: string }> {

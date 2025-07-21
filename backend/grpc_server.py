@@ -177,8 +177,8 @@ def find_free_port(start_port=50051):
 def serve():
     """Start the gRPC server"""
     try:
-        # Find free port
-        port = find_free_port(50051)
+        # Use fixed port for gRPC
+        port = 50077
         
         # Create server
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
