@@ -25,6 +25,9 @@ export function GrpcDemo() {
   const [streamData, setStreamData] = useState<DataPoint[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // Add abort controller state
+  const [streamAbortController, setStreamAbortController] = useState<AbortController | null>(null);
 
   useEffect(() => {
     initializeGrpc();
@@ -79,6 +82,10 @@ export function GrpcDemo() {
     setStreaming(true);
     setStreamData([]);
     
+    // Create new AbortController for this stream
+    const abortController = new AbortController();
+    setStreamAbortController(abortController);
+    
     try {
       const bounds = {
         northeast: { latitude: 37.7849, longitude: -122.4094 },
@@ -87,26 +94,47 @@ export function GrpcDemo() {
       
       console.log('🔄 Starting real-time gRPC stream...');
       
-      // This is the power of gRPC - simple async iteration!
-      for await (const dataPoint of grpcClient.streamData(bounds, [], 5)) {
-        setStreamData(prev => {
-          const newData = [...prev, dataPoint];
-          // Keep only last 10 data points for display
-          return newData.slice(-10);
-        });
+      // Pass the abort signal to the stream
+      for await (const dataPoint of grpcClient.streamData(bounds, [],1000, abortController.signal)) {
+        // Check if we're still streaming (component might have unmounted)
+        if (abortController.signal.aborted) {
+          break;
+        }
+        
+        setStreamData(prev => [...prev, dataPoint]);
       }
     } catch (error) {
-      console.error('Streaming error:', error);
+      if (error instanceof Error && (error.message.includes('cancelled') || error.name === 'AbortError')) {
+        console.log('🛑 Stream was cancelled');
+      } else {
+        console.error('Streaming error:', error);
+      }
     } finally {
       setStreaming(false);
+      setStreamAbortController(null);
       console.log('🛑 gRPC Stream ended');
     }
   };
 
   const handleStopStreaming = () => {
+    console.log('🛑 Stopping gRPC stream...');
+    
+    // Cancel the stream using AbortController
+    if (streamAbortController) {
+      streamAbortController.abort();
+    }
+    
     setStreaming(false);
-    // In a real implementation, you'd cancel the async iterator
   };
+
+  // Clean up on component unmount
+  useEffect(() => {
+    return () => {
+      if (streamAbortController) {
+        streamAbortController.abort();
+      }
+    };
+  }, [streamAbortController]);
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
