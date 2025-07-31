@@ -6,24 +6,10 @@ interface BackendStatusProps {
 }
 
 interface HealthStatus {
-  status: 'healthy' | 'unhealthy';
-  timestamp: number;
-  uptime: number;
-  django: {
-    version: string;
-    debug: boolean;
-    status: string;
-  };
-  grpc: {
-    running: boolean;
-    port: number | null;
-    status: string;
-  };
-  services: {
-    rest_api: boolean;
-    grpc_service: boolean;
-    database: boolean;
-  };
+  healthy: boolean;
+  version: string;
+  status: Record<string, string>;
+  timestamp?: number;
   error?: string;
 }
 
@@ -34,26 +20,27 @@ export function BackendStatus({ className = '' }: BackendStatusProps) {
 
   const checkBackendStatus = async () => {
     try {
-      // Get backend URL from Electron
+      // Get backend URL from Electron (will be grpc://127.0.0.1:50077)
       const url = await window.electronBackend.getBackendUrl();
       setBackendUrl(url);
       
-      // Call the health endpoint
-      const response = await fetch(`${url}/api/health/`);
-      const healthData: HealthStatus = await response.json();
+      // Use gRPC health check via IPC
+      const healthData = await window.electronGrpc.healthCheck();
       
-      setHealthStatus(healthData);
-      console.log('Backend health status:', healthData);
+      setHealthStatus({
+        ...healthData,
+        timestamp: Date.now()
+      });
+      
+      console.log('gRPC health status:', healthData);
     } catch (error) {
-      console.error('Failed to check backend status:', error);
+      console.error('Failed to check gRPC status:', error);
       setBackendUrl(null);
       setHealthStatus({
-        status: 'unhealthy',
+        healthy: false,
+        version: '1.0.0',
+        status: { error: 'gRPC connection failed' },
         timestamp: Date.now(),
-        uptime: 0,
-        django: { version: 'unknown', debug: false, status: 'stopped' },
-        grpc: { running: false, port: null, status: 'stopped' },
-        services: { rest_api: false, grpc_service: false, database: false },
         error: error instanceof Error ? error.message : 'Connection failed'
       });
     } finally {
@@ -65,28 +52,34 @@ export function BackendStatus({ className = '' }: BackendStatusProps) {
     try {
       setLoading(true);
       const result = await window.electronBackend.restartBackend();
-      console.log('Backend restarted:', result);
+      console.log('gRPC backend restarted:', result);
       // Wait a moment for the backend to start
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
       await checkBackendStatus();
     } catch (error) {
-      console.error('Failed to restart backend:', error);
+      console.error('Failed to restart gRPC backend:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const testBackendAPI = async () => {
-    if (!backendUrl) return;
-    
+  const testGrpcAPI = async () => {
     try {
-      const response = await fetch(`${backendUrl}/api/data/`);
-      const data = await response.json();
-      console.log('Backend API response:', data);
-      alert(`Backend API Test:\n${JSON.stringify(data, null, 2)}`);
+      // Test gRPC GetFeatures call
+      const result = await window.electronGrpc.getFeatures(
+        {
+          northeast: { latitude: 40.7829, longitude: -73.9654 },
+          southwest: { latitude: 40.7489, longitude: -73.9904 }
+        },
+        ['poi', 'landmark'],
+        10
+      );
+      
+      console.log('gRPC API response:', result);
+      alert(`gRPC API Test (GetFeatures):\nFound ${result.features.length} features\nTotal: ${result.total_count}`);
     } catch (error) {
-      console.error('Failed to test backend API:', error);
-      alert('Failed to connect to backend API');
+      console.error('Failed to test gRPC API:', error);
+      alert('Failed to connect to gRPC API');
     }
   };
 
@@ -103,13 +96,13 @@ export function BackendStatus({ className = '' }: BackendStatusProps) {
       <div className={`p-4 border rounded-lg ${className}`}>
         <div className="flex items-center">
           <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-          <span className="ml-2">Checking backend status...</span>
+          <span className="ml-2">Checking gRPC backend status...</span>
         </div>
       </div>
     );
   }
 
-  const isHealthy = healthStatus?.status === 'healthy';
+  const isHealthy = healthStatus?.healthy === true;
 
   return (
     <div className={`p-4 border rounded-lg ${className} ${isHealthy ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
@@ -119,47 +112,33 @@ export function BackendStatus({ className = '' }: BackendStatusProps) {
             isHealthy ? 'bg-green-500' : 'bg-red-500'
           }`}
         />
-        Backend Status: {isHealthy ? 'Healthy' : 'Unhealthy'}
+        gRPC Backend Status: {isHealthy ? 'Healthy' : 'Unhealthy'}
       </h3>
       
       <div className="space-y-3">
         {/* Basic Info */}
         {backendUrl && (
           <div className="text-sm">
-            <strong>URL:</strong> {backendUrl}
+            <strong>Server:</strong> {backendUrl}
           </div>
         )}
         
         {healthStatus && (
           <>
-            {/* Django Status */}
+            {/* Version */}
             <div className="text-sm">
-              <strong>Django:</strong> v{healthStatus.django.version} 
-              <span className={`ml-1 px-1 py-0.5 text-xs rounded ${
-                healthStatus.django.status === 'running' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-              }`}>
-                {healthStatus.django.status}
-              </span>
-              {healthStatus.django.debug && (
-                <span className="ml-1 px-1 py-0.5 text-xs rounded bg-yellow-100 text-yellow-800">
-                  DEBUG
-                </span>
-              )}
+              <strong>Version:</strong> {healthStatus.version}
             </div>
 
             {/* gRPC Status */}
             <div className="text-sm">
-              <strong>gRPC:</strong> 
+              <strong>gRPC Service:</strong> 
               <span className={`ml-1 px-1 py-0.5 text-xs rounded ${
-                healthStatus.grpc.running ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                isHealthy ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
               }`}>
-                {healthStatus.grpc.status}
+                {isHealthy ? 'running' : 'stopped'}
               </span>
-              {healthStatus.grpc.port && (
-                <span className="ml-1 text-gray-600">
-                  :{healthStatus.grpc.port}
-                </span>
-              )}
+              <span className="ml-1 text-gray-600">:50077</span>
             </div>
 
             {/* Services Status */}
@@ -167,19 +146,34 @@ export function BackendStatus({ className = '' }: BackendStatusProps) {
               <strong>Services:</strong>
               <div className="ml-2 mt-1 space-y-1">
                 <div className="flex items-center">
-                  <span className={`w-2 h-2 rounded-full mr-2 ${healthStatus.services.rest_api ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                  REST API
+                  <span className={`w-2 h-2 rounded-full mr-2 ${isHealthy ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                  Geospatial Service
                 </div>
                 <div className="flex items-center">
-                  <span className={`w-2 h-2 rounded-full mr-2 ${healthStatus.services.grpc_service ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                  gRPC Service
+                  <span className={`w-2 h-2 rounded-full mr-2 ${isHealthy ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                  Data Streaming
                 </div>
                 <div className="flex items-center">
-                  <span className={`w-2 h-2 rounded-full mr-2 ${healthStatus.services.database ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                  Database
+                  <span className={`w-2 h-2 rounded-full mr-2 ${isHealthy ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                  Health Monitoring
                 </div>
               </div>
             </div>
+
+            {/* Status Details */}
+            {healthStatus.status && Object.keys(healthStatus.status).length > 0 && (
+              <div className="text-sm">
+                <strong>Status Details:</strong>
+                <div className="ml-2 mt-1 text-xs">
+                  {Object.entries(healthStatus.status).map(([key, value]) => (
+                    <div key={key} className="flex">
+                      <span className="w-20 text-gray-600">{key}:</span>
+                      <span>{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Error Info */}
             {healthStatus.error && (
@@ -189,9 +183,11 @@ export function BackendStatus({ className = '' }: BackendStatusProps) {
             )}
 
             {/* Timestamp */}
-            <div className="text-xs text-gray-500">
-              Last checked: {new Date(healthStatus.timestamp).toLocaleTimeString()}
-            </div>
+            {healthStatus.timestamp && (
+              <div className="text-xs text-gray-500">
+                Last checked: {new Date(healthStatus.timestamp).toLocaleTimeString()}
+              </div>
+            )}
           </>
         )}
         
@@ -215,18 +211,18 @@ export function BackendStatus({ className = '' }: BackendStatusProps) {
             Restart
           </Button>
           
-          {backendUrl && (
+          {isHealthy && (
             <Button 
               size="sm" 
-              onClick={testBackendAPI}
+              onClick={testGrpcAPI}
               variant="outline"
               disabled={loading}
             >
-              Test API
+              Test gRPC
             </Button>
           )}
         </div>
       </div>
     </div>
   );
-} 
+}

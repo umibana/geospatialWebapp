@@ -1,6 +1,7 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, ipcMain } from "electron";
 import registerListeners from "./helpers/ipc/listeners-register";
 import { backendManager } from "./helpers/backend_helpers";
+import { mainGrpcClient } from "./main/grpc-client";
 // "electron-squirrel-startup" seems broken when packaging with vite
 //import started from "electron-squirrel-startup";
 import path from "path";
@@ -41,14 +42,19 @@ async function createWindow() {
   // Show window immediately
   mainWindow.show();
 
-  // Start Django backend in background (non-blocking)
-  console.log('Starting Django backend in background...');
+  // Start gRPC backend in background (non-blocking)
+  console.log('Starting gRPC backend in background...');
   backendManager.startBackend()
-    .then((backendInfo) => {
-      console.log('Django backend started successfully:', backendInfo);
+    .then(() => {
+      console.log('gRPC backend started successfully');
+      // Initialize gRPC client after backend is ready
+      return mainGrpcClient.initialize();
+    })
+    .then(() => {
+      console.log('Main process gRPC client initialized');
     })
     .catch((error) => {
-      console.error('Failed to start Django backend:', error);
+      console.error('Failed to start gRPC backend or initialize client:', error);
       // Backend will show as unhealthy in the UI, which is fine
     });
 }
@@ -64,10 +70,38 @@ async function installExtensions() {
 
 app.whenReady().then(createWindow).then(installExtensions);
 
+// IPC handlers for gRPC operations
+ipcMain.handle('grpc-health-check', async () => {
+  try {
+    return await mainGrpcClient.healthCheck();
+  } catch (error) {
+    console.error('gRPC health check failed:', error);
+    return { healthy: false, version: '1.0.0', status: { error: String(error) } };
+  }
+});
+
+ipcMain.handle('grpc-get-features', async (event, bounds, featureTypes, limit) => {
+  try {
+    return await mainGrpcClient.getFeatures(bounds, featureTypes, limit);
+  } catch (error) {
+    console.error('gRPC getFeatures failed:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('grpc-get-stream-data', async (event, bounds, dataTypes, maxPointsPerSecond, maxDuration) => {
+  try {
+    return await mainGrpcClient.getStreamData(bounds, dataTypes, maxPointsPerSecond, maxDuration);
+  } catch (error) {
+    console.error('gRPC getStreamData failed:', error);
+    throw error;
+  }
+});
+
 // Handle app shutdown
 app.on("before-quit", async (event) => {
   event.preventDefault();
-  console.log('Shutting down Django backend...');
+  console.log('Shutting down gRPC backend...');
   await backendManager.stopBackend();
   app.exit(0);
 });

@@ -192,17 +192,12 @@ def serve():
         listen_addr = f'127.0.0.1:{port}'
         server.add_insecure_port(listen_addr)
         
-        # Write port to file so frontend can find it
-        script_dir = Path(__file__).parent.absolute()
-        port_file = script_dir / 'grpc_port.txt'
-        with open(port_file, 'w') as f:
-            f.write(str(port))
+        # No need to write port file since we use fixed port 50077
         
         # Start server
         server.start()
         
         print(f"🚀 gRPC GeospatialService started on {listen_addr}")
-        print(f"📄 Port written to: {port_file}")
         print("✅ Ready to accept connections")
         
         try:
@@ -210,10 +205,6 @@ def serve():
         except KeyboardInterrupt:
             print("\n🛑 Shutting down gRPC server...")
             server.stop(grace=5)
-            
-            # Clean up port file
-            if port_file.exists():
-                port_file.unlink()
                 
     except Exception as e:
         print(f"❌ Failed to start gRPC server: {e}")

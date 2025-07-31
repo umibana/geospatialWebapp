@@ -1,156 +1,202 @@
-# electron-shadcn
+# Desktop Geospatial Application
 
-Electron in all its glory. Everything you will need to develop your beautiful desktop application.
+A modern desktop geospatial application built with Electron and React, featuring real-time data visualization and processing capabilities through gRPC communication.
 
-![Demo GIF](https://github.com/LuanRoger/electron-shadcn/blob/main/images/demo.gif)
+## Architecture Overview
 
-## Libs and tools
+This application combines a React-based Electron frontend with a Python gRPC backend for high-performance geospatial data processing and visualization.
 
-To develop a Electron app, you probably will need some UI, test, formatter, style or other kind of library or framework, so let me install and configure some of them to you.
-
-### Core 🏍️
-
-- [Electron 35](https://www.electronjs.org)
-- [Vite 6](https://vitejs.dev)
-- [SWC](https://swc.rs)
-
-### DX 🛠️
-
-- [TypeScript 5.8](https://www.typescriptlang.org)
-- [Prettier](https://prettier.io)
-- [ESLint 9](https://eslint.org)
-- [Zod](https://zod.dev)
-- [React Query (TanStack)](https://react-query.tanstack.com)
-
-### UI 🎨
-
-- [React 19](https://reactjs.org)
-- [Tailwind 4](https://tailwindcss.com)
-- [Shadcn UI](https://ui.shadcn.com)
-- [Geist](https://vercel.com/font) as default font
-- [i18next](https://www.i18next.com)
-- [TanStack Router](https://tanstack.com/router)
-- [Lucide](https://lucide.dev)
-
-### Test 🧪
-
-- [Vitest](https://vitest.dev)
-- [Playwright](https://playwright.dev)
-- [React Testing Library](https://testing-library.com/docs/react-testing-library/intro)
-
-### Packing and distribution 📦
-
-- [Electron Forge](https://www.electronforge.io)
-
-### CI/CD 🚀
-
-- Pre-configured [GitHub Actions workflow](https://github.com/LuanRoger/electron-shadcn/blob/main/.github/workflows/playwright.yml), for test with Playwright
-
-### Project preferences 🎯
-
-- Use Context isolation
-- [React Compiler](https://react.dev/learn/react-compiler) is enabled by default.
-- `titleBarStyle`: hidden (Using custom title bar)
-- Geist as default font
-- Some default styles was applied, check the [`styles`](https://github.com/LuanRoger/electron-shadcn/tree/main/src/styles) directory
-- React DevTools are installed by default
-
-> If you don't know some of these libraries or tools, I recommend you to check their documentation to understand how they work and how to use them.
-
-> [!WARNING]
-> Prefer to use the [`canary` release of `shadcn/ui`](https://ui.shadcn.com/docs/tailwind-v4) to avoid compatibility issues with React 19 and Tailwind v4.
-
-```bash
-npx shadcn@canary add button
+### Communication Flow
+```
+React Components (Renderer Process)
+          ↓ Secure IPC
+Main Process (gRPC Client)
+          ↓ gRPC Protocol
+Python gRPC Server (Backend)
 ```
 
-## Directory structure
+### Key Features
+- **Real-time geospatial data streaming** via gRPC
+- **Cross-platform desktop application** (Windows, macOS, Linux)
+- **Type-safe communication** using Protocol Buffers
+- **Secure architecture** with Electron context isolation
+- **Modern UI** with shadcn/ui components
+
+## Tech Stack
+
+### Frontend 🖥️
+- [Electron 36](https://www.electronjs.org) - Cross-platform desktop framework
+- [React 19](https://reactjs.org) - UI framework with React Compiler
+- [TypeScript 5.8](https://www.typescriptlang.org) - Type safety
+- [Tailwind CSS 4](https://tailwindcss.com) - Styling
+- [shadcn/ui](https://ui.shadcn.com) - Modern UI components
+- [TanStack Router](https://tanstack.com/router) - Client-side routing
+- [TanStack Query](https://tanstack.com/query) - Data fetching and caching
+
+### Backend 🚀
+- **Python gRPC Server** - High-performance backend
+- **Protocol Buffers** - Efficient serialization
+- **Real-time streaming** - Server-side streaming RPCs
+- **Health monitoring** - Built-in health checks
+
+### Development Tools 🛠️
+- [Vite 6](https://vitejs.dev) - Fast build tool
+- [Vitest](https://vitest.dev) - Unit testing
+- [Playwright](https://playwright.dev) - E2E testing
+- [ESLint 9](https://eslint.org) + [Prettier](https://prettier.io) - Code quality
+- [Electron Forge](https://www.electronforge.io) - Packaging and distribution
+
+### gRPC Services 📡
+- **GetFeatures** - Fetch geospatial features within bounds
+- **StreamData** - Real-time data point streaming
+- **HealthCheck** - Service health monitoring
+
+## Project Structure
 
 ```plaintext
-.
-└── ./src/
-    ├── ./src/assets/
-    │   └── ./src/assets/fonts/
-    ├── ./src/components/
-    │   ├── ./src/components/template
-    │   └── ./src/components/ui/
-    ├── ./src/helpers/
-    │   └── ./src/helpers/ipc/
-    ├── ./src/layout/
-    ├── ./src/lib/
-    ├── ./src/pages/
-    ├── ./src/style/
-    └── ./src/tests/
+├── src/                          # Frontend source code
+│   ├── components/               # React components
+│   │   ├── BackendStatus.tsx    # gRPC backend health monitoring
+│   │   ├── GrpcDemo.tsx         # gRPC API demonstration
+│   │   ├── template/            # App layout components
+│   │   └── ui/                  # shadcn/ui components
+│   ├── helpers/                 # Utility functions
+│   │   ├── ipc/                 # Electron IPC communication
+│   │   │   └── grpc/           # gRPC IPC handlers
+│   │   ├── backend_helpers.ts   # Backend process management
+│   │   └── grpc_client.ts      # Renderer gRPC client (IPC-based)
+│   ├── main/                    # Main process code
+│   │   └── grpc-client.ts      # Main process gRPC client (@grpc/grpc-js)
+│   └── generated/              # Auto-generated protobuf files
+├── backend/                     # Python gRPC server
+│   ├── grpc_server.py          # Main gRPC service implementation
+│   ├── build_server.py         # PyInstaller build script
+│   ├── generated/              # Auto-generated protobuf files
+│   └── requirements.txt        # Python dependencies
+├── geospatial.proto            # Protocol buffer definitions
+└── scripts/                    # Build and utility scripts
+    └── generate-protos.js      # Protobuf generation
 ```
 
-- `src/`: Main directory
-  - `assets/`: Store assets like images, fonts, etc.
-  - `components/`: Store UI components
-    - `template/`: Store the all not important components used by the template. It doesn't include the `WindowRegion` or the theme toggler, if you want to start an empty project, you can safely delete this directory.
-    - `ui/`: Store Shadcn UI components (this is the default direcotry used by Shadcn UI)
-  - `helpers/`: Store IPC related functions to be called in the renderer process
-    - `ipc/`: Directory to store IPC context and listener functions
-      - Some implementations are already done, like `theme` and `window` for the custom title bar
-  - `layout/`: Directory to store layout components
-  - `lib/`: Store libraries and other utilities
-  - `pages/`: Store app's pages
-  - `style/`: Store global styles
-  - `tests/`: Store tests (from Vitest and Playwright)
+### Key Components
+- **Frontend**: Secure IPC-based gRPC communication with type-safe Protocol Buffers
+- **Backend**: Pure Python gRPC server with real-time streaming capabilities
+- **Security**: Electron context isolation with IPC-mediated backend communication
+- **Development**: Hot-reload development with concurrent frontend/backend startup
 
-## NPM script
+## Development
 
-To run any of those scripts:
+### Quick Start
 
 ```bash
-npm run <script>
-```
-
-- `start`: Start the app in development mode
-- `package`: Package your application into a platform-specific executable bundle and put the result in a folder.
-- `make`: Generate platform-specific distributables (e.g. .exe, .dmg, etc) of your application for distribution.
-- `publish`: Electron Forge's way of taking the artifacts generated by the `make` command and sending them to a service somewhere for you to distribute or use as updates.
-- `lint`: Run ESLint to lint the code
-- `format`: Run Prettier to check the code (it doesn't change the code)
-- `format:write`: Run Prettier to format the code
-- `test`: Run the default unit-test script (Vitest)
-- `test:watch`: Run the default unit-test script in watch mode (Vitest)
-- `test:unit`: Run the Vitest tests
-- `test:e2e`: Run the Playwright tests
-- `test:all`: Run all tests (Vitest and Playwright)
-
-> The test scripts involving Playwright require the app be builded before running the tests. So, before run the tests, run the `package`, `make` or `publish` script.
-
-## How to use
-
-1. Clone this repository
-
-```bash
-git clone https://github.com/LuanRoger/electron-shadcn.git
-```
-
-Or use it as a template on GitHub
-
-2. Install dependencies
-
-```bash
+# Install dependencies
 npm install
+
+# Setup Python backend
+npm run setup:backend
+
+# Start development (recommended - starts both frontend and backend)
+npm run dev
 ```
 
-3. Run the app
+### Available Scripts
 
+#### Development
 ```bash
-npm run start
+npm run dev                  # Start both frontend and backend with proto generation
+npm start                   # Start frontend only
+npm run dev:backend         # Start gRPC backend only
 ```
 
-## Used by
+#### Protocol Buffers
+```bash
+npm run generate:protos     # Generate TypeScript and Python protobuf files
+```
 
-- [yaste](https://github.com/LuanRoger/yaste) - yaste (Yet another super ₛᵢₘₚₗₑ text editor) is a text editor, that can be used as an alternative to the native text editor of your SO, maybe.
-- [eletric-drizzle](https://github.com/LuanRoger/electric-drizzle) - shadcn-ui and Drizzle ORM with Electron.
-- [Wordle Game](https://github.com/masonyekta/wordle-game) - A Wordle game which features interactive gameplay, cross-platform compatibility, and integration with a custom Wordle API for word validation and letter correctness.
-- [Mehr 🌟](https://github.com/xmannii/MehrLocalChat) - A modern, elegant local AI chatbot application using Electron, React, shadcn/ui, and Ollama.
+#### Testing
+```bash
+npm run test               # Unit tests (Vitest)
+npm run test:e2e          # E2E tests (Playwright) - requires built app
+npm run test:all          # Run all tests
+```
 
-> Does you've used this template in your project? Add it here and open a PR.
+#### Building & Distribution
+```bash
+npm run build:backend     # Build Python executable with PyInstaller
+npm run build:full       # Build backend + package Electron app
+npm run package          # Package Electron app only
+npm run make             # Create platform distributables (.exe, .dmg, etc.)
+```
+
+#### Code Quality
+```bash
+npm run lint             # ESLint check
+npm run format          # Prettier check
+npm run format:write    # Format code with Prettier
+```
+
+### Development Workflow
+
+1. **Setup**: `npm install` → `npm run setup:backend`
+2. **Development**: `npm run dev` (starts everything)
+3. **Protocol Changes**: Update `geospatial.proto` → `npm run generate:protos`
+4. **Testing**: `npm run test:all` (E2E requires `npm run package` first)
+5. **Distribution**: `npm run build:full`
+
+## gRPC API
+
+The application provides three main gRPC services:
+
+### GetFeatures
+Fetch geospatial features within specified bounds
+```typescript
+const features = await window.electronGrpc.getFeatures(
+  {
+    northeast: { latitude: 40.7829, longitude: -73.9654 },
+    southwest: { latitude: 40.7489, longitude: -73.9904 }
+  },
+  ['poi', 'landmark'],
+  10
+);
+```
+
+### StreamData
+Real-time streaming of geospatial data points
+```typescript
+for await (const dataPoint of grpcClient.streamData(bounds, ['temperature'], 5)) {
+  console.log(`${dataPoint.unit}: ${dataPoint.value}`);
+}
+```
+
+### HealthCheck
+Monitor service health and status
+```typescript
+const health = await window.electronGrpc.healthCheck();
+console.log(`Service healthy: ${health.healthy}`);
+```
+
+## Requirements
+
+- **Node.js** 18+ 
+- **Python** 3.8+
+- **Protocol Buffers compiler** (`protoc`)
+
+## Security
+
+- **Context Isolation**: Enabled for secure renderer process
+- **IPC Communication**: All backend communication via secure IPC channels
+- **No Direct Network Access**: Renderer process cannot directly access gRPC server
+- **Process Separation**: Backend runs as separate managed process
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Update protocol buffers if needed: `npm run generate:protos`
+5. Run tests: `npm run test:all`
+6. Submit a pull request
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/LuanRoger/electron-shadcn/blob/main/LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.

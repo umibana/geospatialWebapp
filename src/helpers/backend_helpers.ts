@@ -1,16 +1,13 @@
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
-import fs from 'fs';
 
 interface BackendConfig {
-  port: number;
   process: ChildProcess | null;
   isRunning: boolean;
 }
 
 class BackendManager {
   private config: BackendConfig = {
-    port: 8000,
     process: null,
     isRunning: false,
   };
@@ -20,100 +17,41 @@ class BackendManager {
     
     if (isDev) {
       // In development, use Python directly
-      return path.join(process.cwd(), 'backend', 'server.py');
+      return path.join(process.cwd(), 'backend', 'grpc_server.py');
     } else {
       // In production, use the bundled executable
       const resourcesPath = process.resourcesPath;
-      return path.join(resourcesPath, 'django-server', 'django-server');
+      return path.join(resourcesPath, 'grpc-server', 'grpc-server');
     }
   }
 
-    private async waitForPortFile(timeout = 10000): Promise<number> {
-    const isDev = process.env.NODE_ENV === 'development';
+  private async waitForGrpcServer(timeout = 10000): Promise<void> {
+    const startTime = Date.now();
     
-    if (isDev) {
-      // In development, Django always uses port 8077
-      const expectedPort = 8077;
-      
-      // Wait for the server to actually start by trying to connect
-      const startTime = Date.now();
-      
-      return new Promise((resolve, reject) => {
-        const checkConnection = async () => {
-          if (Date.now() - startTime > timeout) {
-            reject(new Error(`Timeout waiting for Django server on port ${expectedPort}`));
-            return;
-          }
+    return new Promise((resolve, reject) => {
+      const checkConnection = () => {
+        if (Date.now() - startTime > timeout) {
+          reject(new Error(`Timeout waiting for gRPC server on port 50077`));
+          return;
+        }
 
-          try {
-            // Try to fetch from the health endpoint to verify server is running
-            const response = await fetch(`http://127.0.0.1:${expectedPort}/api/health/`);
-            if (response.ok) {
-              console.log(`✅ Django server ready on port ${expectedPort}`);
-              resolve(expectedPort);
-              return;
-            }
-          } catch (error) {
-            // Server not ready yet, continue checking
-          }
-          
-          setTimeout(checkConnection, 500);
-        };
-        checkConnection();
-      });
-    } else {
-      // In production, read from port file
-      let portFilePath: string;
-      const backendPath = this.getBackendPath();
-      portFilePath = path.join(path.dirname(backendPath), 'server_port.txt');
-      
-      console.log('Looking for port file at:', portFilePath);
-      const startTime = Date.now();
-
-      return new Promise((resolve, reject) => {
-        const checkFile = () => {
-          if (Date.now() - startTime > timeout) {
-            reject(new Error('Timeout waiting for server port file'));
-            return;
-          }
-
-          if (fs.existsSync(portFilePath)) {
-            try {
-              const port = parseInt(fs.readFileSync(portFilePath, 'utf8').trim());
-              if (!isNaN(port) && port > 0) {
-                resolve(port);
-                return;
-              }
-            } catch {
-              // File exists but not readable yet, continue checking
-            }
-          }
-          
-          // Check for error file
-          const errorFilePath = path.join(path.dirname(portFilePath), 'server_error.txt');
-          if (fs.existsSync(errorFilePath)) {
-            try {
-              const errorContent = fs.readFileSync(errorFilePath, 'utf8');
-              reject(new Error(`Django server failed: ${errorContent}`));
-              return;
-            } catch {
-              // Ignore error reading error file
-            }
-          }
-          
-          setTimeout(checkFile, 100);
-        };
-        checkFile();
-      });
-    }
+        // For now, just wait a reasonable amount of time for the server to start
+        // The main process will handle gRPC connection testing
+        if (Date.now() - startTime > 3000) { // 3 seconds
+          console.log(`✅ gRPC server should be ready on port 50077`);
+          resolve();
+          return;
+        }
+        
+        setTimeout(checkConnection, 500);
+      };
+      checkConnection();
+    });
   }
 
-  async startBackend(): Promise<{ port: number; url: string }> {
+  async startBackend(): Promise<void> {
     if (this.config.isRunning) {
-      return {
-        port: this.config.port,
-        url: `http://127.0.0.1:${this.config.port}`,
-      };
+      return;
     }
 
     try {
@@ -123,14 +61,14 @@ class BackendManager {
       const isDev = process.env.NODE_ENV === 'development';
       const backendPath = this.getBackendPath();
 
-      console.log('Starting Django backend...', { isDev, backendPath });
+      console.log('Starting gRPC backend...', { isDev, backendPath });
 
       // Ensure we're in the right directory
       const cwd = isDev ? path.join(process.cwd(), 'backend') : path.dirname(backendPath);
       
       if (isDev) {
-        // In development, run the combined server (Django + gRPC)
-        this.config.process = spawn('python', ['combined_server.py'], {
+        // In development, run the gRPC server directly
+        this.config.process = spawn('python', ['grpc_server.py'], {
           stdio: ['pipe', 'pipe', 'pipe'],
           cwd: cwd,
           env: { ...process.env, PYTHONUNBUFFERED: '1' },
@@ -148,47 +86,43 @@ class BackendManager {
       // Handle process events
       this.config.process.stdout?.on('data', (data) => {
         const output = data.toString();
-        console.log(`Django stdout: ${output}`);
+        console.log(`gRPC stdout: ${output}`);
       });
 
       this.config.process.stderr?.on('data', (data) => {
         const output = data.toString();
-        console.error(`Django stderr: ${output}`);
+        console.error(`gRPC stderr: ${output}`);
         errorOutput += output;
       });
 
       this.config.process.on('close', (code) => {
-        console.log(`Django process exited with code ${code}`);
+        console.log(`gRPC process exited with code ${code}`);
         if (errorOutput) {
-          console.error('Django process error output:', errorOutput);
+          console.error('gRPC process error output:', errorOutput);
         }
         this.config.isRunning = false;
         this.config.process = null;
       });
 
       this.config.process.on('error', (error) => {
-        console.error('Failed to start Django process:', error);
+        console.error('Failed to start gRPC process:', error);
         this.config.isRunning = false;
         this.config.process = null;
         throw error;
       });
 
-      // Wait for the server to start and get the port (with shorter timeout)
-      console.log('Waiting for Django server to start...');
-      this.config.port = await this.waitForPortFile(10000); // Reduce to 10 seconds
+      // Wait for the gRPC server to start
+      console.log('Waiting for gRPC server to start...');
+      await this.waitForGrpcServer(15000); // 15 seconds timeout
       
       // Give the server a moment to fully initialize
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Reduce to 1 second
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       this.config.isRunning = true;
-      console.log(`Django backend started successfully on port ${this.config.port}`);
+      console.log(`gRPC backend started successfully on port 50077`);
 
-      return {
-        port: this.config.port,
-        url: `http://127.0.0.1:${this.config.port}`,
-      };
     } catch (error) {
-      console.error('Error starting Django backend:', error);
+      console.error('Error starting gRPC backend:', error);
       this.config.isRunning = false;
       this.config.process = null;
       throw error;
@@ -197,7 +131,7 @@ class BackendManager {
 
   async stopBackend(): Promise<void> {
     if (this.config.process && this.config.isRunning) {
-      console.log('Stopping Django backend...');
+      console.log('Stopping gRPC backend...');
       this.config.process.kill('SIGTERM');
       
       // Wait a bit for graceful shutdown
@@ -214,32 +148,13 @@ class BackendManager {
   }
 
   async healthCheck(): Promise<boolean> {
-    if (!this.config.isRunning) {
-      return false;
-    }
-
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-      
-      const response = await fetch(`http://127.0.0.1:${this.config.port}/api/health/`, {
-        signal: controller.signal,
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
-      
-      clearTimeout(timeoutId);
-      return response.ok;
-    } catch (error) {
-      console.error('Backend health check failed:', error);
-      return false;
-    }
+    return this.config.isRunning;
   }
 
   getBackendUrl(): string | null {
+    // gRPC doesn't have a URL like REST API, but we can return the server address for reference
     if (this.config.isRunning) {
-      return `http://127.0.0.1:${this.config.port}`;
+      return 'grpc://127.0.0.1:50077';
     }
     return null;
   }
@@ -253,11 +168,11 @@ class BackendManager {
 export const backendManager = new BackendManager();
 
 // Convenience functions
-export async function startDjangoBackend() {
+export async function startGrpcBackend() {
   return await backendManager.startBackend();
 }
 
-export async function stopDjangoBackend() {
+export async function stopGrpcBackend() {
   return await backendManager.stopBackend();
 }
 
@@ -267,4 +182,4 @@ export async function getBackendUrl() {
 
 export async function isBackendHealthy() {
   return await backendManager.healthCheck();
-} 
+}

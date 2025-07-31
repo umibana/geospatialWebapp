@@ -34,14 +34,11 @@ export function GrpcDemo() {
     try {
       setLoading(true);
       
-      // Update to correct port
-      await grpcClient.updatePort();
-      
-      // Test connection
+      // Test connection via IPC
       const health = await grpcClient.healthCheck();
       setIsConnected(health.healthy);
       
-      console.log('✅ gRPC initialized:', health);
+      console.log('✅ gRPC initialized via IPC:', health);
     } catch (error) {
       console.error('❌ gRPC initialization failed:', error);
       setIsConnected(false);
