@@ -93,7 +93,7 @@
     "@tanstack/react-router": "^1.120.20",
     "@tanstack/router-devtools": "^1.117.1",
     "@vitejs/plugin-react": "^4.6.0",
-    "babel-plugin-react-compiler": "^19.0.0-beta-e993439-20250328",
+    "babel-plugin-react-compiler": "^19.0.0-beta-714736e-20250131",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "echarts": "^5.6.0",
