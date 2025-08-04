@@ -156,8 +156,12 @@ export function Prueba2D() {
             },
           }
         ],
-        animation: false,
-        silent: false
+        animation: true,
+        animationDuration: 0,
+        silent: false,
+        // Enable progressive rendering for large datasets
+        progressive: true,
+        progressiveThreshold: 3000
       };
 
       chartInstanceRef.current.setOption(option, true);

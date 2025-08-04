@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Rnd } from "react-rnd";
 import { cn } from "@/utils/tailwind";
 import { X, GripHorizontal } from "lucide-react";
@@ -38,6 +38,35 @@ export function DragWindow({
 }: DragWindowProps) {
   const [dynamicMaxSize, setDynamicMaxSize] = useState(maxSize);
 
+  // Memoize the effective max size calculation
+  const effectiveMaxSize = useMemo(() => 
+    useWindowMaxSize ? dynamicMaxSize : maxSize,
+    [useWindowMaxSize, dynamicMaxSize, maxSize]
+  );
+
+  // Memoize the window configuration to prevent unnecessary Rnd re-renders
+  const windowConfig = useMemo(() => ({
+    default: {
+      x: initialPosition.x,
+      y: initialPosition.y,
+      width: initialSize.width,
+      height: initialSize.height,
+    },
+    minWidth: minSize.width,
+    minHeight: minSize.height,
+    maxWidth: effectiveMaxSize.width,
+    maxHeight: effectiveMaxSize.height,
+  }), [initialPosition, initialSize, minSize, effectiveMaxSize]);
+
+  // Memoize event handlers to prevent re-renders
+  const handleMouseDown = useCallback(() => {
+    onFocus?.();
+  }, [onFocus]);
+
+  const handleClose = useCallback(() => {
+    onClose?.();
+  }, [onClose]);
+
   useEffect(() => {
     if (useWindowMaxSize) {
       const updateMaxSize = async () => {
@@ -69,25 +98,14 @@ export function DragWindow({
     }
   }, [useWindowMaxSize, maxSize]);
 
-  const effectiveMaxSize = useWindowMaxSize ? dynamicMaxSize : maxSize;
-
   return (
     <Rnd
-      default={{
-        x: initialPosition.x,
-        y: initialPosition.y,
-        width: initialSize.width,
-        height: initialSize.height,
-      }}
-      minWidth={minSize.width}
-      minHeight={minSize.height}
-      maxWidth={effectiveMaxSize.width}
-      maxHeight={effectiveMaxSize.height}
+      {...windowConfig}
       disableDragging={false}
       enableResizing={resizable}
       dragHandleClassName="drag-handle"
       bounds="parent"
-      onMouseDown={onFocus}
+      onMouseDown={handleMouseDown}
       className={cn(
         "bg-background border border-border rounded-lg shadow-lg overflow-hidden",
         "transition-shadow hover:shadow-xl",
@@ -109,7 +127,7 @@ export function DragWindow({
                 variant="ghost"
                 size="sm"
                 className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                onClick={onClose}
+                onClick={handleClose}
                 tabIndex={0}
                 aria-label="Close window"
               >

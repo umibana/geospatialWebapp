@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10geospatial.proto\x12\ngeospatial\"U\n\nCoordinate\x12\x10\n\x08latitude\x18\x01 \x01(\x01\x12\x11\n\tlongitude\x18\x02 \x01(\x01\x12\x15\n\x08\x61ltitude\x18\x03 \x01(\x01H\x00\x88\x01\x01\x42\x0b\n\t_altitude\"c\n\x0b\x42oundingBox\x12)\n\tnortheast\x18\x01 \x01(\x0b\x32\x16.geospatial.Coordinate\x12)\n\tsouthwest\x18\x02 \x01(\x0b\x32\x16.geospatial.Coordinate\"\xe0\x01\n\x11GeospatialFeature\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12(\n\x08location\x18\x03 \x01(\x0b\x32\x16.geospatial.Coordinate\x12\x41\n\nproperties\x18\x04 \x03(\x0b\x32-.geospatial.GeospatialFeature.PropertiesEntry\x12\x11\n\ttimestamp\x18\x05 \x01(\x03\x1a\x31\n\x0fPropertiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\xd9\x01\n\tDataPoint\x12\n\n\x02id\x18\x01 \x01(\t\x12(\n\x08location\x18\x02 \x01(\x0b\x32\x16.geospatial.Coordinate\x12\r\n\x05value\x18\x03 \x01(\x01\x12\x0c\n\x04unit\x18\x04 \x01(\t\x12\x11\n\ttimestamp\x18\x05 \x01(\x03\x12\x35\n\x08metadata\x18\x06 \x03(\x0b\x32#.geospatial.DataPoint.MetadataEntry\x1a/\n\rMetadataEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"c\n\x12GetFeaturesRequest\x12\'\n\x06\x62ounds\x18\x01 \x01(\x0b\x32\x17.geospatial.BoundingBox\x12\x15\n\rfeature_types\x18\x02 \x03(\t\x12\r\n\x05limit\x18\x03 \x01(\x05\"[\n\x13GetFeaturesResponse\x12/\n\x08\x66\x65\x61tures\x18\x01 \x03(\x0b\x32\x1d.geospatial.GeospatialFeature\x12\x13\n\x0btotal_count\x18\x02 \x01(\x05\"o\n\x11StreamDataRequest\x12\'\n\x06\x62ounds\x18\x01 \x01(\x0b\x32\x17.geospatial.BoundingBox\x12\x12\n\ndata_types\x18\x02 \x03(\t\x12\x1d\n\x15max_points_per_second\x18\x03 \x01(\x05\"\x14\n\x12HealthCheckRequest\"\xa3\x01\n\x13HealthCheckResponse\x12\x0f\n\x07healthy\x18\x01 \x01(\x08\x12\x0f\n\x07version\x18\x02 \x01(\t\x12;\n\x06status\x18\x03 \x03(\x0b\x32+.geospatial.HealthCheckResponse.StatusEntry\x1a-\n\x0bStatusEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x32\xf9\x01\n\x11GeospatialService\x12N\n\x0bGetFeatures\x12\x1e.geospatial.GetFeaturesRequest\x1a\x1f.geospatial.GetFeaturesResponse\x12\x44\n\nStreamData\x12\x1d.geospatial.StreamDataRequest\x1a\x15.geospatial.DataPoint0\x01\x12N\n\x0bHealthCheck\x12\x1e.geospatial.HealthCheckRequest\x1a\x1f.geospatial.HealthCheckResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10geospatial.proto\x12\ngeospatial\"U\n\nCoordinate\x12\x10\n\x08latitude\x18\x01 \x01(\x01\x12\x11\n\tlongitude\x18\x02 \x01(\x01\x12\x15\n\x08\x61ltitude\x18\x03 \x01(\x01H\x00\x88\x01\x01\x42\x0b\n\t_altitude\"c\n\x0b\x42oundingBox\x12)\n\tnortheast\x18\x01 \x01(\x0b\x32\x16.geospatial.Coordinate\x12)\n\tsouthwest\x18\x02 \x01(\x0b\x32\x16.geospatial.Coordinate\"\xe0\x01\n\x11GeospatialFeature\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12(\n\x08location\x18\x03 \x01(\x0b\x32\x16.geospatial.Coordinate\x12\x41\n\nproperties\x18\x04 \x03(\x0b\x32-.geospatial.GeospatialFeature.PropertiesEntry\x12\x11\n\ttimestamp\x18\x05 \x01(\x03\x1a\x31\n\x0fPropertiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\xd9\x01\n\tDataPoint\x12\n\n\x02id\x18\x01 \x01(\t\x12(\n\x08location\x18\x02 \x01(\x0b\x32\x16.geospatial.Coordinate\x12\r\n\x05value\x18\x03 \x01(\x01\x12\x0c\n\x04unit\x18\x04 \x01(\t\x12\x11\n\ttimestamp\x18\x05 \x01(\x03\x12\x35\n\x08metadata\x18\x06 \x03(\x0b\x32#.geospatial.DataPoint.MetadataEntry\x1a/\n\rMetadataEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"$\n\x11HelloWorldRequest\x12\x0f\n\x07message\x18\x01 \x01(\t\"%\n\x12HelloWorldResponse\x12\x0f\n\x07message\x18\x01 \x01(\t\"8\n\x14\x45\x63hoParameterRequest\x12\r\n\x05value\x18\x01 \x01(\x01\x12\x11\n\toperation\x18\x02 \x01(\t\"[\n\x15\x45\x63hoParameterResponse\x12\x16\n\x0eoriginal_value\x18\x01 \x01(\x01\x12\x17\n\x0fprocessed_value\x18\x02 \x01(\x01\x12\x11\n\toperation\x18\x03 \x01(\t\"c\n\x12GetFeaturesRequest\x12\'\n\x06\x62ounds\x18\x01 \x01(\x0b\x32\x17.geospatial.BoundingBox\x12\x15\n\rfeature_types\x18\x02 \x03(\t\x12\r\n\x05limit\x18\x03 \x01(\x05\"[\n\x13GetFeaturesResponse\x12/\n\x08\x66\x65\x61tures\x18\x01 \x03(\x0b\x32\x1d.geospatial.GeospatialFeature\x12\x13\n\x0btotal_count\x18\x02 \x01(\x05\"o\n\x11StreamDataRequest\x12\'\n\x06\x62ounds\x18\x01 \x01(\x0b\x32\x17.geospatial.BoundingBox\x12\x12\n\ndata_types\x18\x02 \x03(\t\x12\x1d\n\x15max_points_per_second\x18\x03 \x01(\x05\"z\n\x13GetBatchDataRequest\x12\'\n\x06\x62ounds\x18\x01 \x01(\x0b\x32\x17.geospatial.BoundingBox\x12\x12\n\ndata_types\x18\x02 \x03(\t\x12\x12\n\nmax_points\x18\x03 \x01(\x05\x12\x12\n\nresolution\x18\x04 \x01(\x05\"r\n\x14GetBatchDataResponse\x12*\n\x0b\x64\x61ta_points\x18\x01 \x03(\x0b\x32\x15.geospatial.DataPoint\x12\x13\n\x0btotal_count\x18\x02 \x01(\x05\x12\x19\n\x11generation_method\x18\x03 \x01(\t\"\xa2\x01\n\x12OptimizedDataPoint\x12\n\n\x02id\x18\x01 \x01(\t\x12\x10\n\x08latitude\x18\x02 \x01(\x02\x12\x11\n\tlongitude\x18\x03 \x01(\x02\x12\x10\n\x08\x61ltitude\x18\x04 \x01(\x02\x12\r\n\x05value\x18\x05 \x01(\x02\x12\x0c\n\x04unit\x18\x06 \x01(\t\x12\x11\n\ttimestamp\x18\x07 \x01(\x03\x12\x19\n\x11generation_method\x18\x08 \x01(\t\"\x84\x01\n\x1dGetBatchDataOptimizedResponse\x12\x33\n\x0b\x64\x61ta_points\x18\x01 \x03(\x0b\x32\x1e.geospatial.OptimizedDataPoint\x12\x13\n\x0btotal_count\x18\x02 \x01(\x05\x12\x19\n\x11generation_method\x18\x03 \x01(\t\"\xb7\x01\n\x11GetBatchDataChunk\x12*\n\x0b\x64\x61ta_points\x18\x01 \x03(\x0b\x32\x15.geospatial.DataPoint\x12\x14\n\x0c\x63hunk_number\x18\x02 \x01(\x05\x12\x14\n\x0ctotal_chunks\x18\x03 \x01(\x05\x12\x17\n\x0fpoints_in_chunk\x18\x04 \x01(\x05\x12\x16\n\x0eis_final_chunk\x18\x05 \x01(\x08\x12\x19\n\x11generation_method\x18\x06 \x01(\t\"\x14\n\x12HealthCheckRequest\"\xa3\x01\n\x13HealthCheckResponse\x12\x0f\n\x07healthy\x18\x01 \x01(\x08\x12\x0f\n\x07version\x18\x02 \x01(\t\x12;\n\x06status\x18\x03 \x03(\x0b\x32+.geospatial.HealthCheckResponse.StatusEntry\x1a-\n\x0bStatusEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x32\xb0\x03\n\x11GeospatialService\x12K\n\nHelloWorld\x12\x1d.geospatial.HelloWorldRequest\x1a\x1e.geospatial.HelloWorldResponse\x12T\n\rEchoParameter\x12 .geospatial.EchoParameterRequest\x1a!.geospatial.EchoParameterResponse\x12N\n\x0bGetFeatures\x12\x1e.geospatial.GetFeaturesRequest\x1a\x1f.geospatial.GetFeaturesResponse\x12X\n\x14GetBatchDataStreamed\x12\x1f.geospatial.GetBatchDataRequest\x1a\x1d.geospatial.GetBatchDataChunk0\x01\x12N\n\x0bHealthCheck\x12\x1e.geospatial.HealthCheckRequest\x1a\x1f.geospatial.HealthCheckResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -49,18 +49,36 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_DATAPOINT']._serialized_end=665
   _globals['_DATAPOINT_METADATAENTRY']._serialized_start=618
   _globals['_DATAPOINT_METADATAENTRY']._serialized_end=665
-  _globals['_GETFEATURESREQUEST']._serialized_start=667
-  _globals['_GETFEATURESREQUEST']._serialized_end=766
-  _globals['_GETFEATURESRESPONSE']._serialized_start=768
-  _globals['_GETFEATURESRESPONSE']._serialized_end=859
-  _globals['_STREAMDATAREQUEST']._serialized_start=861
-  _globals['_STREAMDATAREQUEST']._serialized_end=972
-  _globals['_HEALTHCHECKREQUEST']._serialized_start=974
-  _globals['_HEALTHCHECKREQUEST']._serialized_end=994
-  _globals['_HEALTHCHECKRESPONSE']._serialized_start=997
-  _globals['_HEALTHCHECKRESPONSE']._serialized_end=1160
-  _globals['_HEALTHCHECKRESPONSE_STATUSENTRY']._serialized_start=1115
-  _globals['_HEALTHCHECKRESPONSE_STATUSENTRY']._serialized_end=1160
-  _globals['_GEOSPATIALSERVICE']._serialized_start=1163
-  _globals['_GEOSPATIALSERVICE']._serialized_end=1412
+  _globals['_HELLOWORLDREQUEST']._serialized_start=667
+  _globals['_HELLOWORLDREQUEST']._serialized_end=703
+  _globals['_HELLOWORLDRESPONSE']._serialized_start=705
+  _globals['_HELLOWORLDRESPONSE']._serialized_end=742
+  _globals['_ECHOPARAMETERREQUEST']._serialized_start=744
+  _globals['_ECHOPARAMETERREQUEST']._serialized_end=800
+  _globals['_ECHOPARAMETERRESPONSE']._serialized_start=802
+  _globals['_ECHOPARAMETERRESPONSE']._serialized_end=893
+  _globals['_GETFEATURESREQUEST']._serialized_start=895
+  _globals['_GETFEATURESREQUEST']._serialized_end=994
+  _globals['_GETFEATURESRESPONSE']._serialized_start=996
+  _globals['_GETFEATURESRESPONSE']._serialized_end=1087
+  _globals['_STREAMDATAREQUEST']._serialized_start=1089
+  _globals['_STREAMDATAREQUEST']._serialized_end=1200
+  _globals['_GETBATCHDATAREQUEST']._serialized_start=1202
+  _globals['_GETBATCHDATAREQUEST']._serialized_end=1324
+  _globals['_GETBATCHDATARESPONSE']._serialized_start=1326
+  _globals['_GETBATCHDATARESPONSE']._serialized_end=1440
+  _globals['_OPTIMIZEDDATAPOINT']._serialized_start=1443
+  _globals['_OPTIMIZEDDATAPOINT']._serialized_end=1605
+  _globals['_GETBATCHDATAOPTIMIZEDRESPONSE']._serialized_start=1608
+  _globals['_GETBATCHDATAOPTIMIZEDRESPONSE']._serialized_end=1740
+  _globals['_GETBATCHDATACHUNK']._serialized_start=1743
+  _globals['_GETBATCHDATACHUNK']._serialized_end=1926
+  _globals['_HEALTHCHECKREQUEST']._serialized_start=1928
+  _globals['_HEALTHCHECKREQUEST']._serialized_end=1948
+  _globals['_HEALTHCHECKRESPONSE']._serialized_start=1951
+  _globals['_HEALTHCHECKRESPONSE']._serialized_end=2114
+  _globals['_HEALTHCHECKRESPONSE_STATUSENTRY']._serialized_start=2069
+  _globals['_HEALTHCHECKRESPONSE_STATUSENTRY']._serialized_end=2114
+  _globals['_GEOSPATIALSERVICE']._serialized_start=2117
+  _globals['_GEOSPATIALSERVICE']._serialized_end=2549
 # @@protoc_insertion_point(module_scope)

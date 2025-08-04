@@ -34,6 +34,27 @@ message DataPoint {
 
 // Request/Response messages for the service
 
+// Simple Hello World example
+message HelloWorldRequest {
+  string message = 1;
+}
+
+message HelloWorldResponse {
+  string message = 1;
+}
+
+// Echo Parameter example
+message EchoParameterRequest {
+  double value = 1;
+  string operation = 2;
+}
+
+message EchoParameterResponse {
+  double original_value = 1;
+  double processed_value = 2;
+  string operation = 3;
+}
+
 message GetFeaturesRequest {
   BoundingBox bounds = 1;
   repeated string feature_types = 2;
@@ -51,6 +72,47 @@ message StreamDataRequest {
   int32 max_points_per_second = 3;
 }
 
+message GetBatchDataRequest {
+  BoundingBox bounds = 1;
+  repeated string data_types = 2;
+  int32 max_points = 3;
+  int32 resolution = 4; // Grid resolution for generated data
+}
+
+message GetBatchDataResponse {
+  repeated DataPoint data_points = 1;
+  int32 total_count = 2;
+  string generation_method = 3;
+}
+
+// Optimized data format messages
+message OptimizedDataPoint {
+  string id = 1;
+  float latitude = 2;    // float32 instead of double
+  float longitude = 3;   // float32 instead of double
+  float altitude = 4;    // float32 instead of double
+  float value = 5;       // float32 instead of double
+  string unit = 6;
+  int64 timestamp = 7;
+  string generation_method = 8; // Flattened metadata
+}
+
+message GetBatchDataOptimizedResponse {
+  repeated OptimizedDataPoint data_points = 1;
+  int32 total_count = 2;
+  string generation_method = 3;
+}
+
+// Chunked streaming messages  
+message GetBatchDataChunk {
+  repeated DataPoint data_points = 1;
+  int32 chunk_number = 2;
+  int32 total_chunks = 3;
+  int32 points_in_chunk = 4;
+  bool is_final_chunk = 5;
+  string generation_method = 6;
+}
+
 message HealthCheckRequest {}
 
 message HealthCheckResponse {
@@ -61,11 +123,15 @@ message HealthCheckResponse {
 
 // gRPC service definition
 service GeospatialService {
+  // Simple examples for testing and learning
+  rpc HelloWorld(HelloWorldRequest) returns (HelloWorldResponse);
+  rpc EchoParameter(EchoParameterRequest) returns (EchoParameterResponse);
+  
   // Unary RPC for fetching features
   rpc GetFeatures(GetFeaturesRequest) returns (GetFeaturesResponse);
   
-  // Server streaming RPC for real-time data
-  rpc StreamData(StreamDataRequest) returns (stream DataPoint);
+  // ✅ RECOMMENDED: Lightweight streaming for large datasets (UI-friendly)
+  rpc GetBatchDataStreamed(GetBatchDataRequest) returns (stream GetBatchDataChunk);
   
   // Health check
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);

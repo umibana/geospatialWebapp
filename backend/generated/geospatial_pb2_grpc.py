@@ -35,15 +35,25 @@ class GeospatialServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
+        self.HelloWorld = channel.unary_unary(
+                '/geospatial.GeospatialService/HelloWorld',
+                request_serializer=geospatial__pb2.HelloWorldRequest.SerializeToString,
+                response_deserializer=geospatial__pb2.HelloWorldResponse.FromString,
+                _registered_method=True)
+        self.EchoParameter = channel.unary_unary(
+                '/geospatial.GeospatialService/EchoParameter',
+                request_serializer=geospatial__pb2.EchoParameterRequest.SerializeToString,
+                response_deserializer=geospatial__pb2.EchoParameterResponse.FromString,
+                _registered_method=True)
         self.GetFeatures = channel.unary_unary(
                 '/geospatial.GeospatialService/GetFeatures',
                 request_serializer=geospatial__pb2.GetFeaturesRequest.SerializeToString,
                 response_deserializer=geospatial__pb2.GetFeaturesResponse.FromString,
                 _registered_method=True)
-        self.StreamData = channel.unary_stream(
-                '/geospatial.GeospatialService/StreamData',
-                request_serializer=geospatial__pb2.StreamDataRequest.SerializeToString,
-                response_deserializer=geospatial__pb2.DataPoint.FromString,
+        self.GetBatchDataStreamed = channel.unary_stream(
+                '/geospatial.GeospatialService/GetBatchDataStreamed',
+                request_serializer=geospatial__pb2.GetBatchDataRequest.SerializeToString,
+                response_deserializer=geospatial__pb2.GetBatchDataChunk.FromString,
                 _registered_method=True)
         self.HealthCheck = channel.unary_unary(
                 '/geospatial.GeospatialService/HealthCheck',
@@ -56,6 +66,19 @@ class GeospatialServiceServicer(object):
     """gRPC service definition
     """
 
+    def HelloWorld(self, request, context):
+        """Simple examples for testing and learning
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def EchoParameter(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def GetFeatures(self, request, context):
         """Unary RPC for fetching features
         """
@@ -63,8 +86,8 @@ class GeospatialServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def StreamData(self, request, context):
-        """Server streaming RPC for real-time data
+    def GetBatchDataStreamed(self, request, context):
+        """✅ RECOMMENDED: Lightweight streaming for large datasets (UI-friendly)
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -80,15 +103,25 @@ class GeospatialServiceServicer(object):
 
 def add_GeospatialServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
+            'HelloWorld': grpc.unary_unary_rpc_method_handler(
+                    servicer.HelloWorld,
+                    request_deserializer=geospatial__pb2.HelloWorldRequest.FromString,
+                    response_serializer=geospatial__pb2.HelloWorldResponse.SerializeToString,
+            ),
+            'EchoParameter': grpc.unary_unary_rpc_method_handler(
+                    servicer.EchoParameter,
+                    request_deserializer=geospatial__pb2.EchoParameterRequest.FromString,
+                    response_serializer=geospatial__pb2.EchoParameterResponse.SerializeToString,
+            ),
             'GetFeatures': grpc.unary_unary_rpc_method_handler(
                     servicer.GetFeatures,
                     request_deserializer=geospatial__pb2.GetFeaturesRequest.FromString,
                     response_serializer=geospatial__pb2.GetFeaturesResponse.SerializeToString,
             ),
-            'StreamData': grpc.unary_stream_rpc_method_handler(
-                    servicer.StreamData,
-                    request_deserializer=geospatial__pb2.StreamDataRequest.FromString,
-                    response_serializer=geospatial__pb2.DataPoint.SerializeToString,
+            'GetBatchDataStreamed': grpc.unary_stream_rpc_method_handler(
+                    servicer.GetBatchDataStreamed,
+                    request_deserializer=geospatial__pb2.GetBatchDataRequest.FromString,
+                    response_serializer=geospatial__pb2.GetBatchDataChunk.SerializeToString,
             ),
             'HealthCheck': grpc.unary_unary_rpc_method_handler(
                     servicer.HealthCheck,
@@ -106,6 +139,60 @@ def add_GeospatialServiceServicer_to_server(servicer, server):
 class GeospatialService(object):
     """gRPC service definition
     """
+
+    @staticmethod
+    def HelloWorld(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/geospatial.GeospatialService/HelloWorld',
+            geospatial__pb2.HelloWorldRequest.SerializeToString,
+            geospatial__pb2.HelloWorldResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def EchoParameter(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/geospatial.GeospatialService/EchoParameter',
+            geospatial__pb2.EchoParameterRequest.SerializeToString,
+            geospatial__pb2.EchoParameterResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
 
     @staticmethod
     def GetFeatures(request,
@@ -135,7 +222,7 @@ class GeospatialService(object):
             _registered_method=True)
 
     @staticmethod
-    def StreamData(request,
+    def GetBatchDataStreamed(request,
             target,
             options=(),
             channel_credentials=None,
@@ -148,9 +235,9 @@ class GeospatialService(object):
         return grpc.experimental.unary_stream(
             request,
             target,
-            '/geospatial.GeospatialService/StreamData',
-            geospatial__pb2.StreamDataRequest.SerializeToString,
-            geospatial__pb2.DataPoint.FromString,
+            '/geospatial.GeospatialService/GetBatchDataStreamed',
+            geospatial__pb2.GetBatchDataRequest.SerializeToString,
+            geospatial__pb2.GetBatchDataChunk.FromString,
             options,
             channel_credentials,
             insecure,
