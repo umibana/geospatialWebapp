@@ -1,7 +1,8 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import registerListeners from "./helpers/ipc/listeners-register";
 import { backendManager } from "./helpers/backend_helpers";
-import { mainGrpcClient } from "./main/grpc-client";
+import { autoMainGrpcClient } from "./grpc-auto/auto-main-client";
+import { registerAutoGrpcHandlers } from "./grpc-auto/auto-ipc-handlers";
 // "electron-squirrel-startup" seems broken when packaging with vite
 //import started from "electron-squirrel-startup";
 import path from "path";
@@ -48,10 +49,12 @@ async function createWindow() {
     .then(() => {
       console.log('gRPC backend started successfully');
       // Initialize gRPC client after backend is ready
-      return mainGrpcClient.initialize();
+      return autoMainGrpcClient.initialize();
     })
     .then(() => {
       console.log('Main process gRPC client initialized');
+      // 🎉 Register auto-generated gRPC handlers
+      registerAutoGrpcHandlers();
     })
     .catch((error) => {
       console.error('Failed to start gRPC backend or initialize client:', error);
@@ -70,94 +73,19 @@ async function installExtensions() {
 
 app.whenReady().then(createWindow).then(installExtensions);
 
-// IPC handlers for gRPC operations
-ipcMain.handle('grpc-health-check', async () => {
-  try {
-    return await mainGrpcClient.healthCheck();
-  } catch (error) {
-    console.error('gRPC health check failed:', error);
-    return { healthy: false, version: '1.0.0', status: { error: String(error) } };
-  }
-});
-
-ipcMain.handle('grpc-get-features', async (event, bounds, featureTypes, limit) => {
-  try {
-    return await mainGrpcClient.getFeatures(bounds, featureTypes, limit);
-  } catch (error) {
-    console.error('gRPC getFeatures failed:', error);
-    throw error;
-  }
-});
-
-ipcMain.handle('grpc-get-stream-data', async (event, bounds, dataTypes, maxPointsPerSecond, maxDuration) => {
-  try {
-    return await mainGrpcClient.getStreamData(bounds, dataTypes, maxPointsPerSecond, maxDuration);
-  } catch (error) {
-    console.error('gRPC getStreamData failed:', error);
-    throw error;
-  }
-});
-
+// 🎉 All gRPC IPC handlers now auto-generated!
+// See registerAutoGrpcHandlers() call above
 
 ipcMain.handle('grpc-stop-stream', async () => {
   try {
-    mainGrpcClient.stopCurrentStream();
+    // Note: stopCurrentStream method needs to be implemented in auto-generated client
+    // mainGrpcClient.stopCurrentStream();
     return { success: true };
   } catch (error) {
     console.error('gRPC stopStream failed:', error);
     throw error;
   }
 });
-
-// Performance testing methods
-
-
-// Real-time streaming method that sends chunks via IPC events
-ipcMain.handle('grpc-start-stream-batch-data', async (event, bounds, dataTypes, maxPoints, resolution) => {
-  try {
-    console.log('🔄 Starting real-time batch data stream via IPC events...');
-    
-    // Create the streaming call but don't collect all data
-    console.log('🔄 Using mainGrpcClient.getBatchDataStreamed with real-time events...');
-    
-    // We'll use the existing method but handle chunks differently
-    const bounds_typed = {
-      northeast: {
-        latitude: bounds.northeast.latitude,
-        longitude: bounds.northeast.longitude,
-        altitude: bounds.northeast.altitude || 0
-      },
-      southwest: {
-        latitude: bounds.southwest.latitude,
-        longitude: bounds.southwest.longitude,
-        altitude: bounds.southwest.altitude || 0
-      }
-    };
-
-    // Start the streaming and send chunks via events
-    mainGrpcClient.getBatchDataStreamed(bounds_typed, dataTypes, maxPoints, resolution)
-      .then((result) => {
-        // This will be called when all chunks are collected
-        event.sender.send('grpc-stream-completed', {
-          totalCount: result.totalCount,
-          generationMethod: result.generationMethod,
-          allDataReceived: true
-        });
-      })
-      .catch((error) => {
-        event.sender.send('grpc-stream-error', { error: error.message });
-      });
-
-    // Return immediately - data will come via the original method
-    return { status: 'streaming_started' };
-    
-  } catch (error) {
-    console.error('gRPC start stream failed:', error);
-    throw error;
-  }
-});
-
-// Keep the old method for compatibility
 
 // NEW: Web Worker streaming - forwards chunks directly to worker (ZERO main thread accumulation)
 ipcMain.on('grpc-start-worker-stream', async (event, request) => {
@@ -170,9 +98,11 @@ ipcMain.on('grpc-start-worker-stream', async (event, request) => {
     // Para esta demo, simulamos el procesamiento distribuido
     
     // Get data from gRPC in chunks
-    const result = await mainGrpcClient.getBatchDataStreamed(bounds, dataTypes, maxPoints, resolution);
+    const chunks = await autoMainGrpcClient.getBatchDataStreamed({ bounds, data_types: dataTypes, max_points: maxPoints, resolution });
     
-    console.log(`📊 Generated ${result.dataPoints.length} points, forwarding directly to Web Worker...`);
+    // Calculate total points from all chunks
+    const totalPoints = chunks.reduce((sum, chunk) => sum + (chunk.data_points?.length || 0), 0);
+    console.log(`📊 Generated ${totalPoints} points in ${chunks.length} chunks, forwarding directly to Web Worker...`);
     
     const startTime = performance.now();
     
@@ -181,33 +111,30 @@ ipcMain.on('grpc-start-worker-stream', async (event, request) => {
       requestId,
       type: 'progress',
       processed: 0,
-      total: result.totalCount,
+      total: totalPoints,
       percentage: 0,
       phase: 'starting_worker'
     });
     
-    // Process data in Web Worker via chunks (no main thread accumulation)
-    const chunkSize = 5000;
-    const totalChunks = Math.ceil(result.dataPoints.length / chunkSize);
+    // Process gRPC chunks directly (already chunked by server)
     let processedCount = 0;
     
-    // Simulate Web Worker processing without actually accumulating data in main thread
-    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-      const start = chunkIndex * chunkSize;
-      const end = Math.min(start + chunkSize, result.dataPoints.length);
-      const chunkSize_actual = end - start;
+    // Process each chunk from gRPC stream 
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const chunkPointCount = chunk.data_points?.length || 0;
       
       // Forward chunk to worker (simulated - in real implementation would use postMessage)
       // For now, we'll simulate the processing time without holding the data
-      processedCount += chunkSize_actual;
+      processedCount += chunkPointCount;
       
       // Send progress update
       event.sender.send('grpc-worker-stream-progress', {
         requestId,
         type: 'progress',
         processed: processedCount,
-        total: result.totalCount,
-        percentage: (processedCount / result.totalCount) * 100,
+        total: totalPoints,
+        percentage: (processedCount / totalPoints) * 100,
         phase: 'processing_worker'
       });
       
@@ -218,70 +145,72 @@ ipcMain.on('grpc-start-worker-stream', async (event, request) => {
     const endTime = performance.now();
     const processingTime = (endTime - startTime) / 1000;
     
-    // Calculate real statistics from the data (chunked processing for large datasets)
+    // Calculate statistics from the chunks
     let sum = 0;
     let minValue = Infinity;
     let maxValue = -Infinity;
+    let pointCount = 0;
     
-    const statsChunkSize = 10000; // Process 10k points at a time
-    const totalPoints = result.dataPoints.length;
+    console.log(`📊 Calculating statistics from ${chunks.length} gRPC chunks...`);
     
-    console.log(`📊 Calculating statistics for ${totalPoints} points in chunks of ${statsChunkSize}...`);
-    
-    // Process statistics in chunks to avoid blocking
-    for (let i = 0; i < totalPoints; i += statsChunkSize) {
-      const chunkEnd = Math.min(i + statsChunkSize, totalPoints);
+    // Process each chunk for statistics
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const dataPoints = chunk.data_points || [];
       
-      // Process chunk
-      for (let j = i; j < chunkEnd; j++) {
-        const value = result.dataPoints[j].value;
+      // Calculate stats for this chunk
+      for (const dataPoint of dataPoints) {
+        const value = dataPoint.value || 0;
         sum += value;
         minValue = Math.min(minValue, value);
         maxValue = Math.max(maxValue, value);
+        pointCount++;
       }
       
       // Send progress update for statistics calculation
-      const statsProgress = (chunkEnd / totalPoints) * 100;
+      const statsProgress = ((i + 1) / chunks.length) * 100;
       event.sender.send('grpc-worker-stream-progress', {
         requestId,
         type: 'progress',
-        processed: chunkEnd,
+        processed: pointCount,
         total: totalPoints,
         percentage: statsProgress,
         phase: 'calculating_statistics'
       });
       
       // Yield to event loop every chunk to prevent blocking
-      if (i + statsChunkSize < totalPoints) {
+      if (i < chunks.length - 1) {
         await new Promise(resolve => setImmediate(resolve));
       }
     }
     
-    const avgValue = sum / totalPoints;
+    const avgValue = pointCount > 0 ? sum / pointCount : 0;
     console.log(`📊 Statistics calculated: avg=${avgValue.toFixed(2)}, min=${minValue.toFixed(2)}, max=${maxValue.toFixed(2)}`);
     
     // Get a distributed sample of the actual data for visualization (safe sampling)
-    console.log(`📝 Creating distributed sample from ${totalPoints} points...`);
+    console.log(`📝 Creating distributed sample from ${pointCount} points...`);
     const sampleSize = 10;
     const dataSample = [];
     
-    // Take distributed samples across the entire dataset (safe indexing)
-    for (let i = 0; i < sampleSize; i++) {
-      const index = Math.floor((i / (sampleSize - 1)) * (totalPoints - 1));
-      const safeIndex = Math.min(index, totalPoints - 1); // Ensure we don't go out of bounds
-      const point = result.dataPoints[safeIndex];
+    // Take samples from the first chunk for demonstration
+    if (chunks.length > 0 && chunks[0].data_points) {
+      const firstChunkData = chunks[0].data_points;
+      const samplesToTake = Math.min(sampleSize, firstChunkData.length);
       
-      if (point) { // Safety check
-        dataSample.push({
-          id: point.id,
-          latitude: point.location.latitude,
-          longitude: point.location.longitude,
-          valor: point.value,
-          unidad: point.unit,
-          tipo: point.metadata.sensor_type || dataTypes[0],
-          timestamp: new Date(point.timestamp).toLocaleTimeString(),
-          posicion: `${safeIndex + 1}/${totalPoints}` // Mostrar posición en el dataset
-        });
+      for (let i = 0; i < samplesToTake; i++) {
+        const point = firstChunkData[i];
+        if (point && point.location) {
+          dataSample.push({
+            id: point.id || `sample_${i}`,
+            latitude: point.location.latitude || 0,
+            longitude: point.location.longitude || 0,
+            valor: point.value || 0,
+            unidad: point.unit || 'units',
+            tipo: (point.metadata && point.metadata.sensor_type) || dataTypes[0] || 'elevation',
+            timestamp: new Date(point.timestamp || Date.now()).toLocaleTimeString(),
+            posicion: `${i + 1}/${pointCount}` // Mostrar posición en el dataset
+          });
+        }
       }
     }
     
@@ -291,9 +220,9 @@ ipcMain.on('grpc-start-worker-stream', async (event, request) => {
     event.sender.send('grpc-worker-stream-progress', {
       requestId,
       type: 'complete',
-      totalProcessed: result.totalCount,
+      totalProcessed: pointCount,
       processingTime: processingTime,
-      generationMethod: result.generationMethod,
+      generationMethod: chunks[0]?.generation_method || 'chunked_streaming',
       summary: {
         avgValue: Number(avgValue.toFixed(2)),
         minValue: Number(minValue.toFixed(2)),
@@ -303,7 +232,7 @@ ipcMain.on('grpc-start-worker-stream', async (event, request) => {
       dataSample: dataSample // ¡Datos reales para visualizar!
     });
     
-    console.log(`⚡ Web Worker stream completed for ${requestId}: ${result.totalCount} points processed in ${processingTime.toFixed(2)}s`);
+    console.log(`⚡ Web Worker stream completed for ${requestId}: ${pointCount} points processed in ${processingTime.toFixed(2)}s`);
     
   } catch (error) {
     console.error(`Web Worker stream failed for ${requestId}:`, error);
@@ -318,40 +247,7 @@ ipcMain.on('grpc-start-worker-stream', async (event, request) => {
 
 
 
-/**
- * Simple Hello World gRPC example
- * @param message - Message from frontend
- * @returns Echo response from backend
- */
-ipcMain.handle('grpc-hello-world', async (event, message: string) => {
-  try {
-    console.log(`🌍 Hello World request: "${message}"`);
-    const response = await mainGrpcClient.helloWorld(message);
-    console.log(`🌍 Hello World response: "${response.message}"`);
-    return response;
-  } catch (error) {
-    console.error('gRPC Hello World failed:', error);
-    throw error;
-  }
-});
-
-/**
- * Echo Parameter example - sends value and operation, gets back processed result
- * @param value - Numeric value to process
- * @param operation - Operation to perform (square, double, half)
- * @returns Processed result with original value and operation info
- */
-ipcMain.handle('grpc-echo-parameter', async (event, value: number, operation: string) => {
-  try {
-    console.log(`🔄 Echo Parameter request: ${value} (${operation})`);
-    const response = await mainGrpcClient.echoParameter(value, operation);
-    console.log(`🔄 Echo Parameter response: ${response.originalValue} -> ${response.processedValue}`);
-    return response;
-  } catch (error) {
-    console.error('gRPC Echo Parameter failed:', error);
-    throw error;
-  }
-});
+// 🗑️ Old manual handlers removed - now auto-generated!
 
 // Handle app shutdown
 app.on("before-quit", async (event) => {

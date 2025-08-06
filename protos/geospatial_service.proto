@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package geospatial;
+
+import "common.proto";
+
+// Geospatial-specific methods and data structures
+
+message GetFeaturesRequest {
+  BoundingBox bounds = 1;
+  repeated string feature_types = 2;
+  int32 limit = 3;
+}
+
+message GetFeaturesResponse {
+  repeated GeospatialFeature features = 1;
+  int32 total_count = 2;
+}
+
+message StreamDataRequest {
+  BoundingBox bounds = 1;
+  repeated string data_types = 2;
+  int32 max_points_per_second = 3;
+}
+
+message GetBatchDataRequest {
+  BoundingBox bounds = 1;
+  repeated string data_types = 2;
+  int32 max_points = 3;
+  int32 resolution = 4; // Grid resolution for generated data
+}
+
+message GetBatchDataResponse {
+  repeated DataPoint data_points = 1;
+  int32 total_count = 2;
+  string generation_method = 3;
+}
+
+message GetBatchDataOptimizedResponse {
+  repeated OptimizedDataPoint data_points = 1;
+  int32 total_count = 2;
+  string generation_method = 3;
+}

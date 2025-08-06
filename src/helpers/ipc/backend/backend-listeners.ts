@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron';
 import { BACKEND_CHANNELS } from './backend-channels';
 import { backendManager } from '../../backend_helpers';
-import { mainGrpcClient } from '../../../main/grpc-client';
+import { autoMainGrpcClient } from '../../../grpc-auto/auto-main-client';
 
 export function registerBackendListeners() {
   ipcMain.handle(BACKEND_CHANNELS.GET_BACKEND_URL, () => {
@@ -15,7 +15,7 @@ export function registerBackendListeners() {
     }
     
     try {
-      return await mainGrpcClient.healthCheck();
+      return await autoMainGrpcClient.healthCheck();
     } catch (error) {
       return { healthy: false, status: 'gRPC connection failed' };
     }
@@ -25,7 +25,7 @@ export function registerBackendListeners() {
     await backendManager.stopBackend();
     await backendManager.startBackend();
     // Re-initialize gRPC client after restart
-    await mainGrpcClient.initialize();
+    await autoMainGrpcClient.initialize();
     return { success: true };
   });
 } 

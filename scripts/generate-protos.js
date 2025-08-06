@@ -8,7 +8,8 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const PROTO_FILE = 'geospatial.proto';
+const PROTO_DIR = 'protos';
+const MAIN_PROTO_FILE = 'protos/main_service.proto';
 const FRONTEND_OUT_DIR = 'src/generated';
 const BACKEND_OUT_DIR = 'backend/generated';
 
@@ -43,9 +44,13 @@ function ensureDirectory(dir) {
   }
 }
 
-function checkProtoFile() {
-  if (!fs.existsSync(PROTO_FILE)) {
-    error(`Protocol buffer file '${PROTO_FILE}' not found!`);
+function checkProtoFiles() {
+  if (!fs.existsSync(PROTO_DIR)) {
+    error(`Protocol buffer directory '${PROTO_DIR}' not found!`);
+    process.exit(1);
+  }
+  if (!fs.existsSync(MAIN_PROTO_FILE)) {
+    error(`Main protocol buffer file '${MAIN_PROTO_FILE}' not found!`);
     process.exit(1);
   }
 }
@@ -56,7 +61,7 @@ function generateFrontendProtos() {
   ensureDirectory(FRONTEND_OUT_DIR);
   
   // Generate TypeScript files using Buf's protoc-gen-es
-  const command = `protoc --plugin=protoc-gen-es=./node_modules/.bin/protoc-gen-es --es_out=${FRONTEND_OUT_DIR} --es_opt=target=ts ${PROTO_FILE}`;
+  const command = `protoc --plugin=protoc-gen-es=./node_modules/.bin/protoc-gen-es --es_out=${FRONTEND_OUT_DIR} --es_opt=target=ts --proto_path=${PROTO_DIR} ${MAIN_PROTO_FILE}`;
   
   return runCommand(command, 'Generating TypeScript protobuf files for frontend');
 }
@@ -67,7 +72,7 @@ function generateBackendProtos() {
   ensureDirectory(BACKEND_OUT_DIR);
   
   // Generate Python files using grpcio-tools
-  const command = `python -m grpc_tools.protoc --python_out=${BACKEND_OUT_DIR} --grpc_python_out=${BACKEND_OUT_DIR} --proto_path=. ${PROTO_FILE}`;
+  const command = `python -m grpc_tools.protoc --python_out=${BACKEND_OUT_DIR} --grpc_python_out=${BACKEND_OUT_DIR} --proto_path=${PROTO_DIR} ${MAIN_PROTO_FILE}`;
   
   return runCommand(command, 'Generating Python protobuf files for backend');
 }
@@ -108,7 +113,7 @@ function main() {
   console.log('============================');
   
   checkDependencies();
-  checkProtoFile();
+  checkProtoFiles();
   
   const frontendSuccess = generateFrontendProtos();
   const backendSuccess = generateBackendProtos();

@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package geospatial;
+
+import "common.proto";
+import "core_service.proto";
+import "geospatial_service.proto";
+
+// Main service definition that combines all services
+service GeospatialService {
+  // Core examples and health check
+  rpc HelloWorld(HelloWorldRequest) returns (HelloWorldResponse);
+  rpc EchoParameter(EchoParameterRequest) returns (EchoParameterResponse);
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+  
+  // Geospatial data methods
+  rpc GetFeatures(GetFeaturesRequest) returns (GetFeaturesResponse);
+  rpc GetBatchDataStreamed(GetBatchDataRequest) returns (stream GetBatchDataChunk);
+}

@@ -35,86 +35,6 @@ class GeospatialServicer(geospatial_pb2_grpc.GeospatialServiceServicer):
         self.version = "1.0.0"
         print("🌍 GeospatialService initialized")
     
-    def HelloWorld(self, request, context):
-        """
-        Simple Hello World example for testing basic gRPC connectivity
-        
-        @param request: HelloWorldRequest with message
-        @param context: gRPC context
-        @returns: HelloWorldResponse with echo message
-        
-        Example usage from frontend:
-        ```typescript
-        const response = await window.electronGrpc.helloWorld("Hello from frontend!");
-        console.log('Server response:', response.message);
-        ```
-        """
-        try:
-            print(f"🌍 HelloWorld request: '{request.message}'")
-            
-            # Create a simple echo response
-            response_message = f"Hello! You sent: '{request.message}'. Server time: {time.strftime('%H:%M:%S')}"
-            
-            response = geospatial_pb2.HelloWorldResponse()
-            response.message = response_message
-            
-            print(f"🌍 HelloWorld response: '{response.message}'")
-            return response
-            
-        except Exception as e:
-            print(f"❌ HelloWorld error: {e}")
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(f"HelloWorld failed: {str(e)}")
-            return geospatial_pb2.HelloWorldResponse()
-    
-    def EchoParameter(self, request, context):
-        """
-        Echo Parameter example - processes a value with an operation and returns result
-        
-        @param request: EchoParameterRequest with value and operation
-        @param context: gRPC context  
-        @returns: EchoParameterResponse with original and processed values
-        
-        Example usage from frontend:
-        ```typescript
-        const result = await window.electronGrpc.echoParameter(42, "square");
-        console.log(`${result.originalValue} squared = ${result.processedValue}`);
-        ```
-        """
-        try:
-            print(f"🔄 EchoParameter request: {request.value} ({request.operation})")
-            
-            original_value = request.value
-            operation = request.operation.lower()
-            
-            # Process the value based on operation
-            if operation == "square":
-                processed_value = original_value * original_value
-            elif operation == "double":
-                processed_value = original_value * 2
-            elif operation == "half":
-                processed_value = original_value / 2
-            elif operation == "negate":
-                processed_value = -original_value
-            else:
-                # Default operation
-                processed_value = original_value + 1
-                operation = "increment"
-            
-            response = geospatial_pb2.EchoParameterResponse()
-            response.original_value = original_value
-            response.processed_value = processed_value
-            response.operation = operation
-            
-            print(f"🔄 EchoParameter response: {original_value} -> {processed_value} ({operation})")
-            return response
-            
-        except Exception as e:
-            print(f"❌ EchoParameter error: {e}")
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(f"EchoParameter failed: {str(e)}")
-            return geospatial_pb2.EchoParameterResponse()
-    
     def GetFeatures(self, request, context):
         """Get geospatial features within specified bounds"""
         try:
@@ -537,6 +457,88 @@ class GeospatialServicer(geospatial_pb2_grpc.GeospatialServiceServicer):
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(f"Health check failed: {str(e)}")
             return geospatial_pb2.HealthCheckResponse(healthy=False, version=self.version)
+
+
+    def HelloWorld(self, request, context):
+        """
+        Simple Hello World example for testing basic gRPC connectivity
+        
+        @param request: HelloWorldRequest with message
+        @param context: gRPC context
+        @returns: HelloWorldResponse with echo message
+        
+        Example usage from frontend:
+        ```typescript
+        const response = await window.electronGrpc.helloWorld("Hello from frontend!");
+        console.log('Server response:', response.message);
+        ```
+        """
+        try:
+            print(f"🌍 HelloWorld request: '{request.message}'")
+            
+            # Create a simple echo response
+            response_message = f"Hello! You sent: '{request.message}'. Server time: {time.strftime('%H:%M:%S')}"
+            
+            response = geospatial_pb2.HelloWorldResponse()
+            response.message = response_message
+            
+            print(f"🌍 HelloWorld response: '{response.message}'")
+            return response
+            
+        except Exception as e:
+            print(f"❌ HelloWorld error: {e}")
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f"HelloWorld failed: {str(e)}")
+            return geospatial_pb2.HelloWorldResponse()
+    
+    def EchoParameter(self, request, context):
+        """
+        Echo Parameter example - processes a value with an operation and returns result
+        
+        @param request: EchoParameterRequest with value and operation
+        @param context: gRPC context  
+        @returns: EchoParameterResponse with original and processed values
+        
+        Example usage from frontend:
+        ```typescript
+        const result = await window.electronGrpc.echoParameter(42, "square");
+        console.log(`${result.originalValue} squared = ${result.processedValue}`);
+        ```
+        """
+        try:
+            print(f"🔄 EchoParameter request: {request.value} ({request.operation})")
+            
+            original_value = request.value
+            operation = request.operation.lower()
+            
+            # Process the value based on operation
+            if operation == "square":
+                processed_value = original_value * original_value
+            elif operation == "double":
+                processed_value = original_value * 2
+            elif operation == "half":
+                processed_value = original_value / 2
+            elif operation == "negate":
+                processed_value = -original_value
+            else:
+                # Default operation
+                processed_value = original_value + 1
+                operation = "increment"
+            
+            response = geospatial_pb2.EchoParameterResponse()
+            response.original_value = original_value
+            response.processed_value = processed_value
+            response.operation = operation
+            
+            print(f"🔄 EchoParameter response: {original_value} -> {processed_value} ({operation})")
+            return response
+            
+        except Exception as e:
+            print(f"❌ EchoParameter error: {e}")
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f"EchoParameter failed: {str(e)}")
+            return geospatial_pb2.EchoParameterResponse()
+    
 
 
 def find_free_port(start_port=50051):

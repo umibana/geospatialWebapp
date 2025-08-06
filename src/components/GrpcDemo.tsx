@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { grpcClient } from '../helpers/grpc_client';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 
@@ -38,7 +37,7 @@ export function GrpcDemo() {
   
   // Web Worker streaming test state (CERO bloqueo del hilo principal)
   const [workerStreamLoading, setWorkerStreamLoading] = useState(false);
-  const [workerStreamResult, setWorkerStreamResult] = useState<any>(null);
+  const [workerStreamResult, setWorkerStreamResult] = useState<{ totalProcessed: number; processingTime: number; generationMethod: string; summary: Record<string, unknown> } | null>(null);
   
   // Simple gRPC examples state
   const [helloWorldInput, setHelloWorldInput] = useState('');
@@ -82,7 +81,7 @@ export function GrpcDemo() {
       setLoading(true);
       
       // Test connection via IPC
-      const health = await grpcClient.healthCheck();
+      const health = await window.grpc.healthCheck();
       setIsConnected(health.healthy);
       
       console.log('✅ gRPC initialized via IPC:', health);
@@ -106,7 +105,7 @@ export function GrpcDemo() {
         southwest: { latitude: 37.7749, longitude: -122.4194 }
       };
       
-      const result = await grpcClient.getFeatures(bounds, [], 20);
+      const result = await window.grpc.getFeatures({ bounds, featureTypes: [], limit: 20 });
       setFeatures(result.features);
       
       console.log(`📍 Loaded ${result.features.length} features via gRPC`);
@@ -132,13 +131,14 @@ export function GrpcDemo() {
       console.log('🔄 Starting real-time gRPC stream (10 seconds)...');
       
       // This is the power of gRPC - simple async iteration with numpy data types!
-      for await (const dataPoint of grpcClient.streamData(bounds, ['elevation', 'temperature'], 3)) {
-        setStreamData(prev => {
-          const newData = [...prev, dataPoint];
-          // Keep only last 10 data points for display
-          return newData.slice(-10);
-        });
-      }
+      // Using getBatchDataWorkerStreamed with progress callback for real-time updates
+      const result = await window.grpc.getBatchDataWorkerStreamed(bounds, ['elevation', 'temperature'], 30, 10, (progress) => {
+        console.log('Streaming progress:', progress);
+        // Update UI with progress - you could show real-time progress here
+      });
+      
+      console.log('Stream completed, result:', result);
+      toast.success(`Processed ${result.totalProcessed} data points`);
     } catch (error) {
       console.error('Streaming error:', error);
     } finally {
@@ -149,7 +149,7 @@ export function GrpcDemo() {
 
   const handleStopStreaming = async () => {
     try {
-      await window.electronGrpc.stopStream();
+      await window.grpc.stopStream();
       setStreaming(false);
       console.log('🛑 Stream stopped successfully');
     } catch (error) {
@@ -173,21 +173,24 @@ export function GrpcDemo() {
       
       console.log('📦 Loading batch data via gRPC...');
       
-      // Test the new getBatchData method
-      const result = await window.electronGrpc.getBatchData(
+      // Note: getBatchData method doesn't exist, using getBatchDataWorkerStreamed instead
+      const result = await window.grpc.getBatchDataWorkerStreamed(
         bounds, 
         ['elevation'], // Data type
-        500, // Max points
-        15 // Resolution
+        50, // Max points
+        10, // Resolution
+        (progress: { processed: number; total: number; percentage: number; phase: string }) => console.log('Batch progress:', progress)
       );
       
       console.log('📦 Raw gRPC result:', result);
-      console.log('📦 Data points array:', result.dataPoints);
-      console.log('📦 Data points length:', result.dataPoints?.length);
+      console.log('📦 Total processed:', result.totalProcessed);
+      console.log('📦 Processing time:', result.processingTime);
       
-      setBatchData(result.dataPoints || []);
+      // Note: getBatchDataWorkerStreamed returns different structure
+      console.log('Batch data result:', result);
+      setBatchData([]);
       
-      console.log(`📦 Loaded ${(result.dataPoints || []).length} data points via gRPC batch method`);
+      console.log(`📦 Processed ${result.totalProcessed || 0} data points via gRPC worker method`);
       console.log(`📦 Generation method: ${result.generationMethod}`);
       toast.success(`Batch Data Loaded!`, {
         description: `Points: ${result.totalCount} | Method: ${result.generationMethod}${result.dataPoints?.[0] ? ` | Sample: ${result.dataPoints[0].value.toFixed(2)} ${result.dataPoints[0].unit}` : ''}`
@@ -222,19 +225,19 @@ export function GrpcDemo() {
       console.log(`🔄 Starting gRPC call at ${new Date().toLocaleTimeString()}`);
       const grpcStartTime = performance.now();
       
-      const result = await window.electronGrpc.getBatchData(
+      const result = await window.grpc.getBatchDataWorkerStreamed(
         bounds, 
         [testParams.dataType], 
         testParams.maxPoints, 
-        testParams.resolution
+        testParams.resolution,
+        (progress: { processed: number; total: number; percentage: number; phase: string }) => console.log('Performance test progress:', progress)
       );
       
       const grpcEndTime = performance.now();
       const dataProcessingStartTime = performance.now();
       
-      // Simulate some data processing to measure frontend handling time
-      const sampleSize = Math.min(result.dataPoints.length, 100);
-      const samplePoints = result.dataPoints.slice(0, sampleSize);
+      // Note: result structure changed for getBatchDataWorkerStreamed
+      // No need for sample processing with the new worker-based approach
       
       const dataProcessingEndTime = performance.now();
       const totalEndTime = performance.now();
@@ -243,10 +246,10 @@ export function GrpcDemo() {
       const dataProcessingTime = (dataProcessingEndTime - dataProcessingStartTime) / 1000;
       const totalDuration = (totalEndTime - totalStartTime) / 1000;
       
-      setParamTestData(result.dataPoints);
+      // Note: getBatchDataWorkerStreamed returns summary data, not the raw points\n      // Use the sample data for display purposes\n      const displayData = result.dataSample || [];\n      setParamTestData(displayData);
       
       // Calculate data transfer rate
-      const estimatedDataSize = result.dataPoints.length * 120; // rough estimate in bytes
+      const estimatedDataSize = result.totalProcessed * 120; // rough estimate in bytes
       const transferRateMBps = (estimatedDataSize / (1024 * 1024)) / grpcTime;
       
       console.log(`⏱️  Frontend Timing Breakdown:`);
@@ -254,10 +257,10 @@ export function GrpcDemo() {
       console.log(`   • Data processing: ${dataProcessingTime.toFixed(3)}s`);
       console.log(`   • Total frontend time: ${totalDuration.toFixed(3)}s`);
       console.log(`   • Estimated transfer rate: ${transferRateMBps.toFixed(1)} MB/s`);
-      console.log(`🧪 Generated ${result.dataPoints.length} data points using ${result.generationMethod}`);
+      console.log(`🧪 Generated ${result.totalProcessed} data points using ${result.generationMethod}`);
       
       toast.success(`Parameter Test Complete!`, {
-        description: `${result.totalCount.toLocaleString()} ${testParams.dataType} points generated in ${totalDuration.toFixed(2)}s (${transferRateMBps.toFixed(1)} MB/s)`
+        description: `${result.totalProcessed.toLocaleString()} ${testParams.dataType} points generated in ${totalDuration.toFixed(2)}s (${transferRateMBps.toFixed(1)} MB/s)`
       });
     } catch (error) {
       console.error('Parameter test failed:', error);
@@ -293,13 +296,13 @@ export function GrpcDemo() {
       console.log(`⚡ Iniciando test de streaming con Web Worker: ${testParams.maxPoints} puntos (CERO bloqueo del hilo principal)...`);
       
       // Usar enfoque de streaming con Web Worker - sin acumulación de datos en hilo principal
-      const result = await window.electronGrpc.getBatchDataWorkerStreamed(
+      const result = await window.grpc.getBatchDataWorkerStreamed(
         bounds, 
         [testParams.dataType], 
         testParams.maxPoints, 
         testParams.resolution,
         // Callback de progreso desde Web Worker (solo actualizaciones ligeras de progreso)
-        (progress) => {
+        (progress: { processed: number; total: number; percentage: number; phase: string }) => {
           updateProgressThrottled({
             processed: progress.processed,
             total: progress.total,
@@ -582,7 +585,7 @@ export function GrpcDemo() {
                   onKeyDown={async (e) => {
                     if (e.key === 'Enter' && helloWorldInput.trim()) {
                       try {
-                        const response = await window.electronGrpc.helloWorld(helloWorldInput);
+                        const response = await window.grpc.helloWorld({ message: helloWorldInput });
                         toast.success('Respuesta Hola Mundo', {
                           description: response.message
                         });
@@ -616,7 +619,7 @@ export function GrpcDemo() {
                           toast.error('Error', { description: 'Por favor ingresa un número válido' });
                           return;
                         }
-                        const response = await window.electronGrpc.echoParameter(value, 'square');
+                        const response = await window.grpc.echoParameter({ value, operation: 'square' });
                         toast.success('Respuesta Parámetro Echo', {
                           description: `${response.originalValue} al cuadrado = ${response.processedValue}`
                         });

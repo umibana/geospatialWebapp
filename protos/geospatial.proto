@@ -121,18 +121,15 @@ message HealthCheckResponse {
   map<string, string> status = 3;
 }
 
-// gRPC service definition
+// Definición de servicios
 service GeospatialService {
-  // Simple examples for testing and learning
+  // Ejemplos de hello world y parametro para de echo
   rpc HelloWorld(HelloWorldRequest) returns (HelloWorldResponse);
   rpc EchoParameter(EchoParameterRequest) returns (EchoParameterResponse);
-  
-  // Unary RPC for fetching features
+  // Health check (Para ver si gRPC esta funcionando)
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+  // Funciones de prueba en python para obtener datos 
   rpc GetFeatures(GetFeaturesRequest) returns (GetFeaturesResponse);
-  
-  // ✅ RECOMMENDED: Lightweight streaming for large datasets (UI-friendly)
   rpc GetBatchDataStreamed(GetBatchDataRequest) returns (stream GetBatchDataChunk);
   
-  // Health check
-  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
 } 

@@ -24,8 +24,8 @@ export function BackendStatus({ className = '' }: BackendStatusProps) {
       const url = await window.electronBackend.getBackendUrl();
       setBackendUrl(url);
       
-      // Use gRPC health check via IPC
-      const healthData = await window.electronGrpc.healthCheck();
+      // Use gRPC health check via new simplified API
+      const healthData = await window.grpc.healthCheck();
       
       setHealthStatus({
         ...healthData,
@@ -65,15 +65,15 @@ export function BackendStatus({ className = '' }: BackendStatusProps) {
 
   const testGrpcAPI = async () => {
     try {
-      // Test gRPC GetFeatures call
-      const result = await window.electronGrpc.getFeatures(
-        {
+      // Test gRPC GetFeatures call using new API
+      const result = await window.grpc.getFeatures({
+        bounds: {
           northeast: { latitude: 40.7829, longitude: -73.9654 },
           southwest: { latitude: 40.7489, longitude: -73.9904 }
         },
-        ['poi', 'landmark'],
-        10
-      );
+        featureTypes: ['poi', 'landmark'],
+        limit: 10
+      });
       
       console.log('gRPC API response:', result);
       alert(`gRPC API Test (GetFeatures):\nFound ${result.features.length} features\nTotal: ${result.total_count}`);

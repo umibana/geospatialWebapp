@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package geospatial;
+
+import "common.proto";
+
+// Core service methods (Hello World, Health Check, etc.)
+
+// Simple Hello World example
+message HelloWorldRequest {
+  string message = 1;
+}
+
+message HelloWorldResponse {
+  string message = 1;
+}
+
+// Echo Parameter example
+message EchoParameterRequest {
+  double value = 1;
+  string operation = 2;
+}
+
+message EchoParameterResponse {
+  double original_value = 1;
+  double processed_value = 2;
+  string operation = 3;
+}
+
+// Health Check
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  bool healthy = 1;
+  string version = 2;
+  map<string, string> status = 3;
+}
