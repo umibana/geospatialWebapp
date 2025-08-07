@@ -9,7 +9,8 @@ declare global {
       echoParameter: (request: { value: number; operation: string }) => Promise<{ originalValue: number; processedValue: number; operation: string }>;
       getFeatures: (request: { bounds: any; featureTypes: string[]; limit: number }) => Promise<{ features: any[]; total_count: number }>;
       getBatchDataStreamed: (request: { bounds: any; dataTypes: string[]; maxPoints: number; resolution?: number }, onData?: (data: any) => void) => Promise<any[]>;
-      getBatchDataWorkerStreamed: (bounds: any, dataTypes: string[], maxPoints: number, resolution?: number, onProgress?: (progress: { processed: number; total: number; percentage: number; phase: string }) => void) => Promise<{ totalProcessed: number; processingTime: number; generationMethod: string; summary: any }>;
+      getBatchDataWorkerStreamed: (bounds: any, dataTypes: string[], maxPoints: number, resolution?: number, onProgress?: (progress: { processed: number; total: number; percentage: number; phase: string }) => void, onChunkData?: (chunk: any) => void) => Promise<{ totalProcessed: number; processingTime: number; generationMethod: string; summary: any; receivedChunks: any[] }>;
+      getBatchDataChildProcessStreamed: (bounds: any, dataTypes: string[], maxPoints: number, resolution?: number, onProgress?: (progress: { processed: number; total: number; percentage: number; phase: string }) => void) => Promise<{ stats?: any; chartConfig?: any; message: string; totalForwarded?: number; totalChunks?: number; phase?: string }>;
       stopStream: () => Promise<{ success: boolean }>;
     };
     
@@ -19,7 +20,7 @@ declare global {
       helloWorld: (message: string) => Promise<{ message: string }>;
       echoParameter: (value: number, operation: string) => Promise<{ originalValue: number; processedValue: number; operation: string }>;
       getFeatures: (bounds: any, featureTypes: string[], limit: number) => Promise<{ features: any[]; total_count: number }>;
-      getBatchDataWorkerStreamed: (bounds: any, dataTypes: string[], maxPoints: number, resolution?: number, onProgress?: (progress: { processed: number; total: number; percentage: number; phase: string }) => void) => Promise<{ totalProcessed: number; processingTime: number; generationMethod: string; summary: any }>;
+      getBatchDataWorkerStreamed: (bounds: any, dataTypes: string[], maxPoints: number, resolution?: number, onProgress?: (progress: { processed: number; total: number; percentage: number; phase: string }) => void, onChunkData?: (chunk: any) => void) => Promise<{ totalProcessed: number; processingTime: number; generationMethod: string; summary: any; receivedChunks: any[] }>;
       stopStream: () => Promise<{ success: boolean }>;
     };
     

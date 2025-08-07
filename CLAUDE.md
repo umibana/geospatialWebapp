@@ -26,16 +26,143 @@ This is a **desktop geospatial application** built with Electron that combines a
 
 ### Communication Flow
 ```
-React Components (Renderer)
-        ↓ IPC (secure context isolation)
-Main Process (gRPC Client) 
+React Components (Renderer Process)
+        ↓ Secure Context Bridge (preload.ts)
+        ↓ Multiple IPC Channels (organized by domain)
+Main Process (Multiple Processing Strategies)
+        ├── Direct Main Process (ultra-micro batching)
+        ├── Web Workers (dataProcessor.worker.ts)
+        ├── Node.js Child Processes (worker_threads)
+        └── True Node.js Subprocesses (isolated processes)
         ↓ gRPC (@grpc/grpc-js with compression)
 Python gRPC Server (numpy data generation)
-        ↓ Data processing
-Web Workers (off-thread processing)
-        ↓ Progress updates
-React UI (responsive interface)
+        ↓ Chunk-based streaming
+Backend Process (managed by backend_helpers.ts)
 ```
+
+## 🏗️ Advanced Architecture Overview
+
+### **Multi-Strategy Data Processing System**
+
+This application implements **4 distinct processing approaches** for optimal performance across different dataset sizes and system constraints:
+
+#### 1. **Direct Main Process Streaming** (`main.ts:17-128`)
+- **Use Case**: Medium datasets (10K-100K points)
+- **Method**: Ultra-micro batching (500 points per batch) with frequent yielding
+- **Advantages**: No inter-process overhead, immediate results
+- **Mechanism**: `setImmediate()` yielding after every micro-batch
+
+#### 2. **Web Workers** (`src/helpers/webWorkerManager.ts`)
+- **Use Case**: Large datasets (100K-1M points) requiring UI responsiveness
+- **Worker File**: `src/workers/dataProcessor.worker.ts`
+- **Method**: True browser Web Workers with micro-batching
+- **Advantages**: Genuine parallel processing, maintained UI responsiveness
+- **Mechanism**: TypeScript worker compiled by Vite, 1000-point micro-batches
+
+#### 3. **Node.js Child Processes** (`src/helpers/childProcessManager.ts`)
+- **Use Case**: Heavy processing requiring Node.js APIs
+- **Worker File**: `src/workers/dataProcessorChild.js`
+- **Method**: `worker_threads` with full Node.js context
+- **Advantages**: Access to Node.js APIs, isolated processing
+- **Mechanism**: Uses `parentPort` for communication, higher point limits
+
+#### 4. **True Node.js Subprocesses** (`src/helpers/trueSubprocessManager.ts`)
+- **Use Case**: Maximum isolation, failsafe processing
+- **Method**: Spawned Node.js processes with file-based communication
+- **Advantages**: Complete isolation, crash recovery, no memory sharing
+- **Mechanism**: Temporary JSON files, progress polling, async file I/O
+
+### **IPC Architecture** (`src/helpers/ipc/`)
+
+**Modular IPC System** with domain-based organization:
+
+```
+src/helpers/ipc/
+├── context-exposer.ts          # Main context bridge coordinator
+├── listeners-register.ts       # IPC handler registration coordinator
+├── backend/                    # gRPC backend management
+│   ├── backend-context.ts      # Backend context bridge
+│   ├── backend-listeners.ts    # Backend IPC handlers
+│   └── backend-channels.ts     # Backend channel definitions
+├── theme/                      # Theme management
+│   ├── theme-context.ts        # Theme context bridge  
+│   ├── theme-listeners.ts      # Theme IPC handlers
+│   └── theme-channels.ts       # Theme channel definitions
+└── window/                     # Window management
+    ├── window-context.ts       # Window context bridge
+    ├── window-listeners.ts     # Window IPC handlers
+    └── window-channels.ts      # Window channel definitions
+```
+
+**Key Features**:
+- **Secure Context Isolation**: All IPC goes through secure context bridges
+- **Domain Separation**: Backend, theme, and window concerns are isolated
+- **Type Safety**: TypeScript definitions for all IPC channels
+- **Centralized Registration**: Single point of handler registration
+
+### **Process Management** (`src/helpers/backend_helpers.ts`)
+
+**Python gRPC Server Lifecycle Management**:
+- **Development Mode**: Direct `python grpc_server.py` execution
+- **Production Mode**: PyInstaller-built executable
+- **Health Monitoring**: Connection testing with 15-second timeout
+- **Graceful Shutdown**: SIGTERM → wait → SIGKILL sequence
+- **Auto-Recovery**: Automatic restart on connection failures
+
+### **Preload Bridge Architecture** (`src/preload.ts`)
+
+**Dual API Exposure**:
+1. **Modern API** (`window.grpc.*`):
+   - Promise-based with async/await support
+   - Built-in streaming with progress callbacks
+   - TypeScript-first design
+
+2. **Legacy API** (`window.electronGrpc.*`):  
+   - Backward compatibility
+   - Simpler parameter structure
+   - Migration path from older implementations
+
+**Advanced Features**:
+- **Streaming Support**: Real-time data chunks with progress tracking
+- **Error Recovery**: Automatic cleanup and timeout handling  
+- **Memory Management**: Smart chunking to prevent IPC blocking
+- **Request Multiplexing**: Concurrent request handling with unique IDs
+
+### **Data Flow Optimization Patterns**
+
+#### **Chart Data Streaming** (`main.ts:295-333`)
+**Problem**: Large datasets (1M+ points) break IPC message limits  
+**Solution**: Chunked data retrieval with memory cleanup
+```typescript
+// Fetch chart data in 1000-point chunks
+fetchChartDataInChunks(requestId) // Prevents IPC blocking
+chartDataCache.set/delete(requestId) // Memory management
+```
+
+#### **Progress Streaming** (`main.ts:336-506`)  
+**Problem**: UI blocking during heavy processing  
+**Solution**: Frequent progress updates with micro-yielding
+```typescript
+// 60fps progress updates with setImmediate yielding
+await new Promise(resolve => setImmediate(resolve))
+```
+
+#### **Batch Processing** (`main.ts:364-405`)
+**Problem**: Overwhelming IPC with too many messages  
+**Solution**: Intelligent batching with throttling
+```typescript
+const CHUNK_BATCH_SIZE = 5; // Process 5 chunks at a time
+const BATCH_DELAY = 16; // ~60fps delay between batches
+```
+
+### **Performance Characteristics by Processing Strategy**
+
+| Strategy | Dataset Size | UI Responsiveness | Memory Usage | Complexity | Use Case |
+|----------|-------------|-------------------|--------------|------------|-----------|
+| **Direct Main** | 10K-100K | Good with yielding | Low | Low | Quick processing |
+| **Web Workers** | 100K-1M | Excellent | Medium | Medium | Standard large datasets |
+| **Child Processes** | 1M+ | Excellent | High | High | Node.js API access needed |
+| **True Subprocesses** | Any size | Excellent | Isolated | Very High | Maximum reliability |
 
 ## 🚀 gRPC API Reference
 
@@ -341,19 +468,31 @@ The application includes four different performance optimization approaches for 
 
 ### 🎯 Concepto Principal
 
-Esta aplicación utiliza **Web Workers** para procesar grandes datasets (1M+ puntos) sin bloquear la interfaz de usuario. El patrón implementado garantiza **CERO bloqueo del hilo principal**.
+Esta aplicación implementa **4 estrategias de procesamiento diferentes** para manejar datasets geoespaciales masivos (1M+ puntos) sin bloquear la interfaz de usuario. Cada estrategia está optimizada para diferentes casos de uso y tamaños de dataset.
 
-### ⚡ Arquitectura de Web Workers
+### ⚡ Arquitectura Multi-Estrategia
 
 ```
-Componentes React (Renderer)
-        ↓ IPC (aislamiento de contexto seguro)
-Proceso Principal (Cliente gRPC) 
-        ↓ Reenvío directo de chunks
-Web Worker (procesamiento en segundo plano)
-        ↓ Solo actualizaciones de progreso
-React UI (interfaz 100% responsiva)
+Componentes React (Renderer Process)
+        ↓ Context Bridge Seguro (preload.ts)
+        ↓ Canales IPC Organizados por Dominio
+Proceso Principal (4 Estrategias de Procesamiento)
+        ├── 1. Streaming Directo (micro-batching ultra-rápido)
+        ├── 2. Web Workers (dataProcessor.worker.ts)
+        ├── 3. Child Processes (worker_threads Node.js)
+        └── 4. Subprocesos Verdaderos (procesos aislados)
+        ↓ Datos procesados con diferentes optimizaciones
+React UI (interfaz 100% responsiva en todos los casos)
 ```
+
+### 🏆 Selección Automática de Estrategia
+
+| Dataset Size | Estrategia Recomendada | Razón |
+|-------------|----------------------|--------|
+| **< 50K puntos** | Direct Main Process | Mínima latencia, sin overhead |
+| **50K - 500K** | Web Workers | Balance perfecto UI/rendimiento |
+| **500K - 2M** | Child Processes | Acceso completo a APIs Node.js |
+| **2M+ puntos** | True Subprocesses | Máximo aislamiento y confiabilidad |
 
 ### 🛠️ Implementación Correcta
 

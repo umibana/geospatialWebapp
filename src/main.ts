@@ -3,9 +3,131 @@ import registerListeners from "./helpers/ipc/listeners-register";
 import { backendManager } from "./helpers/backend_helpers";
 import { autoMainGrpcClient } from "./grpc-auto/auto-main-client";
 import { registerAutoGrpcHandlers } from "./grpc-auto/auto-ipc-handlers";
+import { spawn } from "child_process";
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
+import { MainProcessWorker } from "./helpers/mainProcessWorker";
+import { TrueSubprocessManager } from "./helpers/trueSubprocessManager";
+
+// Store processed chart data in memory (main process only)
+const chartDataCache = new Map<string, Array<[number, number, number]>>();
+
+// Ultra-fast streaming data processor - runs directly in main process with yielding
+async function processDataStreamingInMainProcess(
+  chunks: any[],
+  requestId: string,
+  onProgress: (progress: { processed: number; total: number; percentage: number; phase: string }) => void
+): Promise<{
+  stats: any;
+  chartConfig: { type: string; data: Array<[number, number, number]>; metadata: any };
+}> {
+  
+  let processedPoints: Array<[number, number, number]> = [];
+  let stats = {
+    totalProcessed: 0,
+    minValue: Infinity,
+    maxValue: -Infinity,
+    sum: 0,
+    dataTypes: new Set<string>()
+  };
+  
+  const startTime = performance.now();
+  const totalPoints = chunks.reduce((sum, chunk) => sum + (chunk.data_points?.length || 0), 0);
+  
+  // Process chunks with ULTRA micro-batching and frequent yielding
+  for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+    const chunk = chunks[chunkIndex];
+    
+    if (chunk.data_points) {
+      // Process points in VERY small batches
+      const microBatchSize = 500; // Very small batches
+      
+      for (let i = 0; i < chunk.data_points.length; i += microBatchSize) {
+        const batchEnd = Math.min(i + microBatchSize, chunk.data_points.length);
+        
+        // Process micro-batch
+        for (let j = i; j < batchEnd; j++) {
+          const point = chunk.data_points[j];
+          
+          // Store essential data for charting (limited amount)
+          if (processedPoints.length < 10000) { // Reduced limit for performance
+            processedPoints.push([
+              point.location.longitude,
+              point.location.latitude,
+              point.value
+            ]);
+          }
+          
+          // Update statistics
+          stats.totalProcessed++;
+          stats.sum += point.value;
+          stats.minValue = Math.min(stats.minValue, point.value);
+          stats.maxValue = Math.max(stats.maxValue, point.value);
+          
+          if (point.metadata?.sensor_type) {
+            stats.dataTypes.add(point.metadata.sensor_type);
+          }
+        }
+        
+        // Yield control after EVERY micro-batch to prevent blocking
+        await new Promise(resolve => setImmediate(resolve));
+      }
+    }
+    
+    // Send progress update every chunk
+    onProgress({
+      processed: stats.totalProcessed,
+      total: totalPoints,
+      percentage: ((chunkIndex + 1) / chunks.length) * 100,
+      phase: `streaming_chunk_${chunkIndex + 1}_of_${chunks.length}`
+    });
+    
+    // Yield control after each chunk
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  
+  const endTime = performance.now();
+  const processingTime = (endTime - startTime) / 1000;
+  const avgValue = stats.totalProcessed > 0 ? stats.sum / stats.totalProcessed : 0;
+  
+  return {
+    stats: {
+      totalProcessed: stats.totalProcessed,
+      avgValue: Number(avgValue.toFixed(2)),
+      minValue: Number(stats.minValue.toFixed(2)),
+      maxValue: Number(stats.maxValue.toFixed(2)),
+      dataTypes: Array.from(stats.dataTypes),
+      processingTime: Number(processingTime.toFixed(3)),
+      pointsPerSecond: Math.round(stats.totalProcessed / processingTime)
+    },
+    chartConfig: {
+      type: 'scatter',
+      data: processedPoints,
+      metadata: {
+        totalPoints: stats.totalProcessed,
+        chartPoints: processedPoints.length,
+        samplingRatio: processedPoints.length / stats.totalProcessed,
+        bounds: {
+          lng: processedPoints.length > 0 ? [
+            Math.min(...processedPoints.map(p => p[0])),
+            Math.max(...processedPoints.map(p => p[0]))
+          ] : [0, 0],
+          lat: processedPoints.length > 0 ? [
+            Math.min(...processedPoints.map(p => p[1])),
+            Math.max(...processedPoints.map(p => p[1]))
+          ] : [0, 0],
+          value: processedPoints.length > 0 ? [
+            Math.min(...processedPoints.map(p => p[2])),
+            Math.max(...processedPoints.map(p => p[2]))
+          ] : [0, 0]
+        }
+      }
+    }
+  };
+}
 // "electron-squirrel-startup" seems broken when packaging with vite
 //import started from "electron-squirrel-startup";
-import path from "path";
 import {
   installExtension,
   REACT_DEVELOPER_TOOLS,
@@ -87,7 +209,130 @@ ipcMain.handle('grpc-stop-stream', async () => {
   }
 });
 
-// NEW: Web Worker streaming - forwards chunks directly to worker (ZERO main thread accumulation)
+// NEW: Main Process Worker Threads - no external dependencies, no JSON files
+ipcMain.on('grpc-start-child-process-stream', async (event, request) => {
+  const { requestId, bounds, dataTypes, maxPoints, resolution } = request;
+  
+  try {
+    console.log(`🚀 Starting Main Process Worker Threads for ${maxPoints} points...`);
+    
+    // Step 1: Get data from gRPC (same as before)
+    const chunks = await autoMainGrpcClient.getBatchDataStreamed({ 
+      bounds, 
+      data_types: dataTypes, 
+      max_points: maxPoints, 
+      resolution 
+    });
+    const totalPoints = chunks.reduce((sum, chunk) => sum + (chunk.data_points?.length || 0), 0);
+    
+    console.log(`📊 Generated ${totalPoints} points in ${chunks.length} chunks`);
+    
+    // Send initial progress
+    event.sender.send('grpc-child-process-progress', {
+      requestId,
+      type: 'progress',
+      processed: 0,
+      total: totalPoints,
+      percentage: 0,
+      phase: 'starting_worker_thread'
+    });
+    
+    // Step 2: Process data with TRUE Node.js subprocess (completely isolated)
+    const subprocessManager = TrueSubprocessManager.getInstance();
+    const result = await subprocessManager.processLargeDataset(
+      chunks,
+      requestId,
+      // Progress callback
+      (progress) => {
+        event.sender.send('grpc-child-process-progress', {
+          requestId,
+          type: 'progress',
+          processed: progress.processed,
+          total: progress.total,
+          percentage: progress.percentage,
+          phase: progress.phase
+        });
+      }
+    );
+    
+    // Store chart data in main process memory
+    chartDataCache.set(requestId, result.chartConfig.data);
+    
+    console.log('🔍 Subprocess result:', {
+      statsExists: !!result.stats,
+      chartConfigExists: !!result.chartConfig,
+      totalProcessed: result.stats?.totalProcessed,
+      processingTime: result.stats?.processingTime
+    });
+
+    // Send completion with ONLY metadata - NO large data arrays
+    event.sender.send('grpc-child-process-progress', {
+      requestId,
+      type: 'complete',
+      stats: result.stats,
+      // Send only chart metadata, NOT the actual data array
+      chartConfig: {
+        type: result.chartConfig.type,
+        metadata: result.chartConfig.metadata,
+        // Don't send the actual data array - it's too large for IPC
+        dataReady: true
+      },
+      message: `🎉 Subprocess completed ${result.stats?.totalProcessed || 0} points in ${result.stats?.processingTime || 0}s`
+    });
+    
+    console.log(`✅ Worker Thread completed successfully: ${result.stats.totalProcessed} points`);
+    
+  } catch (error) {
+    console.error(`Worker Thread failed for ${requestId}:`, error);
+    event.sender.send('grpc-child-process-error', {
+      requestId,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// IPC handler to fetch chart data in small chunks (prevents IPC blocking)
+ipcMain.on('grpc-get-chart-data', (event, { requestId, chunkSize = 1000, offset = 0 }) => {
+  try {
+    const fullData = chartDataCache.get(requestId);
+    
+    if (!fullData) {
+      event.sender.send('grpc-chart-data-response', {
+        requestId,
+        error: 'Chart data not found'
+      });
+      return;
+    }
+    
+    // Send data in small chunks to prevent IPC blocking
+    const chunk = fullData.slice(offset, offset + chunkSize);
+    const isComplete = offset + chunkSize >= fullData.length;
+    
+    event.sender.send('grpc-chart-data-response', {
+      requestId,
+      chunk,
+      offset,
+      chunkSize,
+      totalSize: fullData.length,
+      isComplete,
+      nextOffset: isComplete ? -1 : offset + chunkSize
+    });
+    
+    // Clean up cache when done
+    if (isComplete) {
+      chartDataCache.delete(requestId);
+      console.log(`🧹 Cleaned up chart data cache for ${requestId}`);
+    }
+    
+  } catch (error) {
+    event.sender.send('grpc-chart-data-response', {
+      requestId,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Legacy Web Worker streaming (keeping for comparison)
 ipcMain.on('grpc-start-worker-stream', async (event, request) => {
   const { requestId, bounds, dataTypes, maxPoints, resolution } = request;
   
@@ -116,30 +361,47 @@ ipcMain.on('grpc-start-worker-stream', async (event, request) => {
       phase: 'starting_worker'
     });
     
-    // Process gRPC chunks directly (already chunked by server)
+    // Process chunks with throttling to prevent UI blocking
     let processedCount = 0;
+    const CHUNK_BATCH_SIZE = 5; // Process 5 chunks at a time
+    const BATCH_DELAY = 16; // ~60fps delay between batches
     
-    // Process each chunk from gRPC stream 
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      const chunkPointCount = chunk.data_points?.length || 0;
+    // Process chunks in batches to prevent overwhelming IPC
+    for (let batchStart = 0; batchStart < chunks.length; batchStart += CHUNK_BATCH_SIZE) {
+      const batchEnd = Math.min(batchStart + CHUNK_BATCH_SIZE, chunks.length);
       
-      // Forward chunk to worker (simulated - in real implementation would use postMessage)
-      // For now, we'll simulate the processing time without holding the data
-      processedCount += chunkPointCount;
+      // Send a batch of chunks
+      for (let i = batchStart; i < batchEnd; i++) {
+        const chunk = chunks[i];
+        const chunkPointCount = chunk.data_points?.length || 0;
+        processedCount += chunkPointCount;
+        
+        // Send chunk with minimal data transfer
+        event.sender.send('grpc-worker-stream-chunk', {
+          requestId,
+          chunkNumber: i + 1,
+          totalChunks: chunks.length,
+          chunkData: chunk,
+          processed: processedCount,
+          total: totalPoints,
+          percentage: (processedCount / totalPoints) * 100
+        });
+      }
       
-      // Send progress update
+      // Send progress update for this batch
       event.sender.send('grpc-worker-stream-progress', {
         requestId,
-        type: 'progress',
+        type: 'batch_complete',
         processed: processedCount,
         total: totalPoints,
         percentage: (processedCount / totalPoints) * 100,
-        phase: 'processing_worker'
+        phase: `batch_${Math.floor(batchStart / CHUNK_BATCH_SIZE) + 1}_of_${Math.ceil(chunks.length / CHUNK_BATCH_SIZE)}`
       });
       
-      // Yield to event loop every chunk
-      await new Promise(resolve => setImmediate(resolve));
+      // Yield control to event loop between batches (60fps)
+      if (batchEnd < chunks.length) {
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
+      }
     }
     
     const endTime = performance.now();

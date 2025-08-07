@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
+import { DataVisualization } from './DataVisualization';
+import { ChildProcessVisualization } from './ChildProcessVisualization';
 
 interface GeospatialFeature {
   id: string;
@@ -860,6 +862,22 @@ export function GrpcDemo() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ⚡ ECharts + Real Web Workers Visualization */}
+      <div className="mt-8 border-t pt-6">
+        <DataVisualization 
+          title="🌍 Real-Time Geospatial Data with Web Workers"
+          maxPoints={1000000}
+        />
+      </div>
+
+      {/* 🚀 NEW: Main Process Worker Threads Visualization */}
+      <div className="mt-8 border-t pt-6">
+        <ChildProcessVisualization 
+          title="🚀 Main Process Worker Threads - Production Ready"
+          maxPoints={2000000}
+        />
       </div>
     </div>
     </div>
