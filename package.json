@@ -8,7 +8,7 @@
   "scripts": {
     "start": "electron-forge start",
     "prestart": "npm run generate:protos",
-    "dev": "source pythonvenv/bin/activate && npm run generate:protos && concurrently \"npm run dev:backend\" \"npm start\" --names \"backend,frontend\" --prefix-colors \"blue,green\"",
+    "dev": "source pythonvenv/bin/activate && npm run generate:protos && npm start",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "premake": "npm run generate:protos",

@@ -2,7 +2,17 @@
 // DO NOT EDIT - This file is auto-generated
 
 import { ipcRenderer } from 'electron';
-import * as Types from './types';
+import {
+  HelloWorldRequest,
+  HelloWorldResponse,
+  EchoParameterRequest,
+  EchoParameterResponse,
+  HealthCheckResponse,
+  GetFeaturesRequest,
+  GetFeaturesResponse,
+  GetBatchDataRequest,
+  GetBatchDataChunk,
+} from './types';
 
 export class AutoGrpcClient {
   private async callMethod<T, R>(methodName: string, request: T): Promise<R> {
@@ -14,13 +24,17 @@ export class AutoGrpcClient {
     return new Promise((resolve, reject) => {
       const requestId = `stream-${Date.now()}-${Math.random()}`;
       const results: R[] = [];
-      
-      const handleData = (event: any, data: any) => {
+      type StreamDataEvent = { requestId: string; type: 'data' | 'complete'; payload?: R };
+      type StreamErrorEvent = { requestId: string; error: string };
+
+      const handleData = (_event: unknown, data: StreamDataEvent) => {
         if (data.requestId !== requestId) return;
         
         if (data.type === 'data') {
-          results.push(data.payload);
-          if (onData) onData(data.payload);
+          if (data.payload !== undefined) {
+            results.push(data.payload);
+            if (onData) onData(data.payload);
+          }
         } else if (data.type === 'complete') {
           ipcRenderer.off('grpc-stream-data', handleData);
           ipcRenderer.off('grpc-stream-error', handleError);
@@ -28,7 +42,7 @@ export class AutoGrpcClient {
         }
       };
       
-      const handleError = (event: any, data: any) => {
+      const handleError = (_event: unknown, data: StreamErrorEvent) => {
         if (data.requestId !== requestId) return;
         ipcRenderer.off('grpc-stream-data', handleData);
         ipcRenderer.off('grpc-stream-error', handleError);
@@ -51,7 +65,7 @@ export class AutoGrpcClient {
     return this.callMethod('EchoParameter', request);
   }
 
-  async healthCheck(request: HealthCheckRequest): Promise<HealthCheckResponse> {
+  async healthCheck(request: object = {}): Promise<HealthCheckResponse> {
     return this.callMethod('HealthCheck', request);
   }
 

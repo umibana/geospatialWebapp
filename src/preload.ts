@@ -37,7 +37,8 @@ const grpcApi = {
     ).then((result: unknown) => ({ ...(result as object), strategy: 'worker_threads' } as OptimizedResult));
   },
   
-  stopStream: () => ipcRenderer.invoke('grpc-stop-stream'),
+  // Allow optional requestId to cancel a specific in-flight request
+  stopStream: (requestId?: string) => ipcRenderer.invoke('grpc-stop-stream', requestId ? { requestId } : {}),
   
   // Helper function to fetch chart data in chunks
   fetchChartDataInChunks: async (requestId: string): Promise<Array<[number, number, number]>> => {
@@ -161,6 +162,77 @@ const grpcApi = {
       setTimeout(() => {
         cleanup();
         reject(new Error('Child process stream timeout'));
+      }, 300000);
+    });
+  },
+
+  // Legacy/Small-dataset path: main forwards gRPC chunks to renderer without worker_threads
+  getBatchDataWorkerStreamed: (
+    bounds: GrpcBounds,
+    dataTypes: string[],
+    maxPoints: number,
+    resolution = 20,
+    onProgress?: (progress: GrpcProgress) => void,
+    onChunkData?: (chunk: unknown) => void
+  ) => {
+    const requestId = `worker-stream-${Date.now()}-${Math.random()}`;
+    return new Promise((resolve, reject) => {
+      const progressHandler = (_event: unknown, data: { requestId: string; type: string; processed?: number; total?: number; percentage?: number; phase?: string; totalProcessed?: number; processingTime?: number; generationMethod?: string; summary?: unknown; dataSample?: unknown[] }) => {
+        if (data.requestId !== requestId) return;
+        if (data.type === 'progress' || data.type === 'batch_complete') {
+          if (onProgress) {
+            onProgress({
+              processed: data.processed || 0,
+              total: data.total || 0,
+              percentage: data.percentage || 0,
+              phase: data.phase || 'processing'
+            });
+          }
+        } else if (data.type === 'complete') {
+          ipcRenderer.removeListener('grpc-worker-stream-progress', progressHandler as any);
+          ipcRenderer.removeListener('grpc-worker-stream-chunk', chunkHandler as any);
+          resolve({
+            strategy: 'worker_stream',
+            totalProcessed: data.totalProcessed || 0,
+            processingTime: data.processingTime || 0,
+            generationMethod: data.generationMethod || 'chunked_streaming',
+            summary: (data.summary || {}) as Record<string, unknown>,
+            dataSample: data.dataSample || []
+          });
+        }
+      };
+
+      const chunkHandler = (_event: unknown, payload: { requestId: string; chunkData?: unknown }) => {
+        if (payload.requestId !== requestId) return;
+        onChunkData?.(payload.chunkData);
+      };
+
+      const errorHandler = (_event: unknown, data: { requestId: string; error: string }) => {
+        if (data.requestId !== requestId) return;
+        ipcRenderer.removeListener('grpc-worker-stream-progress', progressHandler as any);
+        ipcRenderer.removeListener('grpc-worker-stream-chunk', chunkHandler as any);
+        ipcRenderer.removeListener('grpc-worker-stream-error', errorHandler as any);
+        reject(new Error(data.error));
+      };
+
+      ipcRenderer.on('grpc-worker-stream-progress', progressHandler as any);
+      ipcRenderer.on('grpc-worker-stream-chunk', chunkHandler as any);
+      ipcRenderer.on('grpc-worker-stream-error', errorHandler as any);
+
+      ipcRenderer.send('grpc-start-worker-stream', {
+        requestId,
+        bounds,
+        dataTypes,
+        maxPoints,
+        resolution
+      });
+
+      // 5-minute safety timeout
+      setTimeout(() => {
+        ipcRenderer.removeListener('grpc-worker-stream-progress', progressHandler as any);
+        ipcRenderer.removeListener('grpc-worker-stream-chunk', chunkHandler as any);
+        ipcRenderer.removeListener('grpc-worker-stream-error', errorHandler as any);
+        reject(new Error('Worker stream timeout'));
       }, 300000);
     });
   }

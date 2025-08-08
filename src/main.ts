@@ -3,10 +3,8 @@ import registerListeners from "./helpers/ipc/listeners-register";
 import { backendManager } from "./helpers/backend_helpers";
 import { autoMainGrpcClient } from "./grpc-auto/auto-main-client";
 import { registerAutoGrpcHandlers } from "./grpc-auto/auto-ipc-handlers";
-import { spawn } from "child_process";
-import * as fs from "fs";
+// removed unused imports
 import * as path from "path";
-import * as os from "os";
 import { MainProcessWorker } from "./helpers/mainProcessWorker";
 
 // Store processed chart data in memory (main process only)
@@ -27,17 +25,18 @@ function sendProgressCoalesced(event: Electron.IpcMainEvent, data: { requestId: 
 }
 
 // Ultra-fast streaming data processor - runs directly in main process with yielding
+type GrpcDataPoint = { id?: string; location: { latitude: number; longitude: number; altitude?: number }; value: number; unit?: string; timestamp?: number; metadata?: Record<string, unknown> };
+type GrpcChunk = { data_points?: GrpcDataPoint[] };
+type ProcessingStats = { totalProcessed: number; avgValue: number; minValue: number; maxValue: number; dataTypes: string[]; processingTime: number; pointsPerSecond: number };
+type ChartMetadata = { totalPoints: number; chartPoints: number; samplingRatio: number; bounds: { lng: [number, number]; lat: [number, number]; value: [number, number] } };
 async function processDataStreamingInMainProcess(
-  chunks: any[],
+  chunks: GrpcChunk[],
   requestId: string,
   onProgress: (progress: { processed: number; total: number; percentage: number; phase: string }) => void
-): Promise<{
-  stats: any;
-  chartConfig: { type: string; data: Array<[number, number, number]>; metadata: any };
-}> {
+): Promise<{ stats: ProcessingStats; chartConfig: { type: string; data: Array<[number, number, number]>; metadata: ChartMetadata } }> {
   
-  let processedPoints: Array<[number, number, number]> = [];
-  let stats = {
+  const processedPoints: Array<[number, number, number]> = [];
+  const stats = {
     totalProcessed: 0,
     minValue: Infinity,
     maxValue: -Infinity,
@@ -61,7 +60,7 @@ async function processDataStreamingInMainProcess(
         
         // Process micro-batch
         for (let j = i; j < batchEnd; j++) {
-          const point = chunk.data_points[j];
+          const point = chunk.data_points[j] as GrpcDataPoint;
           
           // Store essential data for charting (limited amount)
           if (processedPoints.length < 10000) { // Reduced limit for performance
@@ -78,8 +77,8 @@ async function processDataStreamingInMainProcess(
           stats.minValue = Math.min(stats.minValue, point.value);
           stats.maxValue = Math.max(stats.maxValue, point.value);
           
-          if (point.metadata?.sensor_type) {
-            stats.dataTypes.add(point.metadata.sensor_type);
+           if (point.metadata && typeof (point.metadata as any).sensor_type === 'string') {
+             stats.dataTypes.add((point.metadata as any).sensor_type as string);
           }
         }
         
@@ -211,11 +210,20 @@ app.whenReady().then(createWindow).then(installExtensions);
 // 🎉 All gRPC IPC handlers now auto-generated!
 // See registerAutoGrpcHandlers() call above
 
-ipcMain.handle('grpc-stop-stream', async () => {
+// Track in-flight streaming by requestId for cancellation
+const inflightStreams = new Map<string, { terminate: () => void; cancelGrpc?: () => boolean }>();
+
+ipcMain.handle('grpc-stop-stream', async (_event, payload?: { requestId?: string }) => {
   try {
-    // Note: stopCurrentStream method needs to be implemented in auto-generated client
-    // mainGrpcClient.stopCurrentStream();
-    return { success: true };
+    const rid = payload?.requestId;
+    if (rid && inflightStreams.has(rid)) {
+      const ctx = inflightStreams.get(rid)!;
+      try { ctx.cancelGrpc?.(); } catch {}
+      try { ctx.terminate(); } catch {}
+      inflightStreams.delete(rid);
+      return { success: true, cancelled: true };
+    }
+    return { success: true, cancelled: false };
   } catch (error) {
     console.error('gRPC stopStream failed:', error);
     throw error;
@@ -234,12 +242,21 @@ ipcMain.on('grpc-start-child-process-stream', async (event, request) => {
       sendProgressCoalesced(event, { requestId, type: 'progress', processed: progress.processed, total: totalPoints || progress.total, percentage: progress.percentage, phase: progress.phase });
     });
     try {
-      const totals = await autoMainGrpcClient.streamBatchDataIncremental(
-        { bounds, data_types: dataTypes, max_points: maxPoints, resolution },
-        (chunk) => {
-          streamer.postChunk(chunk);
+      const totals = await (async () => {
+        // start gRPC stream and register cancel handle
+        const cancel = (rid: string) => () => autoMainGrpcClient.cancelStream(rid);
+        inflightStreams.set(requestId, { terminate: streamer.terminate, cancelGrpc: cancel(requestId) });
+        try {
+          const res = await autoMainGrpcClient.streamBatchDataIncremental(
+            { bounds, data_types: dataTypes, max_points: maxPoints, resolution },
+            (chunk) => { streamer.postChunk(chunk); },
+            requestId
+          );
+          return res;
+        } finally {
+          inflightStreams.delete(requestId);
         }
-      );
+      })();
       totalPoints = totals.totalPoints;
       sendProgressCoalesced(event, { requestId, type: 'progress', processed: 0, total: totalPoints, percentage: 0, phase: 'worker_receiving_stream' });
       const result = await streamer.finalize();

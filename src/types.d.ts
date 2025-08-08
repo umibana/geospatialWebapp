@@ -75,5 +75,5 @@ interface GrpcAPI {
   ) => Promise<any>;
 
   fetchChartDataInChunks: (requestId: string) => Promise<Array<[number, number, number]>>;
-  stopStream: () => Promise<any>;
+  stopStream: (requestId?: string) => Promise<{ success: boolean; cancelled?: boolean }>;
 }

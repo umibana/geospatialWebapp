@@ -11,7 +11,7 @@ const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
     extraResource: [
-      "./backend/dist/django-server"
+      "./backend/dist/grpc-server"
     ],
   },
   rebuildConfig: {},

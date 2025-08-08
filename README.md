@@ -1,68 +1,93 @@
-# Aplicación Geoespacial de Escritorio
+# Aplicación Geoespacial (Electron + React + gRPC Python)
 
-Aplicación de alto rendimiento construida con Electron + React (renderer), un backend Python gRPC y una selección inteligente de procesamiento (Worker Threads vs Worker Stream) para manejar datasets masivos sin bloquear la UI.
+Aplicación de escritorio de alto rendimiento con backend Python gRPC, cliente gRPC en el proceso principal, y procesamiento inteligente (Worker Threads) para datasets masivos sin bloquear la UI.
 
-## Visión General de la Arquitectura
+## Arquitectura (visión general)
+- Proceso Principal (Electron): crea la ventana, arranca/parar el backend gRPC (Python), registra IPC auto‑generados y maneja procesamiento pesado con `worker_threads`.
+- Preload (contextBridge): expone `window.grpc` tipado y utilidades (progreso amortiguado, fetch de datos del gráfico por chunks).
+- Renderer (React): usa solo `window.grpc` para invocar métodos y renderiza UI (Shadcn/Tailwind + ECharts).
+- Backend (Python): `grpc_server.py` implementa `GeospatialService` con métodos unary y streaming; `data_generator.py` produce datos sintéticos con NumPy.
 
-Procesos y responsabilidades:
-- Proceso Principal (Electron): gestiona la ventana, ciclo de vida del backend, cliente gRPC y Worker Threads para procesamiento pesado.
-- Preload (contextBridge): expone `window.grpc` tipado y funciones auxiliares; desacopla Renderer del entorno Node.
-- Renderer (React): consume `window.grpc` y muestra resultados/progreso.
-- Backend (Python gRPC): genera/entrega datos en streaming por chunks.
+### Flujo de datos
+1) Renderer llama `window.grpc.getBatchDataOptimized(bounds, types, maxPoints, resolution, onProgress)`.
+2) Preload envía una solicitud con `requestId` al main. Para datasets grandes, el main recibe chunks vía gRPC y los procesa en `worker_threads` (reservoir sampling ≤10k puntos + estadísticas). Progreso coalescido cada ~100ms.
+3) El main envía “complete” con metadatos y marca `dataReady`. El renderer obtiene luego los puntos de gráfico por chunks pequeños vía `grpc-get-chart-data` para evitar saturar IPC.
 
-Flujo simplificado:
-1) Renderer llama a `window.grpc.getBatchDataOptimized(...)`.
-2) Preload decide la estrategia por umbral: `<50K` → worker_stream; `≥50K` → worker_threads.
-3) Main usa el cliente gRPC para obtener chunks y procesa en Worker Threads (reservoir sampling + estadísticas). Progreso coalescido (~100ms).
-4) La respuesta final incluye solo metadatos del gráfico; los datos completos del gráfico se solicitan por chunks vía IPC para evitar bloqueos.
-
-## Tecnologías Clave
-- Electron 36, React 19, TypeScript 5, Vite.
-- gRPC con `@grpc/grpc-js` (cliente en Main) y Python gRPC (servidor).
-- TailwindCSS + shadcn/ui para UI moderna.
-- Worker Threads (Node.js) para procesamiento paralelo real.
-
-## Estructura del Proyecto (resumen)
-```plaintext
-src/
-  components/           # UI (incluye GrpcDemo y ChildProcessVisualization)
-  helpers/
-    backend_helpers.ts  # Ciclo de vida del backend gRPC (arranque/paro)
-    mainProcessWorker.ts# Lógica Worker Threads (procesamiento pesado)
-    ipc/                # Canales y listeners IPC (backend/theme/window)
-  grpc-auto/
-    auto-main-client.ts # Cliente gRPC del proceso principal
-  lib/types.ts          # Tipos compartidos (OptimizedResult, progress, etc.)
-  preload.ts            # Puente seguro: expone window.grpc tipado
-main.ts                 # Entrada del proceso principal (IPC + coalescer)
-backend/                # Servidor Python gRPC
-```
-
-## Puente Preload (API pública)
-`window.grpc` expone métodos seguros (tipados en `src/lib/types.ts`):
+## Superficie pública (Preload)
+`window.grpc` (simplificado):
 - `healthCheck()`
 - `helloWorld({ message })`
 - `echoParameter({ value, operation })`
 - `getFeatures({ bounds, featureTypes, limit })`
 - `getBatchDataOptimized(bounds, dataTypes, maxPoints, resolution?, onProgress?, onChunkData?, options?)`
-  - Devuelve `OptimizedResult` con `strategy: 'worker_stream' | 'worker_threads'`.
-  - Para `worker_stream`: incluye `totalProcessed`, `processingTime`, `summary`, `dataSample?`.
-  - Para `worker_threads`: incluye `stats` (totalProcessed, pointsPerSecond, etc.) y `chartConfig` (metadatos + data luego via chunks).
+- `getBatchDataChildProcessStreamed(bounds, dataTypes, maxPoints, resolution?, onProgress?)`
+- `getBatchDataWorkerStreamed(bounds, dataTypes, maxPoints, resolution?, onProgress?, onChunkData?)` (ruta ligera/legada)
+- `stopStream(requestId?)` (cancela una solicitud en curso)
 
-Progreso: se entrega como `{ processed, total, percentage, phase }` y está amortiguado en preload (~100ms). En el main también hay coalescing para `grpc-child-process-progress`.
+Progreso estándar: `{ processed, total, percentage, phase }`.
 
-## Uso en Renderer (ejemplos)
+### Integrar un método nuevo: Opción A (auto‑generado) vs Opción B (optimizado)
+
+- Opción A — Auto‑generado (sin workers, cero pegamento)
+  1. Edita el `.proto` y el backend (`backend/grpc_server.py`).
+  2. Ejecuta `npm run generate:protos`.
+  3. (Opcional) Expón el cliente auto‑generado en preload para usar `window.autoGrpc`:
+     ```ts
+     // src/preload.ts
+     import { exposeAutoGrpcContext } from './grpc-auto/auto-context';
+     exposeAutoGrpcContext(); // ← añade window.autoGrpc.*
+     ```
+  4. Usa en el renderer:
+     ```ts
+     const res = await window.autoGrpc.MiMetodo({ ...params });
+     ```
+  Ventaja: inmediato y sin escribir glue code. Ideal para probar métodos nuevos o respuestas pequeñas/medianas.
+
+- Opción B — Optimizado con workers (alto rendimiento, UX fluida)
+  1. Mantén tu RPC como streaming por chunks (estilo `GetBatchDataStreamed`).
+  2. En el handler del main, reusa el pipeline existente (worker_threads + progreso coalescido). Si el shape difiere, normaliza cada chunk al contrato `{ data_points: [...] }` antes de `streamer.postChunk(...)`.
+  3. En preload, expón `getXyzDataChildProcessStreamed(...)` o incorpora a `getBatchDataOptimized(...)`.
+  4. Usa en el renderer solo la ruta optimizada (`window.grpc.getBatchDataOptimized(...)`).
+  Ventaja: procesa millones de puntos sin bloquear, con cancelación por `requestId` y transferencia de gráfico por chunks.
+
+Cuándo elegir:
+- Elige A si necesitas rapidez para validar/usar un método nuevo sin requisitos de rendimiento fuertes.
+- Elige B si manejarás datasets grandes o necesitas progreso/cancelación y UI 100% fluida.
+
+## Estructura del proyecto (resumen)
+```
+backend/
+  grpc_server.py       # Servidor gRPC Python
+  data_generator.py    # Generador NumPy
+  build_server.py      # PyInstaller
+src/
+  main.ts              # Proceso principal (IPC + gRPC client + worker_threads)
+  preload.ts           # contextBridge (window.grpc)
+  components/          # UI (GrpcDemo, ChildProcessVisualization)
+  helpers/
+    backend_helpers.ts # Arranque/parada backend Python
+    mainProcessWorker.ts# Worker Threads (procesamiento pesado)
+    ipc/               # Canales y listeners (window/theme/backend)
+  grpc-auto/           # Código auto‑generado desde protos
+  lib/types.ts         # Tipos y utilidades de resultados
+```
+
+## Uso en Renderer
 ```ts
-// Selección automática (recomendada)
+const bounds = { northeast: { latitude: 37.7849, longitude: -122.4094 }, southwest: { latitude: 37.7749, longitude: -122.4194 } };
+
+// Ruta recomendada (selección inteligente)
 const result = await window.grpc.getBatchDataOptimized(
   bounds,
   ['elevation'],
-  120_000, // ≥ 50K ⇒ Worker Threads
+  120_000,
   20,
   (p) => setProgress(p.percentage)
 );
+```
 
-// Utilidades para tratar resultados de forma uniforme
+Utilidades (renderer) para resultados mixtos:
+```ts
 import { extractTotalProcessed, extractProcessingTimeSeconds, extractPointsPerSecond } from '@/lib/types';
 const total = extractTotalProcessed(result);
 const secs = extractProcessingTimeSeconds(result);
@@ -72,89 +97,95 @@ const pps  = extractPointsPerSecond(result);
 ## Desarrollo
 ```bash
 npm install
-npm run setup:backend   # Python deps del backend
-npm run dev             # Inicia backend + frontend con generación de protos
+npm run setup:backend     # Instala deps Python
+npm run dev               # Genera protos y lanza la app (el main arranca el backend)
 ```
-Scripts útiles:
+Comandos útiles:
 - `npm start` (solo app Electron)
-- `npm run dev:backend` (solo backend Python)
-- `npm run generate:protos` (regenera protos TS + Python)
+- `npm run dev:backend` (solo servidor Python, opcional)
+- `npm run generate:protos` (regenera TS/Python)
 - `npm run build:backend` (PyInstaller)
-- `npm run make` (paquetes)
+- `npm run make` (paquetes instalables)
 
-## Empaquetado y Distribución (macOS / Windows / Linux)
+## Empaquetado
+1) Construye backend Python: `npm run build:backend` (genera `backend/dist/grpc-server`).
+2) Empaqueta la app: `npm run make` (Forge incluye `backend/dist/grpc-server` como recurso extra).
 
-Requisitos previos:
-- macOS: Xcode Command Line Tools instaladas (para firmar si aplica). Para `.dmg` basta con `npm run make`.
-- Windows: Visual Studio Build Tools + `windows-build-tools` si fuese necesario; `npm run make` genera instaladores Squirrel (`.exe`).
-- Linux: Paquetes de empaquetado (`dpkg`, `rpm`) según distro.
+## Extender con nuevas funciones pesadas
+1) Backend: implementa `GetXyzDataStreamed(request)` que devuelva chunks.
+2) Cliente gRPC (main): añade `autoMainGrpcClient.getXyzDataStreamed(request)` siguiendo el patrón existente.
+3) Main IPC: crea `grpc-start-xyz-child-process-stream` que consuma chunks gRPC, procese con `MainProcessWorker`, envíe progreso y complete. Para gráficos, devuelve solo metadatos y sirve puntos via `grpc-get-chart-data`.
+4) Preload: añade `getXyzDataChildProcessStreamed` y versión `getXyzDataOptimized`.
+5) Renderer: usa siempre `getXyzDataOptimized`.
 
-Comandos típicos:
-```bash
-# 1) Construir backend Python (PyInstaller)
-npm run build:backend
+Contrato del Worker genérico:
+- Entrada: `chunks[]` con `data_points[]` (lat, lng, value, unit, metadata).
+- Salida: `{ stats, chartConfig }` con reservoir sampling (≤10k puntos), bounds y métricas.
 
-# 2) Empaquetar aplicación Electron para tu plataforma
-npm run make
+### Datos con otra forma (normalización)
+Si tu nuevo método del backend devuelve otra estructura (por ejemplo `optimized_points` con lat/lon planos, o campos con otros nombres), normaliza cada chunk al contrato del worker antes de postearlo al procesador:
 
-# 3) (Opcional) Solo empaquetar sin instaladores
-npm run package
+```ts
+// En el handler del main (ej.: 'grpc-start-xyz-child-process-stream')
+const streamer = MainProcessWorker.getInstance().startStreamingProcessor(requestId, onProgress);
+
+await autoMainGrpcClient.streamXyzDataIncremental(request, (chunk) => {
+  // Normaliza a { data_points: [...] }
+  const points = (chunk.optimized_points || chunk.data_points || []).map((p: any) => ({
+    location: { latitude: p.latitude ?? p.location?.latitude, longitude: p.longitude ?? p.location?.longitude },
+    value: p.value,
+    unit: p.unit ?? 'value',
+    metadata: { sensor_type: p.generation_method || p.unit || 'custom' }
+  }));
+  streamer.postChunk({ data_points: points, total_chunks: chunk.total_chunks });
+});
+
+const result = await streamer.finalize();
 ```
-
-Salidas habituales:
-- macOS: `out/make/zip/darwin/x64/*.zip` y/o `out/make/*.dmg` (según maker configurado).
-- Windows: `out/make/squirrel.windows/*.exe` (instalador Squirrel) y `out/*-win32-*` (carpetas empaquetadas).
-- Linux: `out/make/*.deb`, `out/make/*.rpm` según makers habilitados.
 
 Notas:
-- Si necesitas firmar binarios, usa Electron Forge Fuses/Code Signing según tu plataforma.
-- Si cambias `main.ts`/`preload.ts`, vuelve a ejecutar `npm run make`.
+- Si el resultado no es geoespacial (no hay lat/lon), adapta el worker (ver “Modos de procesamiento” abajo) o construye un `chartConfig` específico para tu visualización (p.ej. series de línea, barras, heatmap).
+- Mantén la muestra de gráfico acotada (≤10k puntos) para no bloquear la UI.
 
-## Cómo extender con nuevas funciones pesadas
-1) Backend (Python): añade `GetXyzDataStreamed(request)` devolviendo chunks.
-2) Cliente gRPC (main): agrega `autoMainGrpcClient.getXyzDataStreamed(request)` copiando el patrón de `getBatchDataStreamed`.
-3) Main IPC: crea handler `grpc-start-xyz-child-process-stream` que:
-   - Obtenga chunks (gRPC)
-   - Normalice a `{ data_points: [...] }` si es necesario
-   - Llame a `MainProcessWorker.getInstance().processLargeDataset(chunks, requestId, onProgress)`
-   - Envíe progreso (coalescer) y final solo con metadatos; datos del gráfico vía `grpc-get-chart-data` por chunks.
-4) Preload: añade `getXyzDataChildProcessStreamed` y `getXyzDataOptimized` (umbral configurable).
-5) Renderer: usa solo `getXyzDataOptimized`, mostrando `strategy` y métricas.
+### Pasos detallados para añadir un nuevo método
+1) Backend (Python)
+   - Agrega el RPC al `.proto` y la implementación en `backend/grpc_server.py`.
+   - Para grandes volúmenes, usa un método “server_streaming” (chunked) similar a `GetBatchDataStreamed`.
 
-Notas para Worker genérico:
-- Entrada esperada: `chunks[]` con `data_points: { location{lat,lng}, value, unit, metadata }`.
-- Salida: `{ stats, chartConfig }` con reservoir sampling (≤ 10k puntos).
-- Para otros tipos (heatmap/line), añade una opción `mode` y mapea a la estructura de gráfico adecuada sin cambiar el armazón.
+2) Regenerar stubs
+   - `npm run generate:protos` (TS + Python).
 
-## Regenerar Protocol Buffers tras cambios de esquema
+3) Cliente gRPC (Main)
+   - Añade en `auto-main-client.ts` un método `getXyzDataStreamed(request)` o `streamXyzDataIncremental(request, onChunk, requestId?)` copiando el patrón existente (aplicar backpressure y cancelar con `cancelStream`).
 
-Cuando edites `.proto` (por ejemplo `protos/*.proto`), regenera los stubs TS/Python:
+4) IPC en Main + Normalización
+   - Crea `ipcMain.on('grpc-start-xyz-child-process-stream', ...)`.
+   - Dentro, llama a tu `streamXyzDataIncremental` y normaliza cada chunk al contrato `{ data_points: [...] }` antes de `streamer.postChunk(...)`.
+   - Envía progreso coalescido con `sendProgressCoalesced` y, al finalizar, guarda `chartConfig.data` en caché y responde con `dataReady: true`.
 
-```bash
-# Genera stubs TS (renderer/main) y Python (backend)
-npm run generate:protos
+5) Preload
+   - Expón `getXyzDataChildProcessStreamed(bounds, dataTypes, maxPoints, resolution?, onProgress?)` y/o `getXyzDataOptimized(...)` similar a los existentes, reutilizando `fetchChartDataInChunks(requestId)` para traer los puntos de gráfico en trozos pequeños.
 
-# (Opcional) Solo frontend
-npm run generate:protos:frontend
+6) Renderer (Frontend)
+   - Usa siempre la ruta optimizada: `window.grpc.getXyzDataOptimized(...)`.
+   - Muestra `progress.percentage` y, al completar, toma métricas uniformes desde `result` (usa helpers de `lib/types.ts`).
 
-# (Opcional) Solo backend
-npm run generate:protos:backend
-```
+### Modos de procesamiento (opcional)
+Si vas a soportar tipos de visualización distintos (p.ej., línea/heatmap), puedes:
+- Añadir un parámetro `mode` al worker (en `mainProcessWorker.ts`) y ramificar cómo construir `chartConfig` conservando el mismo muestreo/estadísticas.
+- O crear otro worker especializado que conserve la misma interfaz de entrada/salida.
 
-Consejos:
-- Reinicia la app tras generar protos (`Ctrl+C` y `npm run dev` de nuevo).
-- Si añades nuevos servicios/mensajes, actualiza preload (`src/preload.ts`) y tipos (`src/lib/types.ts`) si aplica.
-- Verifica compatibilidad de versiones de `@grpc/grpc-js` y `grpc_tools` en `backend/requirements.txt`.
+## Limpieza y simplificación (resumen)
+- Se eliminaron helpers y contextos antiguos (ver CLEANUP_REPORT.md) y se consolidó todo en `window.grpc` y handlers auto-generados.
+- Menos archivos que mantener; el `.proto` es fuente de verdad. IPCs para unary/streaming se registran automáticamente.
 
-## Rendimiento y Estabilidad
-- Progreso coalescido (main) y amortiguado (preload) para reducir tráfico IPC.
-- Backpressure sencillo en streaming gRPC para evitar sobre-bufering.
-- Carga del backend con espera por socket (exponencial), apagado con SIGTERM/SIGKILL.
+## Rendimiento y estabilidad
+- Límites gRPC altos (hasta 500MB) y compresión GZIP habilitada.
+- Backpressure en streaming gRPC y coalescing de progreso (~100ms).
+- Datos de gráfico servidos por chunks para evitar bloqueos de IPC.
 
 ## Seguridad
-- Context Isolation activo.
-- Renderer sin acceso directo a Node/gRPC.
-- Toda comunicación con backend vía IPC segura.
+- Context Isolation activo y comunicación solo vía IPC seguro.
 
 ## Licencia
-MIT.
+MIT

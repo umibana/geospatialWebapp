@@ -10,6 +10,7 @@ class AutoMainGrpcClient {
   private client: any = null;
   private initialized = false;
   private readonly serverAddress = '127.0.0.1:50077';
+  private activeStreams: Map<string, any> = new Map();
 
   async initialize(): Promise<void> {
     try {
@@ -146,12 +147,16 @@ class AutoMainGrpcClient {
   async streamBatchDataIncremental(
     request: any,
     onChunk: (chunk: any) => void,
+    requestId?: string,
   ): Promise<{ totalPoints: number; totalChunks: number }> {
     return new Promise((resolve, reject) => {
       const client = this.ensureClient();
       const stream = client.GetBatchDataStreamed(request);
       let totalPoints = 0;
       let totalChunks = 0;
+      if (requestId) {
+        this.activeStreams.set(requestId, stream);
+      }
       const MAX_PER_BATCH = 10; // yield every N chunks
       let sinceYield = 0;
 
@@ -171,13 +176,29 @@ class AutoMainGrpcClient {
       });
       
       stream.on('end', () => {
+        if (requestId) this.activeStreams.delete(requestId);
         resolve({ totalPoints, totalChunks });
       });
       
       stream.on('error', (error: Error) => {
+        if (requestId) this.activeStreams.delete(requestId);
         reject(error);
       });
     });
+  }
+
+  cancelStream(requestId: string): boolean {
+    const stream = this.activeStreams.get(requestId);
+    if (stream && typeof stream.cancel === 'function') {
+      try {
+        stream.cancel();
+      } catch {
+        // ignore cancel errors
+      }
+      this.activeStreams.delete(requestId);
+      return true;
+    }
+    return false;
   }
 }
 
