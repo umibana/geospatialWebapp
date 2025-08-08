@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
-import { DataVisualization } from './DataVisualization';
 import { ChildProcessVisualization } from './ChildProcessVisualization';
 
 interface GeospatialFeature {
@@ -37,42 +36,25 @@ export function GrpcDemo() {
     dataType: 'elevation'
   });
   
-  // Web Worker streaming test state (CERO bloqueo del hilo principal)
-  const [workerStreamLoading, setWorkerStreamLoading] = useState(false);
-  const [workerStreamResult, setWorkerStreamResult] = useState<{ totalProcessed: number; processingTime: number; generationMethod: string; summary: Record<string, unknown> } | null>(null);
+  // (removed legacy worker stream test state)
   
   // Simple gRPC examples state
   const [helloWorldInput, setHelloWorldInput] = useState('');
   const [echoParamInput, setEchoParamInput] = useState('');
   
-  // Web Worker progress state
-  const [workerProgress, setWorkerProgress] = useState<{
-    isProcessing: boolean;
-    processed: number;
-    total: number;
-    percentage: number;
-    currentMethod?: string;
-  }>({
-    isProcessing: false,
-    processed: 0,
-    total: 0,
-    percentage: 0
-  });
+  // (removed legacy worker stream progress/throttle state)
 
-  // Throttle state updates to prevent floating window freezing
-  const [lastUpdateTime, setLastUpdateTime] = useState(0);
-  const updateThrottleMs = 100; // Update UI every 100ms max
+  // Optimized data processing state
+  const [processingResult, setProcessingResult] = useState<{
+    duration: number; 
+    pointsPerSecond: number; 
+    memoryUsage: string; 
+    status: 'success' | 'failed' | 'running'; 
+    data?: unknown;
+  } | null>(null);
 
-  // Throttled progress update function
-  const updateProgressThrottled = (newProgress: Partial<typeof workerProgress>) => {
-    const now = Date.now();
-    
-    // Always update if processing is complete or if enough time has passed
-    if (!newProgress.isProcessing || (now - lastUpdateTime >= updateThrottleMs)) {
-      setWorkerProgress(prev => ({ ...prev, ...newProgress }));
-      setLastUpdateTime(now);
-    }
-  };
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingProgress, setProcessingProgress] = useState(0);
 
   useEffect(() => {
     initializeGrpc();
@@ -173,29 +155,22 @@ export function GrpcDemo() {
         southwest: { latitude: 37.7749, longitude: -122.4194 }
       };
       
-      console.log('📦 Loading batch data via gRPC...');
-      
-      // Note: getBatchData method doesn't exist, using getBatchDataWorkerStreamed instead
-      const result = await window.grpc.getBatchDataWorkerStreamed(
-        bounds, 
-        ['elevation'], // Data type
-        50, // Max points
-        10, // Resolution
+      console.log('📦 Loading batch data via Optimized API...');
+      const result = await window.grpc.getBatchDataOptimized(
+        bounds,
+        ['elevation'],
+        50000,
+        10,
         (progress: { processed: number; total: number; percentage: number; phase: string }) => console.log('Batch progress:', progress)
       );
       
-      console.log('📦 Raw gRPC result:', result);
-      console.log('📦 Total processed:', result.totalProcessed);
-      console.log('📦 Processing time:', result.processingTime);
-      
-      // Note: getBatchDataWorkerStreamed returns different structure
-      console.log('Batch data result:', result);
+      const usedWorkerThreads = result.strategy === 'worker_threads';
+      const totalProcessed = usedWorkerThreads ? (result.stats?.totalProcessed || 0) : (result.totalProcessed || 0);
+      const processingTime = usedWorkerThreads ? (result.stats?.processingTime || 0) : (result.processingTime || 0);
+      // Logs reducidos para evitar overhead de DevTools con objetos grandes
       setBatchData([]);
-      
-      console.log(`📦 Processed ${result.totalProcessed || 0} data points via gRPC worker method`);
-      console.log(`📦 Generation method: ${result.generationMethod}`);
       toast.success(`Batch Data Loaded!`, {
-        description: `Points: ${result.totalCount} | Method: ${result.generationMethod}${result.dataPoints?.[0] ? ` | Sample: ${result.dataPoints[0].value.toFixed(2)} ${result.dataPoints[0].unit}` : ''}`
+        description: `${totalProcessed.toLocaleString()} points in ${processingTime.toFixed(2)}s via ${usedWorkerThreads ? 'Worker Threads' : 'Worker Stream'}`
       });
     } catch (error) {
       console.error('Failed to load batch data:', error);
@@ -221,16 +196,17 @@ export function GrpcDemo() {
       };
       
       const totalStartTime = performance.now();
-      console.log(`🧪 Testing data generator with ${testParams.maxPoints.toLocaleString()} points, resolution ${testParams.resolution}, type ${testParams.dataType}...`);
+      // Log resumido
+      console.log(`🧪 Testing: ${testParams.maxPoints.toLocaleString()} pts, res ${testParams.resolution}, type ${testParams.dataType}`);
       
       // Test with custom parameters
       console.log(`🔄 Starting gRPC call at ${new Date().toLocaleTimeString()}`);
       const grpcStartTime = performance.now();
       
-      const result = await window.grpc.getBatchDataWorkerStreamed(
-        bounds, 
-        [testParams.dataType], 
-        testParams.maxPoints, 
+      const result = await window.grpc.getBatchDataOptimized(
+        bounds,
+        [testParams.dataType],
+        testParams.maxPoints,
         testParams.resolution,
         (progress: { processed: number; total: number; percentage: number; phase: string }) => console.log('Performance test progress:', progress)
       );
@@ -248,18 +224,15 @@ export function GrpcDemo() {
       const dataProcessingTime = (dataProcessingEndTime - dataProcessingStartTime) / 1000;
       const totalDuration = (totalEndTime - totalStartTime) / 1000;
       
-      // Note: getBatchDataWorkerStreamed returns summary data, not the raw points\n      // Use the sample data for display purposes\n      const displayData = result.dataSample || [];\n      setParamTestData(displayData);
+      // Use the sample data for display purposes
+      const displayData = result.strategy === 'worker_stream' && result.dataSample ? result.dataSample : [];
+      setParamTestData(displayData);
       
       // Calculate data transfer rate
       const estimatedDataSize = result.totalProcessed * 120; // rough estimate in bytes
       const transferRateMBps = (estimatedDataSize / (1024 * 1024)) / grpcTime;
       
-      console.log(`⏱️  Frontend Timing Breakdown:`);
-      console.log(`   • gRPC call (round-trip): ${grpcTime.toFixed(3)}s`);
-      console.log(`   • Data processing: ${dataProcessingTime.toFixed(3)}s`);
-      console.log(`   • Total frontend time: ${totalDuration.toFixed(3)}s`);
-      console.log(`   • Estimated transfer rate: ${transferRateMBps.toFixed(1)} MB/s`);
-      console.log(`🧪 Generated ${result.totalProcessed} data points using ${result.generationMethod}`);
+      console.log(`⏱️ gRPC: ${grpcTime.toFixed(2)}s, Proc: ${dataProcessingTime.toFixed(2)}s, Total: ${totalDuration.toFixed(2)}s, Rate: ${transferRateMBps.toFixed(1)} MB/s`);
       
       toast.success(`Parameter Test Complete!`, {
         description: `${result.totalProcessed.toLocaleString()} ${testParams.dataType} points generated in ${totalDuration.toFixed(2)}s (${transferRateMBps.toFixed(1)} MB/s)`
@@ -276,100 +249,75 @@ export function GrpcDemo() {
 
 
   // Test de streaming con Web Worker (CERO bloqueo del hilo principal)
-  const runWorkerStreamTest = async () => {
-    if (!isConnected) return;
+  // (removed legacy web worker deep-dive demo)
+
+  // Optimized processing function with automatic strategy selection
+  const runOptimizedProcessing = async () => {
+    if (!isConnected || isProcessing) return;
     
+    setIsProcessing(true);
+    setProcessingProgress(0);
+    setProcessingResult({ 
+      duration: 0, 
+      pointsPerSecond: 0, 
+      memoryUsage: 'Processing...', 
+      status: 'running' 
+    });
+
+    const bounds = {
+      northeast: { latitude: 37.7849, longitude: -122.4094 },
+      southwest: { latitude: 37.7749, longitude: -122.4194 }
+    };
+
     try {
-      setWorkerStreamLoading(true);
-      updateProgressThrottled({
-        isProcessing: true,
-        processed: 0,
-        total: testParams.maxPoints,
-        percentage: 0,
-        currentMethod: 'worker-stream'
-      });
-      
-      const bounds = {
-        northeast: { latitude: 37.7849, longitude: -122.4094 },
-        southwest: { latitude: 37.7749, longitude: -122.4194 }
-      };
-      
+      console.log(`🎯 Processing ${testParams.maxPoints.toLocaleString()} points with auto strategy selection...`);
       const startTime = performance.now();
-      console.log(`⚡ Iniciando test de streaming con Web Worker: ${testParams.maxPoints} puntos (CERO bloqueo del hilo principal)...`);
-      
-      // Usar enfoque de streaming con Web Worker - sin acumulación de datos en hilo principal
-      const result = await window.grpc.getBatchDataWorkerStreamed(
-        bounds, 
-        [testParams.dataType], 
-        testParams.maxPoints, 
+
+      const result = await window.grpc.getBatchDataOptimized(
+        bounds,
+        [testParams.dataType],
+        testParams.maxPoints,
         testParams.resolution,
-        // Callback de progreso desde Web Worker (solo actualizaciones ligeras de progreso)
-        (progress: { processed: number; total: number; percentage: number; phase: string }) => {
-          updateProgressThrottled({
-            processed: progress.processed,
-            total: progress.total,
-            percentage: progress.percentage,
-            isProcessing: progress.percentage < 100
-          });
-          const phaseText = progress.phase === 'calculating_statistics' ? 'Calculando estadísticas' : 
-                           progress.phase === 'processing_worker' ? 'Procesando con Web Worker' : 
-                           progress.phase;
-          console.log(`⚡ Progreso Worker Stream [${phaseText}]: ${progress.processed}/${progress.total} (${progress.percentage.toFixed(1)}%)`);
-        }
+        (progress: { percentage: number }) => setProcessingProgress(progress.percentage)
       );
       
       const endTime = performance.now();
-      const totalDuration = (endTime - startTime) / 1000;
+      const duration = (endTime - startTime) / 1000;
+      const usedWorkerThreads = result.strategy === 'worker_threads';
+      const totalProcessed = usedWorkerThreads ? (result.stats?.totalProcessed || 0) : (result.totalProcessed || 0);
+      const pointsPerSecond = Math.round(totalProcessed / duration);
       
-      // Calculate statistics based on processing summary (no raw data transferred)
-      const estimatedDataSize = result.totalProcessed * 120;
-      const transferRateMBps = (estimatedDataSize / (1024 * 1024)) / result.processingTime;
-      
-      const testResult = {
-        points: result.totalProcessed,
-        totalDuration: totalDuration,
-        processingTime: result.processingTime,
-        transferRate: transferRateMBps,
-        method: result.generationMethod,
-        dataSize: estimatedDataSize,
-        summary: result.summary,
-        dataSample: result.dataSample, // ¡Datos reales recibidos!
-        completed: true
-      };
-      
-      setWorkerStreamResult(testResult);
-      
-      console.log(`✅ Web Worker streaming test completed:`, testResult);
-      
-      // Reset progress
-      updateProgressThrottled({
-        isProcessing: false,
-        processed: testResult.points,
-        total: testResult.points,
-        percentage: 100
+      setProcessingResult({
+        duration,
+        pointsPerSecond,
+        memoryUsage: usedWorkerThreads ? 'High (Node.js)' : 'Isolated (Worker)',
+        status: 'success',
+        data: result
       });
       
-      toast.success(`¡Streaming con Web Worker Completado!`, {
-        description: `${result.totalProcessed.toLocaleString()} puntos de ${testParams.dataType} procesados en ${totalDuration.toFixed(2)}s (${transferRateMBps.toFixed(1)} MB/s) - ¡CERO bloqueo de UI! Ver muestra de datos abajo.`
+      console.log(`✅ Processing completed: ${duration.toFixed(2)}s, ${pointsPerSecond.toLocaleString()} pts/s`);
+      
+      toast.success(`⚡ Processing Complete!`, {
+        description: `${totalProcessed.toLocaleString()} points in ${duration.toFixed(2)}s (${pointsPerSecond.toLocaleString()} pts/s) using ${usedWorkerThreads ? 'Worker Threads' : 'Worker Stream'}`
       });
       
     } catch (error) {
-      console.error(`❌ Test de streaming con Web Worker falló:`, error);
-      toast.error(`Test de streaming con Web Worker falló`, {
-        description: error instanceof Error ? error.message : 'Error desconocido'
+      console.error('❌ Optimized processing failed:', error);
+      setProcessingResult({
+        duration: 0,
+        pointsPerSecond: 0,
+        memoryUsage: 'Failed',
+        status: 'failed'
       });
-      updateProgressThrottled({
-        isProcessing: false,
-        processed: 0,
-        total: 0,
-        percentage: 0
+      toast.error('Processing failed', {
+        description: error instanceof Error ? error.message : 'Unknown error'
       });
     } finally {
-      setWorkerStreamLoading(false);
+      setIsProcessing(false);
     }
   };
 
-
+  // (removed legacy individual strategy testers)
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -495,6 +443,7 @@ export function GrpcDemo() {
                   <option value={10000}>10,000 points</option>
                   <option value={100000}>100,000 points</option>
                   <option value={1000000}>1,000,000 points</option>
+                  <option value={2000000}>2,000,000 points</option>
                 </select>
               </div>
               
@@ -641,182 +590,95 @@ export function GrpcDemo() {
         </div>
 
         {/* Streaming con Web Workers */}
+        {/* Removed legacy Web Worker streaming demo section */}
+
+        {/* ⚡ Optimized Data Processing */}
         <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-3">⚡ Streaming con Web Workers</h3>
+          <h3 className="text-lg font-semibold mb-3">⚡ Optimized Data Processing</h3>
           
-          {/* Test de Responsividad de UI */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-              <div>
-                <h4 className="font-semibold text-blue-800">Test de Responsividad de UI</h4>
-                <p className="text-sm text-blue-600">
-                  Este spinner <strong>nunca debe dejar de moverse</strong> durante las pruebas. 
-                  ¡Las ventanas flotantes deben permanecer arrastrables! ✨
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-yellow-50 p-4 rounded-lg mb-4">
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-6 mb-6">
+            <h4 className="font-semibold text-green-800 mb-3">
+              🎯 Smart Processing Selection
+            </h4>
             <p className="text-sm text-gray-700 mb-4">
-              ⚡ <strong>CERO Bloqueo de UI:</strong> Streaming con Web Workers que reenvía chunks directamente a Web Workers sin acumulación en el hilo principal:
+              Automatically uses the best processing strategy for {testParams.maxPoints.toLocaleString()} {testParams.dataType} points:
+              {testParams.maxPoints >= 50000 ? (
+                <span className="ml-2 px-3 py-1 bg-green-100 text-green-700 rounded font-semibold">
+                  ⚡ Child Process (50K+ points)
+                </span>
+              ) : (
+                <span className="ml-2 px-3 py-1 bg-blue-100 text-blue-700 rounded font-semibold">
+                  🌐 Direct Processing (&lt;50K points)
+                </span>
+              )}
             </p>
             
-            <Button 
-              onClick={runWorkerStreamTest}
-              disabled={!isConnected || workerStreamLoading}
-              className="w-full bg-yellow-600 hover:bg-yellow-700"
-            >
-              {workerStreamLoading ? 'Procesando...' : `⚡ Probar ${testParams.maxPoints.toLocaleString()} Puntos (Web Worker Stream)`}
-            </Button>
+            <div className="text-center">
+              <Button 
+                onClick={runOptimizedProcessing}
+                disabled={!isConnected || isProcessing}
+                className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-semibold py-4 text-lg"
+              >
+                {isProcessing ? 'Processing...' : `⚡ Process ${testParams.maxPoints.toLocaleString()} ${testParams.dataType} Points`}
+              </Button>
+              
+              {isProcessing && (
+                <div className="mt-4">
+                  <div className="w-full bg-green-200 rounded-full h-3">
+                    <div 
+                      className="bg-gradient-to-r from-green-600 to-blue-600 h-3 rounded-full transition-all duration-500"
+                      style={{ width: `${processingProgress}%` }}
+                    ></div>
+                  </div>
+                  <div className="text-sm text-green-600 mt-2 font-medium">
+                    {processingProgress.toFixed(1)}% Complete - UI remains responsive!
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           
-          {/* Resultados de Streaming con Web Worker */}
-          {workerStreamResult && (
-            <div className="bg-white border rounded-lg p-4 mb-4">
-              <h4 className="font-semibold text-yellow-800 mb-2">⚡ Resultados de Streaming con Web Worker</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-600">Puntos:</span>
-                  <div className="font-bold">{workerStreamResult.points.toLocaleString()}</div>
+          {/* Processing Results */}
+          {processingResult && processingResult.status === 'success' && (
+            <div className="bg-white border border-green-200 rounded-lg p-6 mt-6">
+              <h5 className="font-semibold text-green-800 mb-4">⚡ Processing Results</h5>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    {processingResult.duration.toFixed(2)}s
+                  </div>
+                  <div className="text-sm text-gray-600">Duration</div>
                 </div>
-                <div>
-                  <span className="text-gray-600">Duración:</span>
-                  <div className="font-bold">{workerStreamResult.totalDuration.toFixed(2)}s</div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {processingResult.pointsPerSecond.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-gray-600">Points/Second</div>
                 </div>
-                <div>
-                  <span className="text-gray-600">Tiempo de Procesamiento:</span>
-                  <div className="font-bold">{workerStreamResult.processingTime.toFixed(2)}s</div>
-                </div>
-                <div>
-                  <span className="text-gray-600">Método:</span>
-                  <div className="font-bold">Worker Sin-Bloqueo</div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-gray-600">
+                    {processingResult.memoryUsage}
+                  </div>
+                  <div className="text-sm text-gray-600">Memory Usage</div>
                 </div>
               </div>
-              <div className="mt-3 p-2 bg-yellow-100 rounded text-sm">
-                <strong>Resumen:</strong> Promedio: {workerStreamResult.summary?.avgValue}, 
-                Mín: {workerStreamResult.summary?.minValue}, 
-                Máx: {workerStreamResult.summary?.maxValue}
-                <div className="text-yellow-700 font-semibold">⚡ ¡CERO bloqueo del hilo principal!</div>
-              </div>
               
-              {/* Visualización de Datos Reales Recibidos */}
-              {workerStreamResult.dataSample && workerStreamResult.dataSample.length > 0 && (
-                <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded">
-                  <h5 className="font-semibold text-green-800 mb-3">
-                    📊 Muestra de Datos Reales Recibidos (Distribuida en todo el dataset)
-                  </h5>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-xs">
-                      <thead>
-                        <tr className="bg-green-100">
-                          <th className="px-2 py-1 text-left font-semibold">Posición</th>
-                          <th className="px-2 py-1 text-left font-semibold">ID</th>
-                          <th className="px-2 py-1 text-left font-semibold">Latitud</th>
-                          <th className="px-2 py-1 text-left font-semibold">Longitud</th>
-                          <th className="px-2 py-1 text-left font-semibold">Valor</th>
-                          <th className="px-2 py-1 text-left font-semibold">Unidad</th>
-                          <th className="px-2 py-1 text-left font-semibold">Tipo</th>
-                          <th className="px-2 py-1 text-left font-semibold">Tiempo</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {workerStreamResult.dataSample.map((point: {
-                          id: string;
-                          latitude: number;
-                          longitude: number;
-                          valor: number;
-                          unidad: string;
-                          tipo: string;
-                          timestamp: string;
-                          posicion?: string;
-                        }, index: number) => (
-                          <tr key={point.id} className={index % 2 === 0 ? 'bg-white' : 'bg-green-25'}>
-                            <td className="px-2 py-1 font-mono text-xs text-blue-600">{point.posicion || `${index + 1}/10`}</td>
-                            <td className="px-2 py-1 font-mono text-xs">{point.id.substring(0, 8)}...</td>
-                            <td className="px-2 py-1">{point.latitude.toFixed(4)}</td>
-                            <td className="px-2 py-1">{point.longitude.toFixed(4)}</td>
-                            <td className="px-2 py-1 font-bold text-green-700">{point.valor.toFixed(2)}</td>
-                            <td className="px-2 py-1">{point.unidad}</td>
-                            <td className="px-2 py-1">{point.tipo}</td>
-                            <td className="px-2 py-1 font-mono">{point.timestamp}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="mt-2 text-xs text-green-600">
-                    ✅ <strong>Datos auténticos</strong> procesados por Web Worker desde gRPC backend
-                    <br />🎯 <strong>Muestreo distribuido:</strong> Puntos tomados a lo largo de todo el dataset de 1M+ elementos
+              <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">🎉</span>
+                  <div>
+                    <div className="font-bold text-green-800">Processing Complete!</div>
+                    <div className="text-sm text-green-700">
+                      Successfully processed {testParams.maxPoints.toLocaleString()} 
+                      data points with optimized processing strategy {testParams.maxPoints >= 50000 ? '(Child Process)' : '(Direct Processing)'}.
+                    </div>
                   </div>
                 </div>
-              )}
-              
-              {/* Mini Gráfico de Distribución de Valores */}
-              {workerStreamResult.dataSample && workerStreamResult.dataSample.length > 0 && (
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded">
-                  <h5 className="font-semibold text-blue-800 mb-3">
-                    📈 Distribución Visual de Valores (Muestra)
-                  </h5>
-                  <div className="flex items-end gap-1 h-20 mb-2">
-                    {workerStreamResult.dataSample.map((point: {
-                      id: string;
-                      valor: number;
-                      latitude: number;
-                      longitude: number;
-                      unidad: string;
-                    }, index: number) => {
-                      // Calculate max value efficiently (safe for small sample)
-                      const maxValue = workerStreamResult.dataSample.reduce((max: number, p: {valor: number}) => 
-                        Math.max(max, p.valor), 0);
-                      const height = maxValue > 0 ? (point.valor / maxValue) * 100 : 0;
-                      return (
-                        <div
-                          key={point.id}
-                          className="flex-1 bg-blue-500 rounded-t min-w-0 transition-all hover:bg-blue-600"
-                          style={{ height: `${height}%` }}
-                          title={`Punto ${index + 1}: ${point.valor.toFixed(2)} ${point.unidad}\nLat: ${point.latitude.toFixed(4)}, Lng: ${point.longitude.toFixed(4)}`}
-                        />
-                      );
-                    })}
-                  </div>
-                  <div className="flex justify-between text-xs text-blue-600">
-                    <span>Inicio del dataset</span>
-                    <span>Distribución de {workerStreamResult.dataSample[0]?.tipo || 'datos'} (muestreo)</span>
-                    <span>Final del dataset</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* Indicador de Progreso */}
-          {workerProgress.isProcessing && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-semibold text-blue-800">
-                  🔧 Procesando Datos ({workerProgress.currentMethod})
-                </h4>
-                <span className="text-sm text-blue-600">
-                  {workerProgress.percentage.toFixed(1)}%
-                </span>
-              </div>
-              
-              <div className="w-full bg-blue-200 rounded-full h-3 mb-2">
-                <div 
-                  className="bg-blue-600 h-3 rounded-full transition-all duration-300 ease-out"
-                  style={{ width: `${workerProgress.percentage}%` }}
-                ></div>
-              </div>
-              
-              <div className="flex justify-between text-sm text-blue-700">
-                <span>{workerProgress.processed.toLocaleString()} / {workerProgress.total.toLocaleString()} puntos</span>
-                <span>Procesamiento con Web Worker - ¡UI permanece responsiva! ✨</span>
               </div>
             </div>
           )}
-          
+        </div>
 
         {/* Real-time Streaming */}
         <div>
@@ -865,12 +727,6 @@ export function GrpcDemo() {
       </div>
 
       {/* ⚡ ECharts + Real Web Workers Visualization */}
-      <div className="mt-8 border-t pt-6">
-        <DataVisualization 
-          title="🌍 Real-Time Geospatial Data with Web Workers"
-          maxPoints={1000000}
-        />
-      </div>
 
       {/* 🚀 NEW: Main Process Worker Threads Visualization */}
       <div className="mt-8 border-t pt-6">
@@ -879,7 +735,6 @@ export function GrpcDemo() {
           maxPoints={2000000}
         />
       </div>
-    </div>
     </div>
   );
 } 

@@ -2,7 +2,31 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as echarts from 'echarts';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
-import { simpleChildProcessClient, type ChildProcessStats, type ChartConfig } from '../helpers/simpleChildProcessClient';
+
+type ChildProcessStats = {
+  totalProcessed: number;
+  avgValue: number;
+  minValue: number;
+  maxValue: number;
+  dataTypes: string[];
+  processingTime: number;
+  pointsPerSecond: number;
+};
+
+type ChartConfig = {
+  type: string;
+  data: Array<[number, number, number]>;
+  metadata: {
+    totalPoints: number;
+    chartPoints: number;
+    samplingRatio: number;
+    bounds: {
+      lng: [number, number];
+      lat: [number, number];
+      value: [number, number];
+    };
+  };
+};
 
 interface ChildProcessVisualizationProps {
   title?: string;
@@ -162,11 +186,6 @@ export function ChildProcessVisualization({
 
   // Test child process with different sizes
   const testChildProcess = useCallback(async (testMaxPoints: number) => {
-    if (!simpleChildProcessClient.isReady()) {
-      toast.error('Child process not ready');
-      return;
-    }
-
     setIsLoading(true);
     setProgress({ processed: 0, total: 0, percentage: 0, phase: 'starting_child_process' });
 
@@ -176,23 +195,23 @@ export function ChildProcessVisualization({
         southwest: { latitude: 37.7, longitude: -122.5 }
       };
 
-      console.log(`🚀 Starting True Node.js Subprocess with ${testMaxPoints.toLocaleString()} points...`);
+      console.log(`🚀 Starting Worker Threads with ${testMaxPoints.toLocaleString()} points...`);
 
-      // Use the simple client that communicates via IPC only
-      const result = await simpleChildProcessClient.processLargeDataset(
+      const result = await window.grpc.getBatchDataOptimized(
         bounds,
         ['elevation'],
         testMaxPoints,
         30,
-        // Progress callback
-        (progressData) => {
+        (progressData: { processed: number; total: number; percentage: number; phase: string }) => {
           setProgress({
             processed: progressData.processed,
             total: progressData.total,
             percentage: progressData.percentage,
             phase: progressData.phase
           });
-        }
+        },
+        undefined,
+        { threshold: 0 } // force worker_threads path
       );
 
       console.log('🎉 Child process completed:', result);
@@ -200,17 +219,17 @@ export function ChildProcessVisualization({
       console.log('🔍 Received result:', result);
       
       // Set final results with safe access
-      if (result.stats) {
-        setProcessingStats(result.stats);
+      if (result.strategy === 'worker_threads' && result.stats) {
+        setProcessingStats(result.stats as ChildProcessStats);
       }
       
-      if (result.chartConfig) {
-        setChartConfig(result.chartConfig);
-        updateChart(result.chartConfig);
+      if (result.strategy === 'worker_threads' && result.chartConfig) {
+        setChartConfig(result.chartConfig as ChartConfig);
+        updateChart(result.chartConfig as ChartConfig);
       }
 
-      const totalProcessed = result.stats?.totalProcessed || 0;
-      const pointsPerSecond = result.stats?.pointsPerSecond || 0;
+      const totalProcessed = (result.stats?.totalProcessed as number) || 0;
+      const pointsPerSecond = (result.stats?.pointsPerSecond as number) || 0;
 
       setProgress({ 
         processed: totalProcessed, 

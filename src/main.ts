@@ -8,10 +8,23 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { MainProcessWorker } from "./helpers/mainProcessWorker";
-import { TrueSubprocessManager } from "./helpers/trueSubprocessManager";
 
 // Store processed chart data in memory (main process only)
 const chartDataCache = new Map<string, Array<[number, number, number]>>();
+
+// Global progress coalescer (avoids chatty IPC). Sends at most every 100ms per requestId
+const lastProgressSent = new Map<string, number>();
+const PROGRESS_COALESCE_MS = 100;
+function sendProgressCoalesced(event: Electron.IpcMainEvent, data: { requestId: string; type: string; processed: number; total: number; percentage: number; phase: string }) {
+  const key = data.requestId;
+  const now = Date.now();
+  const last = lastProgressSent.get(key) ?? 0;
+  const isTerminal = data.type === 'complete' || data.percentage >= 100;
+  if (isTerminal || now - last >= PROGRESS_COALESCE_MS) {
+    lastProgressSent.set(key, now);
+    event.sender.send('grpc-child-process-progress', data);
+  }
+}
 
 // Ultra-fast streaming data processor - runs directly in main process with yielding
 async function processDataStreamingInMainProcess(
@@ -214,73 +227,60 @@ ipcMain.on('grpc-start-child-process-stream', async (event, request) => {
   const { requestId, bounds, dataTypes, maxPoints, resolution } = request;
   
   try {
-    console.log(`🚀 Starting Main Process Worker Threads for ${maxPoints} points...`);
-    
-    // Step 1: Get data from gRPC (same as before)
-    const chunks = await autoMainGrpcClient.getBatchDataStreamed({ 
-      bounds, 
-      data_types: dataTypes, 
-      max_points: maxPoints, 
-      resolution 
+    // Stream incremental: nutrir al worker a medida que llegan chunks gRPC
+    let totalPoints = 0;
+    const workerManager = MainProcessWorker.getInstance();
+    const streamer = workerManager.startStreamingProcessor(requestId, (progress) => {
+      sendProgressCoalesced(event, { requestId, type: 'progress', processed: progress.processed, total: totalPoints || progress.total, percentage: progress.percentage, phase: progress.phase });
     });
-    const totalPoints = chunks.reduce((sum, chunk) => sum + (chunk.data_points?.length || 0), 0);
-    
-    console.log(`📊 Generated ${totalPoints} points in ${chunks.length} chunks`);
-    
-    // Send initial progress
-    event.sender.send('grpc-child-process-progress', {
-      requestId,
-      type: 'progress',
-      processed: 0,
-      total: totalPoints,
-      percentage: 0,
-      phase: 'starting_worker_thread'
-    });
-    
-    // Step 2: Process data with TRUE Node.js subprocess (completely isolated)
-    const subprocessManager = TrueSubprocessManager.getInstance();
-    const result = await subprocessManager.processLargeDataset(
-      chunks,
-      requestId,
-      // Progress callback
-      (progress) => {
-        event.sender.send('grpc-child-process-progress', {
-          requestId,
-          type: 'progress',
-          processed: progress.processed,
-          total: progress.total,
-          percentage: progress.percentage,
-          phase: progress.phase
-        });
-      }
-    );
-    
-    // Store chart data in main process memory
-    chartDataCache.set(requestId, result.chartConfig.data);
-    
-    console.log('🔍 Subprocess result:', {
-      statsExists: !!result.stats,
-      chartConfigExists: !!result.chartConfig,
-      totalProcessed: result.stats?.totalProcessed,
-      processingTime: result.stats?.processingTime
-    });
-
-    // Send completion with ONLY metadata - NO large data arrays
-    event.sender.send('grpc-child-process-progress', {
-      requestId,
-      type: 'complete',
-      stats: result.stats,
-      // Send only chart metadata, NOT the actual data array
-      chartConfig: {
-        type: result.chartConfig.type,
-        metadata: result.chartConfig.metadata,
-        // Don't send the actual data array - it's too large for IPC
-        dataReady: true
-      },
-      message: `🎉 Subprocess completed ${result.stats?.totalProcessed || 0} points in ${result.stats?.processingTime || 0}s`
-    });
-    
-    console.log(`✅ Worker Thread completed successfully: ${result.stats.totalProcessed} points`);
+    try {
+      const totals = await autoMainGrpcClient.streamBatchDataIncremental(
+        { bounds, data_types: dataTypes, max_points: maxPoints, resolution },
+        (chunk) => {
+          streamer.postChunk(chunk);
+        }
+      );
+      totalPoints = totals.totalPoints;
+      sendProgressCoalesced(event, { requestId, type: 'progress', processed: 0, total: totalPoints, percentage: 0, phase: 'worker_receiving_stream' });
+      const result = await streamer.finalize();
+      // Cache y completar
+      chartDataCache.set(requestId, result.chartConfig.data);
+      event.sender.send('grpc-child-process-progress', {
+        requestId,
+        type: 'complete',
+        stats: result.stats,
+        chartConfig: { type: result.chartConfig.type, metadata: result.chartConfig.metadata, dataReady: true },
+        message: `🎉 Worker Thread completed ${result.stats?.totalProcessed || 0} points in ${result.stats?.processingTime || 0}s`
+      });
+      return;
+    } catch (workerError) {
+      console.warn(`⚠️ Worker Threads failed, falling back to main-thread streaming for ${requestId}:`, workerError);
+      // Fallback: compute in main process with ultra-yielding
+      const fallbackChunks = await autoMainGrpcClient.getBatchDataStreamed({ bounds, data_types: dataTypes, max_points: maxPoints, resolution });
+      const fallback = await processDataStreamingInMainProcess(
+        fallbackChunks,
+        requestId,
+        (progress) => {
+          sendProgressCoalesced(event, {
+            requestId,
+            type: 'progress',
+            processed: progress.processed,
+            total: progress.total,
+            percentage: progress.percentage,
+            phase: `fallback_${progress.phase}`
+          });
+        }
+      );
+      chartDataCache.set(requestId, fallback.chartConfig.data);
+      event.sender.send('grpc-child-process-progress', {
+        requestId,
+        type: 'complete',
+        stats: fallback.stats,
+        chartConfig: { type: fallback.chartConfig.type, metadata: fallback.chartConfig.metadata, dataReady: true },
+        message: `🎉 Main Process Streaming completed ${fallback.stats?.totalProcessed || 0} points in ${fallback.stats?.processingTime || 0}s (fallback)`
+      });
+      return;
+    }
     
   } catch (error) {
     console.error(`Worker Thread failed for ${requestId}:`, error);

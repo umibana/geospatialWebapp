@@ -25,28 +25,31 @@ class BackendManager {
     }
   }
 
-  private async waitForGrpcServer(timeout = 10000): Promise<void> {
-    const startTime = Date.now();
-    
-    return new Promise((resolve, reject) => {
-      const checkConnection = () => {
-        if (Date.now() - startTime > timeout) {
-          reject(new Error(`Timeout waiting for gRPC server on port 50077`));
-          return;
-        }
+  private async waitForGrpcServer(timeoutMs = 15000): Promise<void> {
+    const start = Date.now();
+    let delay = 150;
+    const maxDelay = 1000;
+    const address = '127.0.0.1:50077';
+    const net = await import('net');
 
-        // For now, just wait a reasonable amount of time for the server to start
-        // The main process will handle gRPC connection testing
-        if (Date.now() - startTime > 3000) { // 3 seconds
-          console.log(`✅ gRPC server should be ready on port 50077`);
-          resolve();
-          return;
-        }
-        
-        setTimeout(checkConnection, 500);
-      };
-      checkConnection();
-    });
+    while (Date.now() - start < timeoutMs) {
+      await new Promise<void>((resolve) => setTimeout(resolve, delay));
+      const isOpen = await new Promise<boolean>((resolve) => {
+        const socket = new net.Socket();
+        socket.setTimeout(1000);
+        socket.once('connect', () => { socket.destroy(); resolve(true); });
+        socket.once('timeout', () => { socket.destroy(); resolve(false); });
+        socket.once('error', () => { socket.destroy(); resolve(false); });
+        const [host, portStr] = address.split(':');
+        socket.connect(Number(portStr), host);
+      });
+      if (isOpen) {
+        console.log(`✅ gRPC server is listening on ${address}`);
+        return;
+      }
+      delay = Math.min(maxDelay, Math.floor(delay * 1.7));
+    }
+    throw new Error(`Timeout waiting for gRPC server on ${address}`);
   }
 
   async startBackend(): Promise<void> {
@@ -130,21 +133,27 @@ class BackendManager {
   }
 
   async stopBackend(): Promise<void> {
-    if (this.config.process && this.config.isRunning) {
-      console.log('Stopping gRPC backend...');
-      this.config.process.kill('SIGTERM');
-      
-      // Wait a bit for graceful shutdown
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      
-      // Force kill if still running
-      if (this.config.process && !this.config.process.killed) {
-        this.config.process.kill('SIGKILL');
-      }
-      
-      this.config.isRunning = false;
-      this.config.process = null;
+    const proc = this.config.process;
+    if (!proc || !this.config.isRunning) {
+      return;
     }
+    console.log('Stopping gRPC backend...');
+    try {
+      proc.kill('SIGTERM');
+    } catch (err) {
+      console.warn('SIGTERM send failed (ignored):', err);
+    }
+    // Wait for graceful exit up to 5s
+    const start = Date.now();
+    while (Date.now() - start < 5000) {
+      if (proc.killed) break;
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    if (!proc.killed) {
+      try { proc.kill('SIGKILL'); } catch (err) { console.warn('SIGKILL send failed (ignored):', err); }
+    }
+    this.config.isRunning = false;
+    this.config.process = null;
   }
 
   async healthCheck(): Promise<boolean> {

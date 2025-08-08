@@ -1,135 +1,40 @@
 import exposeContexts from "./helpers/ipc/context-exposer";
 import { contextBridge, ipcRenderer } from 'electron';
+import type { OptimizedResult, GrpcBounds, GrpcProgress } from './lib/types';
 
 exposeContexts();
 
 // 🎉 New Auto-Generated gRPC Context Bridge
-contextBridge.exposeInMainWorld('grpc', {
+const grpcApi = {
   // Simple methods using new auto-generated channels
   healthCheck: () => ipcRenderer.invoke('grpc-healthcheck'),
   helloWorld: (request: { message: string }) => ipcRenderer.invoke('grpc-helloworld', request),
   echoParameter: (request: { value: number; operation: string }) => 
     ipcRenderer.invoke('grpc-echoparameter', request),
-  getFeatures: (request: { bounds: any; featureTypes: string[]; limit: number }) => 
+  getFeatures: (request: { bounds: GrpcBounds; featureTypes: string[]; limit: number }) => 
     ipcRenderer.invoke('grpc-getfeatures', request),
   
-  // Streaming method
-  getBatchDataStreamed: (request: { bounds: any; dataTypes: string[]; maxPoints: number; resolution?: number }, onData?: (data: any) => void) => {
-    return new Promise((resolve, reject) => {
-      const requestId = `stream-${Date.now()}-${Math.random()}`;
-      const results: any[] = [];
-      
-      const handleData = (event: any, data: any) => {
-        if (data.requestId !== requestId) return;
-        
-        if (data.type === 'data') {
-          results.push(data.payload);
-          if (onData) onData(data.payload);
-        } else if (data.type === 'complete') {
-          ipcRenderer.off('grpc-stream-data', handleData);
-          ipcRenderer.off('grpc-stream-error', handleError);
-          resolve(results);
-        }
-      };
-      
-      const handleError = (event: any, data: any) => {
-        if (data.requestId !== requestId) return;
-        ipcRenderer.off('grpc-stream-data', handleData);
-        ipcRenderer.off('grpc-stream-error', handleError);
-        reject(new Error(data.error));
-      };
-      
-      ipcRenderer.on('grpc-stream-data', handleData);
-      ipcRenderer.on('grpc-stream-error', handleError);
-      
-      ipcRenderer.send('grpc-getbatchdatastreamed', { requestId, ...request });
-    });
-  },
+  // Legacy streaming removed
   
-  // ⚡ NEW: Real Web Worker streaming with actual data
-  getBatchDataWorkerStreamed: (bounds: any, dataTypes: string[], maxPoints: number, resolution = 20, onProgress?: (progress: any) => void, onChunkData?: (chunk: any) => void) => {
-    return new Promise((resolve, reject) => {
-      const requestId = `worker-stream-${Date.now()}-${Math.random()}`;
-      const receivedChunks: any[] = [];
-      
-      const handleProgress = (event: any, data: any) => {
-        if (data.requestId !== requestId) return;
-        
-        if (data.type === 'progress' && onProgress) {
-          onProgress({
-            processed: data.processed,
-            total: data.total,
-            percentage: data.percentage,
-            phase: data.phase
-          });
-        }
-        
-        if (data.type === 'complete') {
-          ipcRenderer.off('grpc-worker-stream-progress', handleProgress);
-          ipcRenderer.off('grpc-worker-stream-chunk', handleChunkData);
-          ipcRenderer.off('grpc-worker-stream-error', handleError);
-          resolve({
-            totalProcessed: data.totalProcessed,
-            processingTime: data.processingTime,
-            generationMethod: data.generationMethod,
-            summary: data.summary,
-            dataSample: data.dataSample,
-            receivedChunks: receivedChunks // Include all received chunks
-          });
-        }
-      };
-      
-      // NEW: Handle incoming chunk data
-      const handleChunkData = (event: any, data: any) => {
-        if (data.requestId !== requestId) return;
-        
-        // Store the chunk
-        receivedChunks.push(data.chunkData);
-        
-        // Notify callback about received chunk
-        if (onChunkData) {
-          onChunkData({
-            chunkNumber: data.chunkNumber,
-            totalChunks: data.totalChunks,
-            chunkData: data.chunkData,
-            processed: data.processed,
-            total: data.total,
-            percentage: data.percentage
-          });
-        }
-        
-        // Also send progress update
-        if (onProgress) {
-          onProgress({
-            processed: data.processed,
-            total: data.total,
-            percentage: data.percentage,
-            phase: `processing_chunk_${data.chunkNumber}_of_${data.totalChunks}`
-          });
-        }
-      };
-      
-      const handleError = (event: any, data: any) => {
-        if (data.requestId !== requestId) return;
-        
-        ipcRenderer.off('grpc-worker-stream-progress', handleProgress);
-        ipcRenderer.off('grpc-worker-stream-chunk', handleChunkData);
-        ipcRenderer.off('grpc-worker-stream-error', handleError);
-        reject(new Error(data.error));
-      };
-      
-      ipcRenderer.on('grpc-worker-stream-progress', handleProgress);
-      ipcRenderer.on('grpc-worker-stream-chunk', handleChunkData);
-      ipcRenderer.on('grpc-worker-stream-error', handleError);
-      
-      ipcRenderer.send('grpc-start-worker-stream', {
-        requestId,
-        bounds,
-        dataTypes,
-        maxPoints,
-        resolution
-      });
-    });
+  // Legacy worker-stream removed
+
+  // Optimized API (usa worker_threads y chunked chart-data fetch)
+  getBatchDataOptimized: (
+    bounds: GrpcBounds,
+    dataTypes: string[],
+    maxPoints: number,
+    resolution = 20,
+    onProgress?: (progress: GrpcProgress) => void,
+    onChunkData?: (chunk: unknown) => void,
+    options: { threshold?: number } = {}
+  ): Promise<OptimizedResult> => {
+    return (grpcApi as unknown as { getBatchDataChildProcessStreamed: (b: GrpcBounds, d: string[], m: number, r?: number, p?: (g: GrpcProgress) => void) => Promise<unknown> }).getBatchDataChildProcessStreamed(
+      bounds,
+      dataTypes,
+      maxPoints,
+      resolution,
+      onProgress
+    ).then((result: unknown) => ({ ...(result as object), strategy: 'worker_threads' } as OptimizedResult));
   },
   
   stopStream: () => ipcRenderer.invoke('grpc-stop-stream'),
@@ -145,7 +50,7 @@ contextBridge.exposeInMainWorld('grpc', {
         ipcRenderer.send('grpc-get-chart-data', { requestId, chunkSize, offset });
       };
       
-      const handleChartDataResponse = (event: any, data: any) => {
+      const handleChartDataResponse = (_event: unknown, data: { requestId: string; error?: string; chunk: Array<[number, number, number]>; isComplete: boolean; nextOffset: number }) => {
         if (data.requestId === requestId) {
           if (data.error) {
             ipcRenderer.removeListener('grpc-chart-data-response', handleChartDataResponse);
@@ -154,7 +59,7 @@ contextBridge.exposeInMainWorld('grpc', {
           }
           
           // Add chunk to our data
-          chartData.push(...data.chunk);
+          chartData.push(...(data.chunk || []));
           
           if (data.isComplete) {
             ipcRenderer.removeListener('grpc-chart-data-response', handleChartDataResponse);
@@ -173,48 +78,13 @@ contextBridge.exposeInMainWorld('grpc', {
   },
 
   // NEW: Child Process Streaming - bypasses Electron IPC
-  getBatchDataChildProcessStreamed: (bounds: any, dataTypes: string[], maxPoints: number, resolution?: number, onProgress?: (progress: { processed: number; total: number; percentage: number; phase: string }) => void) => {
+  getBatchDataChildProcessStreamed: (bounds: GrpcBounds, dataTypes: string[], maxPoints: number, resolution?: number, onProgress?: (progress: GrpcProgress) => void) => {
     const requestId = `child-stream-${Date.now()}-${Math.random()}`;
     
-    return new Promise(async (resolve, reject) => {
-      const fetchChartDataInChunks = async (requestId: string): Promise<Array<[number, number, number]>> => {
-        return new Promise((resolve, reject) => {
-          const chartData: Array<[number, number, number]> = [];
-          let offset = 0;
-          const chunkSize = 1000; // Small chunks to prevent IPC blocking
-          
-          const fetchNextChunk = () => {
-            ipcRenderer.send('grpc-get-chart-data', { requestId, chunkSize, offset });
-          };
-          
-          const handleChartDataResponse = (event: any, data: any) => {
-            if (data.requestId === requestId) {
-              if (data.error) {
-                ipcRenderer.removeListener('grpc-chart-data-response', handleChartDataResponse);
-                reject(new Error(data.error));
-                return;
-              }
-              
-              // Add chunk to our data
-              chartData.push(...data.chunk);
-              
-              if (data.isComplete) {
-                ipcRenderer.removeListener('grpc-chart-data-response', handleChartDataResponse);
-                resolve(chartData);
-              } else {
-                // Fetch next chunk with small delay to prevent blocking
-                offset = data.nextOffset;
-                setTimeout(fetchNextChunk, 10);
-              }
-            }
-          };
-          
-          ipcRenderer.on('grpc-chart-data-response', handleChartDataResponse);
-          fetchNextChunk();
-        });
-      };
+    return new Promise((resolve, reject) => {
+      const fetchChartDataSafely = (rid: string) => grpcApi.fetchChartDataInChunks(rid);
 
-      const progressHandler = (event: any, data: any) => {
+      const progressHandler = (_event: unknown, data: { requestId: string; type: string; processed: number; total: number; percentage: number; phase: string; stats?: unknown; chartConfig?: any; message?: string; totalPoints?: number; totalChunks?: number }) => {
         if (data.requestId === requestId) {
           if (data.type === 'progress' || data.type === 'chunk_forwarded') {
             if (onProgress) {
@@ -236,7 +106,7 @@ contextBridge.exposeInMainWorld('grpc', {
             // Check if we need to fetch chart data separately
             if (data.chartConfig.dataReady) {
               // Fetch chart data in chunks to prevent IPC blocking
-              fetchChartDataInChunks(requestId).then(chartData => {
+              fetchChartDataSafely(requestId).then(chartData => {
                 resolve({
                   stats: data.stats,
                   chartConfig: {
@@ -245,7 +115,7 @@ contextBridge.exposeInMainWorld('grpc', {
                   },
                   message: data.message
                 });
-              }).catch(error => {
+              }).catch(() => {
                 resolve({
                   stats: data.stats,
                   chartConfig: {
@@ -266,7 +136,7 @@ contextBridge.exposeInMainWorld('grpc', {
         }
       };
       
-      const errorHandler = (event: any, data: any) => {
+      const errorHandler = (_event: unknown, data: { requestId: string; error: string }) => {
         if (data.requestId === requestId) {
           reject(new Error(data.error));
         }
@@ -294,93 +164,8 @@ contextBridge.exposeInMainWorld('grpc', {
       }, 300000);
     });
   }
-});
+};
 
-// Keep backward compatibility by also exposing the old interface
-contextBridge.exposeInMainWorld('electronGrpc', {
-  healthCheck: () => ipcRenderer.invoke('grpc-healthcheck'),
-  helloWorld: (message: string) => ipcRenderer.invoke('grpc-helloworld', { message }),
-  echoParameter: (value: number, operation: string) => 
-    ipcRenderer.invoke('grpc-echoparameter', { value, operation }),
-  getFeatures: (bounds: any, featureTypes: string[], limit: number) => 
-    ipcRenderer.invoke('grpc-getfeatures', { bounds, featureTypes, limit }),
-  getBatchDataWorkerStreamed: (bounds: any, dataTypes: string[], maxPoints: number, resolution = 20, onProgress?: (progress: any) => void, onChunkData?: (chunk: any) => void) => {
-    return new Promise((resolve, reject) => {
-      const requestId = `worker-stream-${Date.now()}-${Math.random()}`;
-      const receivedChunks: any[] = [];
-      
-      const handleProgress = (event: any, data: any) => {
-        if (data.requestId !== requestId) return;
-        
-        if (data.type === 'progress' && onProgress) {
-          onProgress({
-            processed: data.processed,
-            total: data.total,
-            percentage: data.percentage,
-            phase: data.phase
-          });
-        }
-        
-        if (data.type === 'complete') {
-          ipcRenderer.off('grpc-worker-stream-progress', handleProgress);
-          ipcRenderer.off('grpc-worker-stream-chunk', handleChunkData);
-          ipcRenderer.off('grpc-worker-stream-error', handleError);
-          resolve({
-            totalProcessed: data.totalProcessed,
-            processingTime: data.processingTime,
-            generationMethod: data.generationMethod,
-            summary: data.summary,
-            dataSample: data.dataSample,
-            receivedChunks: receivedChunks
-          });
-        }
-      };
-      
-      const handleChunkData = (event: any, data: any) => {
-        if (data.requestId !== requestId) return;
-        
-        receivedChunks.push(data.chunkData);
-        
-        if (onChunkData) {
-          onChunkData({
-            chunkNumber: data.chunkNumber,
-            totalChunks: data.totalChunks,
-            chunkData: data.chunkData,
-            processed: data.processed,
-            total: data.total,
-            percentage: data.percentage
-          });
-        }
-        
-        if (onProgress) {
-          onProgress({
-            processed: data.processed,
-            total: data.total,
-            percentage: data.percentage,
-            phase: `processing_chunk_${data.chunkNumber}_of_${data.totalChunks}`
-          });
-        }
-      };
-      
-      const handleError = (event: any, data: any) => {
-        if (data.requestId !== requestId) return;
-        
-        ipcRenderer.off('grpc-worker-stream-progress', handleProgress);
-        ipcRenderer.off('grpc-worker-stream-error', handleError);
-        reject(new Error(data.error));
-      };
-      
-      ipcRenderer.on('grpc-worker-stream-progress', handleProgress);
-      ipcRenderer.on('grpc-worker-stream-error', handleError);
-      
-      ipcRenderer.send('grpc-start-worker-stream', {
-        requestId,
-        bounds,
-        dataTypes,
-        maxPoints,
-        resolution
-      });
-    });
-  },
-  stopStream: () => ipcRenderer.invoke('grpc-stop-stream')
-});
+contextBridge.exposeInMainWorld('grpc', grpcApi);
+
+// Legacy electronGrpc removed

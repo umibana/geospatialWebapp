@@ -29,4 +29,51 @@ declare interface Window {
   themeMode: ThemeModeContext;
   electronWindow: ElectronWindow;
   electronBackend: ElectronBackend;
+  grpc: GrpcAPI;
+  electronGrpc: GrpcAPI;
+}
+
+// Minimal preload API surface so TS recognizes window.grpc usages.
+// Many shapes are simplified on purpose; precise typing can be added later.
+interface GrpcAPI {
+  healthCheck: () => Promise<{ healthy: boolean; version?: string }>;
+  helloWorld: (request: { message: string }) => Promise<{ message: string }>;
+  echoParameter: (request: { value: number; operation: string }) => Promise<{ originalValue: number; processedValue: number; operation: string }>;
+  getFeatures: (request: { bounds: any; featureTypes: string[]; limit: number }) => Promise<{ features: any[]; total_count?: number }>;
+
+  // Streaming helpers
+  getBatchDataStreamed?: (
+    request: { bounds: any; dataTypes: string[]; maxPoints: number; resolution?: number },
+    onData?: (data: any) => void
+  ) => Promise<any[]>;
+
+  getBatchDataWorkerStreamed: (
+    bounds: any,
+    dataTypes: string[],
+    maxPoints: number,
+    resolution?: number,
+    onProgress?: (progress: { processed: number; total: number; percentage: number; phase: string }) => void,
+    onChunkData?: (chunk: any) => void
+  ) => Promise<{ totalProcessed: number; processingTime: number; generationMethod: string; summary: Record<string, unknown>; dataSample?: any[] }>;
+
+  getBatchDataChildProcessStreamed: (
+    bounds: any,
+    dataTypes: string[],
+    maxPoints: number,
+    resolution?: number,
+    onProgress?: (progress: { processed: number; total: number; percentage: number; phase: string }) => void
+  ) => Promise<{ stats?: any; chartConfig?: any; message?: string }>;
+
+  getBatchDataOptimized: (
+    bounds: any,
+    dataTypes: string[],
+    maxPoints: number,
+    resolution?: number,
+    onProgress?: (progress: { processed: number; total: number; percentage: number; phase: string }) => void,
+    onChunkData?: (chunk: any) => void,
+    options?: { threshold?: number }
+  ) => Promise<any>;
+
+  fetchChartDataInChunks: (requestId: string) => Promise<Array<[number, number, number]>>;
+  stopStream: () => Promise<any>;
 }

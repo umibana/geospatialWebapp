@@ -15,7 +15,8 @@ export function registerBackendListeners() {
     }
     
     try {
-      return await autoMainGrpcClient.healthCheck();
+      const res = await autoMainGrpcClient.healthCheck();
+      return res;
     } catch (error) {
       return { healthy: false, status: 'gRPC connection failed' };
     }
@@ -24,8 +25,13 @@ export function registerBackendListeners() {
   ipcMain.handle(BACKEND_CHANNELS.RESTART_BACKEND, async () => {
     await backendManager.stopBackend();
     await backendManager.startBackend();
-    // Re-initialize gRPC client after restart
-    await autoMainGrpcClient.initialize();
+    // Re-initialize gRPC client after restart (retry once if needed)
+    try {
+      await autoMainGrpcClient.initialize();
+    } catch {
+      await new Promise(r => setTimeout(r, 500));
+      await autoMainGrpcClient.initialize();
+    }
     return { success: true };
   });
 } 

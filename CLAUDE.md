@@ -28,12 +28,10 @@ This is a **desktop geospatial application** built with Electron that combines a
 ```
 React Components (Renderer Process)
         ↓ Secure Context Bridge (preload.ts)
-        ↓ Multiple IPC Channels (organized by domain)
-Main Process (Multiple Processing Strategies)
-        ├── Direct Main Process (ultra-micro batching)
-        ├── Web Workers (dataProcessor.worker.ts)
-        ├── Node.js Child Processes (worker_threads)
-        └── True Node.js Subprocesses (isolated processes)
+        ↓ IPC with Automatic Strategy Selection
+Main Process (Smart Processing Selection)
+        ├── Small Datasets (< 50K): Web Workers (dataProcessor.worker.ts)
+        └── Large Datasets (≥ 50K): Worker Threads (mainProcessWorker.ts)
         ↓ gRPC (@grpc/grpc-js with compression)
 Python gRPC Server (numpy data generation)
         ↓ Chunk-based streaming
@@ -42,35 +40,27 @@ Backend Process (managed by backend_helpers.ts)
 
 ## 🏗️ Advanced Architecture Overview
 
-### **Multi-Strategy Data Processing System**
+### **Optimized Data Processing System**
 
-This application implements **4 distinct processing approaches** for optimal performance across different dataset sizes and system constraints:
+This application implements **automatic processing strategy selection** for optimal performance across different dataset sizes:
 
-#### 1. **Direct Main Process Streaming** (`main.ts:17-128`)
-- **Use Case**: Medium datasets (10K-100K points)
-- **Method**: Ultra-micro batching (500 points per batch) with frequent yielding
-- **Advantages**: No inter-process overhead, immediate results
-- **Mechanism**: `setImmediate()` yielding after every micro-batch
+#### **Smart Processing Strategy Selection**
+- **Small datasets (< 50K points)**: Direct Web Worker processing via `getBatchDataWorkerStreamed`
+- **Large datasets (≥ 50K points)**: Automatic Child Process (Worker Threads) via `getBatchDataChildProcessStreamed`
+- **Automatic selection**: No manual strategy selection needed - the system chooses optimally
 
-#### 2. **Web Workers** (`src/helpers/webWorkerManager.ts`)
-- **Use Case**: Large datasets (100K-1M points) requiring UI responsiveness
-- **Worker File**: `src/workers/dataProcessor.worker.ts`
-- **Method**: True browser Web Workers with micro-batching
-- **Advantages**: Genuine parallel processing, maintained UI responsiveness
-- **Mechanism**: TypeScript worker compiled by Vite, 1000-point micro-batches
+#### **Primary Processing Method: Child Process (Worker Threads)** (`src/helpers/mainProcessWorker.ts`)
+- **Use Case**: Heavy processing for large datasets (50K+ points)
+- **Method**: Node.js `worker_threads` with direct memory communication
+- **Advantages**: High performance, access to Node.js APIs, isolated processing, no JSON serialization
+- **Mechanism**: Uses `parentPort` for communication, direct object transfer
+- **Performance**: Handles 1M+ points without UI freezing
 
-#### 3. **Node.js Child Processes** (`src/helpers/childProcessManager.ts`)
-- **Use Case**: Heavy processing requiring Node.js APIs
-- **Worker File**: `src/workers/dataProcessorChild.js`
-- **Method**: `worker_threads` with full Node.js context
-- **Advantages**: Access to Node.js APIs, isolated processing
-- **Mechanism**: Uses `parentPort` for communication, higher point limits
-
-#### 4. **True Node.js Subprocesses** (`src/helpers/trueSubprocessManager.ts`)
-- **Use Case**: Maximum isolation, failsafe processing
-- **Method**: Spawned Node.js processes with file-based communication
-- **Advantages**: Complete isolation, crash recovery, no memory sharing
-- **Mechanism**: Temporary JSON files, progress polling, async file I/O
+#### **Fallback Processing: Web Workers** (for smaller datasets)
+- **Use Case**: Medium datasets (< 50K points) requiring UI responsiveness  
+- **Method**: Browser Web Workers with micro-batching
+- **Advantages**: Lightweight processing, maintained UI responsiveness
+- **Mechanism**: TypeScript worker compiled by Vite, progress streaming
 
 ### **IPC Architecture** (`src/helpers/ipc/`)
 
@@ -664,3 +654,47 @@ ipcMain.on('grpc-start-worker-stream', async (event, request) => {
 2. **Ventanas Flotantes**: Deben permanecer arrastrables y redimensionables
 3. **Progreso en Tiempo Real**: Actualizaciones fluidas sin congelamiento
 4. **Interactividad**: Todos los controles de UI deben responder normalmente
+
+---
+
+## 🎯 Architecture Simplification (Latest Update)
+
+### **Recent Changes: Simplified Processing Strategy**
+
+The application has been **streamlined** to use an **automatic processing strategy** instead of manual comparison of multiple approaches:
+
+#### **What Was Removed:**
+- ❌ **trueSubprocessManager.ts**: Removed complex subprocess strategy using JSON file communication
+- ❌ **webWorkerManager.ts**: Removed separate web worker manager (kept inline web workers for small datasets)  
+- ❌ **DataVisualization.tsx**: Removed component that depended on removed web worker manager
+- ❌ **4-strategy comparison UI**: Removed complex UI for comparing different processing approaches
+
+#### **What Remains (Optimized):**
+- ✅ **Smart Strategy Selection**: Automatic choice between Web Workers (< 50K points) and Worker Threads (≥ 50K points)
+- ✅ **mainProcessWorker.ts**: Primary processing engine using Node.js worker_threads
+- ✅ **childProcessManager.ts**: Legacy child process support (if needed)
+- ✅ **ChildProcessVisualization.tsx**: Visualization component for Worker Thread processing
+- ✅ **Simplified GrpcDemo.tsx**: Single "Process Data" button with automatic strategy selection
+
+#### **Key Benefits:**
+1. **Simplified Architecture**: Single entry point for data processing with smart backend selection
+2. **Automatic Optimization**: No user decisions needed - system chooses best strategy automatically  
+3. **Reduced Complexity**: Fewer files, cleaner codebase, easier maintenance
+4. **Maintained Performance**: Still handles 1M+ points without UI freezing using Worker Threads
+
+#### **Usage Pattern:**
+```typescript
+// Single function call - automatic strategy selection
+const result = await runOptimizedProcessing();
+
+// Behind the scenes:
+if (testParams.maxPoints >= 50000) {
+  // Uses Worker Threads (Node.js child processes)
+  result = await window.grpc.getBatchDataChildProcessStreamed(...);
+} else {
+  // Uses Web Workers (browser workers)  
+  result = await window.grpc.getBatchDataWorkerStreamed(...);
+}
+```
+
+This simplification maintains all the performance benefits while dramatically reducing architectural complexity.
