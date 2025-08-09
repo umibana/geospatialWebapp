@@ -60,8 +60,8 @@ function generateFrontendProtos() {
   
   ensureDirectory(FRONTEND_OUT_DIR);
   
-  // Generate TypeScript files using Buf's protoc-gen-es
-  const command = `protoc --plugin=protoc-gen-es=./node_modules/.bin/protoc-gen-es --es_out=${FRONTEND_OUT_DIR} --es_opt=target=ts --proto_path=${PROTO_DIR} ${MAIN_PROTO_FILE}`;
+  // Generate TypeScript files using Buf's protoc-gen-es - process all proto files
+  const command = `protoc --plugin=protoc-gen-es=./node_modules/.bin/protoc-gen-es --es_out=${FRONTEND_OUT_DIR} --es_opt=target=ts --proto_path=${PROTO_DIR} ${PROTO_DIR}/*.proto`;
   
   return runCommand(command, 'Generating TypeScript protobuf files for frontend');
 }
@@ -71,8 +71,8 @@ function generateBackendProtos() {
   
   ensureDirectory(BACKEND_OUT_DIR);
   
-  // Generate Python files using grpcio-tools
-  const command = `python -m grpc_tools.protoc --python_out=${BACKEND_OUT_DIR} --grpc_python_out=${BACKEND_OUT_DIR} --proto_path=${PROTO_DIR} ${MAIN_PROTO_FILE}`;
+  // Generate Python files using grpcio-tools - process all proto files  
+  const command = `python -m grpc_tools.protoc --python_out=${BACKEND_OUT_DIR} --grpc_python_out=${BACKEND_OUT_DIR} --proto_path=${PROTO_DIR} ${PROTO_DIR}/*.proto`;
   
   return runCommand(command, 'Generating Python protobuf files for backend');
 }

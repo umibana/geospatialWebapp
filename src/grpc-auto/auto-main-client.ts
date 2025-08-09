@@ -4,13 +4,15 @@
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 import { join } from 'path';
-// Using loose types to avoid coupling to generated TS types
+import * as FilesTypes from '../generated/files_pb';
+import * as GeospatialTypes from '../generated/geospatial_pb';
+import * as MainserviceTypes from '../generated/main_service_pb';
+
+type Types = typeof FilesTypes & typeof GeospatialTypes & typeof MainserviceTypes;
 
 class AutoMainGrpcClient {
   private client: any = null;
-  private initialized = false;
   private readonly serverAddress = '127.0.0.1:50077';
-  private activeStreams: Map<string, any> = new Map();
 
   async initialize(): Promise<void> {
     try {
@@ -29,8 +31,8 @@ class AutoMainGrpcClient {
       
       const packageDefinition = protoLoader.loadSync(protoPath, protoOptions);
 
-      const protoDefinition = grpc.loadPackageDefinition(packageDefinition) as any;
-      const GeospatialService = protoDefinition.geospatial?.GeospatialService;
+      const protoDefinition = grpc.loadPackageDefinition(packageDefinition);
+      const GeospatialService = protoDefinition.geospatial.GeospatialService;
       
       const options = {
         'grpc.max_send_message_length': 500 * 1024 * 1024,
@@ -46,7 +48,6 @@ class AutoMainGrpcClient {
       );
 
       console.log(`🔗 Auto-generated gRPC client connected to ${this.serverAddress}`);
-      this.initialized = true;
     } catch (error) {
       console.error('Failed to initialize auto-generated gRPC client:', error);
       throw error;
@@ -54,13 +55,13 @@ class AutoMainGrpcClient {
   }
 
   private ensureClient() {
-    if (!this.client || !this.initialized) {
+    if (!this.client) {
       throw new Error('Auto-generated gRPC client not initialized');
     }
     return this.client;
   }
 
-  async helloWorld(request: any): Promise<any> {
+  async helloWorld(request: Types.HelloWorldRequest): Promise<Types.HelloWorldResponse> {
     return new Promise((resolve, reject) => {
       const client = this.ensureClient();
       client.HelloWorld(request, (error: any, response: any) => {
@@ -73,7 +74,7 @@ class AutoMainGrpcClient {
     });
   }
 
-  async echoParameter(request: any): Promise<any> {
+  async echoParameter(request: Types.EchoParameterRequest): Promise<Types.EchoParameterResponse> {
     return new Promise((resolve, reject) => {
       const client = this.ensureClient();
       client.EchoParameter(request, (error: any, response: any) => {
@@ -86,7 +87,7 @@ class AutoMainGrpcClient {
     });
   }
 
-  async healthCheck(request: any = {}): Promise<any> {
+  async healthCheck(request: Types.HealthCheckRequest): Promise<Types.HealthCheckResponse> {
     return new Promise((resolve, reject) => {
       const client = this.ensureClient();
       client.HealthCheck(request, (error: any, response: any) => {
@@ -99,7 +100,7 @@ class AutoMainGrpcClient {
     });
   }
 
-  async getFeatures(request: any): Promise<any> {
+  async getFeatures(request: Types.GetFeaturesRequest): Promise<Types.GetFeaturesResponse> {
     return new Promise((resolve, reject) => {
       const client = this.ensureClient();
       client.GetFeatures(request, (error: any, response: any) => {
@@ -112,25 +113,14 @@ class AutoMainGrpcClient {
     });
   }
 
-  async getBatchDataStreamed(request: any): Promise<any[]> {
+  async getBatchDataStreamed(request: Types.GetBatchDataRequest): Promise<Types.GetBatchDataChunk[]> {
     return new Promise((resolve, reject) => {
       const client = this.ensureClient();
       const stream = client.GetBatchDataStreamed(request);
-      const results: any[] = [];
-      let buffered = 0;
-      const MAX_BUFFERED = 2000; // simple backpressure cap by count of chunk messages
+      const results: Types.GetBatchDataChunk[] = [];
       
       stream.on('data', (data: any) => {
         results.push(data);
-        buffered += 1;
-        // If too many chunks buffered, pause briefly to yield
-        if (buffered >= MAX_BUFFERED && (stream as any).pause) {
-          (stream as any).pause();
-          setTimeout(() => {
-            buffered = 0;
-            (stream as any).resume?.();
-          }, 10);
-        }
       });
       
       stream.on('end', () => {
@@ -143,62 +133,46 @@ class AutoMainGrpcClient {
     });
   }
 
-  // NEW: true incremental streaming with callback; returns totals when stream ends
-  async streamBatchDataIncremental(
-    request: any,
-    onChunk: (chunk: any) => void,
-    requestId?: string,
-  ): Promise<{ totalPoints: number; totalChunks: number }> {
+  async analyzeCsv(request: Types.AnalyzeCsvRequest): Promise<Types.AnalyzeCsvResponse> {
     return new Promise((resolve, reject) => {
       const client = this.ensureClient();
-      const stream = client.GetBatchDataStreamed(request);
-      let totalPoints = 0;
-      let totalChunks = 0;
-      if (requestId) {
-        this.activeStreams.set(requestId, stream);
-      }
-      const MAX_PER_BATCH = 10; // yield every N chunks
-      let sinceYield = 0;
-
-      const yieldAsync = () => new Promise(r => setImmediate(r));
-
-      stream.on('data', async (data: any) => {
-        totalChunks += 1;
-        totalPoints += (data?.data_points?.length || 0);
-        onChunk(data);
-        sinceYield += 1;
-        if (sinceYield >= MAX_PER_BATCH && (stream as any).pause) {
-          (stream as any).pause();
-          sinceYield = 0;
-          await yieldAsync();
-          (stream as any).resume?.();
+      console.log('📤 gRPC Client sending AnalyzeCsv request:', JSON.stringify(request, null, 2));
+      client.AnalyzeCsv(request, (error: any, response: any) => {
+        if (error) {
+          console.error('📤 gRPC Client AnalyzeCsv error:', error);
+          reject(error);
+        } else {
+          console.log('📤 gRPC Client AnalyzeCsv response:', JSON.stringify(response, null, 2));
+          resolve(response);
         }
-      });
-      
-      stream.on('end', () => {
-        if (requestId) this.activeStreams.delete(requestId);
-        resolve({ totalPoints, totalChunks });
-      });
-      
-      stream.on('error', (error: Error) => {
-        if (requestId) this.activeStreams.delete(requestId);
-        reject(error);
       });
     });
   }
 
-  cancelStream(requestId: string): boolean {
-    const stream = this.activeStreams.get(requestId);
-    if (stream && typeof stream.cancel === 'function') {
-      try {
-        stream.cancel();
-      } catch {
-        // ignore cancel errors
-      }
-      this.activeStreams.delete(requestId);
-      return true;
-    }
-    return false;
+  async sendFile(request: Types.SendFileRequest): Promise<Types.SendFileResponse> {
+    return new Promise((resolve, reject) => {
+      const client = this.ensureClient();
+      client.SendFile(request, (error: any, response: any) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+
+  async getLoadedDataStats(request: Types.GetLoadedDataStatsRequest): Promise<Types.GetLoadedDataStatsResponse> {
+    return new Promise((resolve, reject) => {
+      const client = this.ensureClient();
+      client.GetLoadedDataStats(request, (error: any, response: any) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      });
+    });
   }
 }
 

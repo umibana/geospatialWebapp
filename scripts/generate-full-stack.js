@@ -184,6 +184,8 @@ function generateAutoGrpcClient(services) {
   const service = services[0]; // Assuming single service for now
   if (!service) return '';
   
+  const dynamicImports = generateDynamicImports();
+  
   const methods = service.methods.map(method => {
     const methodName = method.name;
     const camelCaseMethod = methodName.charAt(0).toLowerCase() + methodName.slice(1);
@@ -203,7 +205,9 @@ function generateAutoGrpcClient(services) {
 // DO NOT EDIT - This file is auto-generated
 
 import { ipcRenderer } from 'electron';
-import * as Types from './types';
+${dynamicImports.imports}
+
+${dynamicImports.typeDefinition}
 
 export class AutoGrpcClient {
   private async callMethod<T, R>(methodName: string, request: T): Promise<R> {
@@ -350,9 +354,46 @@ export function exposeAutoGrpcContext() {
 `;
 }
 
+// Helper function to discover all generated proto files
+function discoverProtoFiles() {
+  const generatedDir = path.join('src', 'generated');
+  if (!fs.existsSync(generatedDir)) {
+    return [];
+  }
+  
+  const files = fs.readdirSync(generatedDir);
+  return files
+    .filter(file => file.endsWith('_pb.ts'))
+    .map(file => file.replace('_pb.ts', ''));
+}
+
+// Generate dynamic imports for all proto files
+function generateDynamicImports() {
+  const protoFiles = discoverProtoFiles();
+  
+  const imports = protoFiles.map(fileName => {
+    const moduleName = fileName.replace(/[^a-zA-Z0-9]/g, ''); // Remove special chars
+    const capitalizedName = moduleName.charAt(0).toUpperCase() + moduleName.slice(1);
+    return `import * as ${capitalizedName}Types from '../generated/${fileName}_pb';`;
+  }).join('\n');
+  
+  const typeUnion = protoFiles.map(fileName => {
+    const moduleName = fileName.replace(/[^a-zA-Z0-9]/g, '');
+    const capitalizedName = moduleName.charAt(0).toUpperCase() + moduleName.slice(1);
+    return `typeof ${capitalizedName}Types`;
+  }).join(' & ');
+  
+  return {
+    imports,
+    typeDefinition: `type Types = ${typeUnion || 'any'};`
+  };
+}
+
 function generateMainProcessClient(services) {
   const service = services[0];
   if (!service) return '';
+  
+  const dynamicImports = generateDynamicImports();
   
   const methods = service.methods.map(method => {
     const methodName = method.name;
@@ -400,7 +441,9 @@ function generateMainProcessClient(services) {
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 import { join } from 'path';
-import * as Types from '../generated/types';
+${dynamicImports.imports}
+
+${dynamicImports.typeDefinition}
 
 class AutoMainGrpcClient {
   private client: any = null;

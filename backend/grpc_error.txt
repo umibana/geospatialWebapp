@@ -1,0 +1,6 @@
+Error: name 'geospatial_pb2_grpc' is not defined
+Traceback (most recent call last):
+  File "/Users/hans/Projects/Usach/geospatialWebapp/backend/grpc_server.py", line 817, in serve
+    geospatial_pb2_grpc.add_GeospatialServiceServicer_to_server(
+    ^^^^^^^^^^^^^^^^^^^
+NameError: name 'geospatial_pb2_grpc' is not defined. Did you mean: 'geospatial_pb2'?

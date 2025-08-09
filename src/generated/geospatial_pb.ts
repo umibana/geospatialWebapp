@@ -2,15 +2,16 @@
 // @generated from file geospatial.proto (package geospatial, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_files } from "./files_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file geospatial.proto.
  */
 export const file_geospatial: GenFile = /*@__PURE__*/
-  fileDesc("ChBnZW9zcGF0aWFsLnByb3RvEgpnZW9zcGF0aWFsIlUKCkNvb3JkaW5hdGUSEAoIbGF0aXR1ZGUYASABKAESEQoJbG9uZ2l0dWRlGAIgASgBEhUKCGFsdGl0dWRlGAMgASgBSACIAQFCCwoJX2FsdGl0dWRlImMKC0JvdW5kaW5nQm94EikKCW5vcnRoZWFzdBgBIAEoCzIWLmdlb3NwYXRpYWwuQ29vcmRpbmF0ZRIpCglzb3V0aHdlc3QYAiABKAsyFi5nZW9zcGF0aWFsLkNvb3JkaW5hdGUi4AEKEUdlb3NwYXRpYWxGZWF0dXJlEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSKAoIbG9jYXRpb24YAyABKAsyFi5nZW9zcGF0aWFsLkNvb3JkaW5hdGUSQQoKcHJvcGVydGllcxgEIAMoCzItLmdlb3NwYXRpYWwuR2Vvc3BhdGlhbEZlYXR1cmUuUHJvcGVydGllc0VudHJ5EhEKCXRpbWVzdGFtcBgFIAEoAxoxCg9Qcm9wZXJ0aWVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASLZAQoJRGF0YVBvaW50EgoKAmlkGAEgASgJEigKCGxvY2F0aW9uGAIgASgLMhYuZ2Vvc3BhdGlhbC5Db29yZGluYXRlEg0KBXZhbHVlGAMgASgBEgwKBHVuaXQYBCABKAkSEQoJdGltZXN0YW1wGAUgASgDEjUKCG1ldGFkYXRhGAYgAygLMiMuZ2Vvc3BhdGlhbC5EYXRhUG9pbnQuTWV0YWRhdGFFbnRyeRovCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiJAoRSGVsbG9Xb3JsZFJlcXVlc3QSDwoHbWVzc2FnZRgBIAEoCSIlChJIZWxsb1dvcmxkUmVzcG9uc2USDwoHbWVzc2FnZRgBIAEoCSI4ChRFY2hvUGFyYW1ldGVyUmVxdWVzdBINCgV2YWx1ZRgBIAEoARIRCglvcGVyYXRpb24YAiABKAkiWwoVRWNob1BhcmFtZXRlclJlc3BvbnNlEhYKDm9yaWdpbmFsX3ZhbHVlGAEgASgBEhcKD3Byb2Nlc3NlZF92YWx1ZRgCIAEoARIRCglvcGVyYXRpb24YAyABKAkiYwoSR2V0RmVhdHVyZXNSZXF1ZXN0EicKBmJvdW5kcxgBIAEoCzIXLmdlb3NwYXRpYWwuQm91bmRpbmdCb3gSFQoNZmVhdHVyZV90eXBlcxgCIAMoCRINCgVsaW1pdBgDIAEoBSJbChNHZXRGZWF0dXJlc1Jlc3BvbnNlEi8KCGZlYXR1cmVzGAEgAygLMh0uZ2Vvc3BhdGlhbC5HZW9zcGF0aWFsRmVhdHVyZRITCgt0b3RhbF9jb3VudBgCIAEoBSJvChFTdHJlYW1EYXRhUmVxdWVzdBInCgZib3VuZHMYASABKAsyFy5nZW9zcGF0aWFsLkJvdW5kaW5nQm94EhIKCmRhdGFfdHlwZXMYAiADKAkSHQoVbWF4X3BvaW50c19wZXJfc2Vjb25kGAMgASgFInoKE0dldEJhdGNoRGF0YVJlcXVlc3QSJwoGYm91bmRzGAEgASgLMhcuZ2Vvc3BhdGlhbC5Cb3VuZGluZ0JveBISCgpkYXRhX3R5cGVzGAIgAygJEhIKCm1heF9wb2ludHMYAyABKAUSEgoKcmVzb2x1dGlvbhgEIAEoBSJyChRHZXRCYXRjaERhdGFSZXNwb25zZRIqCgtkYXRhX3BvaW50cxgBIAMoCzIVLmdlb3NwYXRpYWwuRGF0YVBvaW50EhMKC3RvdGFsX2NvdW50GAIgASgFEhkKEWdlbmVyYXRpb25fbWV0aG9kGAMgASgJIqIBChJPcHRpbWl6ZWREYXRhUG9pbnQSCgoCaWQYASABKAkSEAoIbGF0aXR1ZGUYAiABKAISEQoJbG9uZ2l0dWRlGAMgASgCEhAKCGFsdGl0dWRlGAQgASgCEg0KBXZhbHVlGAUgASgCEgwKBHVuaXQYBiABKAkSEQoJdGltZXN0YW1wGAcgASgDEhkKEWdlbmVyYXRpb25fbWV0aG9kGAggASgJIoQBCh1HZXRCYXRjaERhdGFPcHRpbWl6ZWRSZXNwb25zZRIzCgtkYXRhX3BvaW50cxgBIAMoCzIeLmdlb3NwYXRpYWwuT3B0aW1pemVkRGF0YVBvaW50EhMKC3RvdGFsX2NvdW50GAIgASgFEhkKEWdlbmVyYXRpb25fbWV0aG9kGAMgASgJIrcBChFHZXRCYXRjaERhdGFDaHVuaxIqCgtkYXRhX3BvaW50cxgBIAMoCzIVLmdlb3NwYXRpYWwuRGF0YVBvaW50EhQKDGNodW5rX251bWJlchgCIAEoBRIUCgx0b3RhbF9jaHVua3MYAyABKAUSFwoPcG9pbnRzX2luX2NodW5rGAQgASgFEhYKDmlzX2ZpbmFsX2NodW5rGAUgASgIEhkKEWdlbmVyYXRpb25fbWV0aG9kGAYgASgJIhQKEkhlYWx0aENoZWNrUmVxdWVzdCKjAQoTSGVhbHRoQ2hlY2tSZXNwb25zZRIPCgdoZWFsdGh5GAEgASgIEg8KB3ZlcnNpb24YAiABKAkSOwoGc3RhdHVzGAMgAygLMisuZ2Vvc3BhdGlhbC5IZWFsdGhDaGVja1Jlc3BvbnNlLlN0YXR1c0VudHJ5Gi0KC1N0YXR1c0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEysAMKEUdlb3NwYXRpYWxTZXJ2aWNlEksKCkhlbGxvV29ybGQSHS5nZW9zcGF0aWFsLkhlbGxvV29ybGRSZXF1ZXN0Gh4uZ2Vvc3BhdGlhbC5IZWxsb1dvcmxkUmVzcG9uc2USVAoNRWNob1BhcmFtZXRlchIgLmdlb3NwYXRpYWwuRWNob1BhcmFtZXRlclJlcXVlc3QaIS5nZW9zcGF0aWFsLkVjaG9QYXJhbWV0ZXJSZXNwb25zZRJOCgtIZWFsdGhDaGVjaxIeLmdlb3NwYXRpYWwuSGVhbHRoQ2hlY2tSZXF1ZXN0Gh8uZ2Vvc3BhdGlhbC5IZWFsdGhDaGVja1Jlc3BvbnNlEk4KC0dldEZlYXR1cmVzEh4uZ2Vvc3BhdGlhbC5HZXRGZWF0dXJlc1JlcXVlc3QaHy5nZW9zcGF0aWFsLkdldEZlYXR1cmVzUmVzcG9uc2USWAoUR2V0QmF0Y2hEYXRhU3RyZWFtZWQSHy5nZW9zcGF0aWFsLkdldEJhdGNoRGF0YVJlcXVlc3QaHS5nZW9zcGF0aWFsLkdldEJhdGNoRGF0YUNodW5rMAFiBnByb3RvMw");
+  fileDesc("ChBnZW9zcGF0aWFsLnByb3RvEgpnZW9zcGF0aWFsIlUKCkNvb3JkaW5hdGUSEAoIbGF0aXR1ZGUYASABKAESEQoJbG9uZ2l0dWRlGAIgASgBEhUKCGFsdGl0dWRlGAMgASgBSACIAQFCCwoJX2FsdGl0dWRlImMKC0JvdW5kaW5nQm94EikKCW5vcnRoZWFzdBgBIAEoCzIWLmdlb3NwYXRpYWwuQ29vcmRpbmF0ZRIpCglzb3V0aHdlc3QYAiABKAsyFi5nZW9zcGF0aWFsLkNvb3JkaW5hdGUi4AEKEUdlb3NwYXRpYWxGZWF0dXJlEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSKAoIbG9jYXRpb24YAyABKAsyFi5nZW9zcGF0aWFsLkNvb3JkaW5hdGUSQQoKcHJvcGVydGllcxgEIAMoCzItLmdlb3NwYXRpYWwuR2Vvc3BhdGlhbEZlYXR1cmUuUHJvcGVydGllc0VudHJ5EhEKCXRpbWVzdGFtcBgFIAEoAxoxCg9Qcm9wZXJ0aWVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASLZAQoJRGF0YVBvaW50EgoKAmlkGAEgASgJEigKCGxvY2F0aW9uGAIgASgLMhYuZ2Vvc3BhdGlhbC5Db29yZGluYXRlEg0KBXZhbHVlGAMgASgBEgwKBHVuaXQYBCABKAkSEQoJdGltZXN0YW1wGAUgASgDEjUKCG1ldGFkYXRhGAYgAygLMiMuZ2Vvc3BhdGlhbC5EYXRhUG9pbnQuTWV0YWRhdGFFbnRyeRovCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiogEKEk9wdGltaXplZERhdGFQb2ludBIKCgJpZBgBIAEoCRIQCghsYXRpdHVkZRgCIAEoAhIRCglsb25naXR1ZGUYAyABKAISEAoIYWx0aXR1ZGUYBCABKAISDQoFdmFsdWUYBSABKAISDAoEdW5pdBgGIAEoCRIRCgl0aW1lc3RhbXAYByABKAMSGQoRZ2VuZXJhdGlvbl9tZXRob2QYCCABKAkiJAoRSGVsbG9Xb3JsZFJlcXVlc3QSDwoHbWVzc2FnZRgBIAEoCSIlChJIZWxsb1dvcmxkUmVzcG9uc2USDwoHbWVzc2FnZRgBIAEoCSI4ChRFY2hvUGFyYW1ldGVyUmVxdWVzdBINCgV2YWx1ZRgBIAEoARIRCglvcGVyYXRpb24YAiABKAkiWwoVRWNob1BhcmFtZXRlclJlc3BvbnNlEhYKDm9yaWdpbmFsX3ZhbHVlGAEgASgBEhcKD3Byb2Nlc3NlZF92YWx1ZRgCIAEoARIRCglvcGVyYXRpb24YAyABKAkiFAoSSGVhbHRoQ2hlY2tSZXF1ZXN0IqMBChNIZWFsdGhDaGVja1Jlc3BvbnNlEg8KB2hlYWx0aHkYASABKAgSDwoHdmVyc2lvbhgCIAEoCRI7CgZzdGF0dXMYAyADKAsyKy5nZW9zcGF0aWFsLkhlYWx0aENoZWNrUmVzcG9uc2UuU3RhdHVzRW50cnkaLQoLU3RhdHVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJjChJHZXRGZWF0dXJlc1JlcXVlc3QSJwoGYm91bmRzGAEgASgLMhcuZ2Vvc3BhdGlhbC5Cb3VuZGluZ0JveBIVCg1mZWF0dXJlX3R5cGVzGAIgAygJEg0KBWxpbWl0GAMgASgFIlsKE0dldEZlYXR1cmVzUmVzcG9uc2USLwoIZmVhdHVyZXMYASADKAsyHS5nZW9zcGF0aWFsLkdlb3NwYXRpYWxGZWF0dXJlEhMKC3RvdGFsX2NvdW50GAIgASgFIm8KEVN0cmVhbURhdGFSZXF1ZXN0EicKBmJvdW5kcxgBIAEoCzIXLmdlb3NwYXRpYWwuQm91bmRpbmdCb3gSEgoKZGF0YV90eXBlcxgCIAMoCRIdChVtYXhfcG9pbnRzX3Blcl9zZWNvbmQYAyABKAUiegoTR2V0QmF0Y2hEYXRhUmVxdWVzdBInCgZib3VuZHMYASABKAsyFy5nZW9zcGF0aWFsLkJvdW5kaW5nQm94EhIKCmRhdGFfdHlwZXMYAiADKAkSEgoKbWF4X3BvaW50cxgDIAEoBRISCgpyZXNvbHV0aW9uGAQgASgFInIKFEdldEJhdGNoRGF0YVJlc3BvbnNlEioKC2RhdGFfcG9pbnRzGAEgAygLMhUuZ2Vvc3BhdGlhbC5EYXRhUG9pbnQSEwoLdG90YWxfY291bnQYAiABKAUSGQoRZ2VuZXJhdGlvbl9tZXRob2QYAyABKAkihAEKHUdldEJhdGNoRGF0YU9wdGltaXplZFJlc3BvbnNlEjMKC2RhdGFfcG9pbnRzGAEgAygLMh4uZ2Vvc3BhdGlhbC5PcHRpbWl6ZWREYXRhUG9pbnQSEwoLdG90YWxfY291bnQYAiABKAUSGQoRZ2VuZXJhdGlvbl9tZXRob2QYAyABKAkitwEKEUdldEJhdGNoRGF0YUNodW5rEioKC2RhdGFfcG9pbnRzGAEgAygLMhUuZ2Vvc3BhdGlhbC5EYXRhUG9pbnQSFAoMY2h1bmtfbnVtYmVyGAIgASgFEhQKDHRvdGFsX2NodW5rcxgDIAEoBRIXCg9wb2ludHNfaW5fY2h1bmsYBCABKAUSFgoOaXNfZmluYWxfY2h1bmsYBSABKAgSGQoRZ2VuZXJhdGlvbl9tZXRob2QYBiABKAliBnByb3RvMw", [file_files]);
 
 /**
  * @generated from message geospatial.Coordinate
@@ -141,7 +142,71 @@ export const DataPointSchema: GenMessage<DataPoint> = /*@__PURE__*/
   messageDesc(file_geospatial, 3);
 
 /**
- * Simple Hello World example
+ * Mensajes de formato de datos optimizados
+ *
+ * @generated from message geospatial.OptimizedDataPoint
+ */
+export type OptimizedDataPoint = Message<"geospatial.OptimizedDataPoint"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * float32 en lugar de double
+   *
+   * @generated from field: float latitude = 2;
+   */
+  latitude: number;
+
+  /**
+   * float32 en lugar de double
+   *
+   * @generated from field: float longitude = 3;
+   */
+  longitude: number;
+
+  /**
+   * float32 en lugar de double
+   *
+   * @generated from field: float altitude = 4;
+   */
+  altitude: number;
+
+  /**
+   * float32 en lugar de double
+   *
+   * @generated from field: float value = 5;
+   */
+  value: number;
+
+  /**
+   * @generated from field: string unit = 6;
+   */
+  unit: string;
+
+  /**
+   * @generated from field: int64 timestamp = 7;
+   */
+  timestamp: bigint;
+
+  /**
+   * Metadatos aplanados
+   *
+   * @generated from field: string generation_method = 8;
+   */
+  generationMethod: string;
+};
+
+/**
+ * Describes the message geospatial.OptimizedDataPoint.
+ * Use `create(OptimizedDataPointSchema)` to create a new message.
+ */
+export const OptimizedDataPointSchema: GenMessage<OptimizedDataPoint> = /*@__PURE__*/
+  messageDesc(file_geospatial, 4);
+
+/**
+ * Ejemplo simple de Hello World
  *
  * @generated from message geospatial.HelloWorldRequest
  */
@@ -157,7 +222,7 @@ export type HelloWorldRequest = Message<"geospatial.HelloWorldRequest"> & {
  * Use `create(HelloWorldRequestSchema)` to create a new message.
  */
 export const HelloWorldRequestSchema: GenMessage<HelloWorldRequest> = /*@__PURE__*/
-  messageDesc(file_geospatial, 4);
+  messageDesc(file_geospatial, 5);
 
 /**
  * @generated from message geospatial.HelloWorldResponse
@@ -174,10 +239,10 @@ export type HelloWorldResponse = Message<"geospatial.HelloWorldResponse"> & {
  * Use `create(HelloWorldResponseSchema)` to create a new message.
  */
 export const HelloWorldResponseSchema: GenMessage<HelloWorldResponse> = /*@__PURE__*/
-  messageDesc(file_geospatial, 5);
+  messageDesc(file_geospatial, 6);
 
 /**
- * Echo Parameter example
+ * Ejemplo de parámetro de echo
  *
  * @generated from message geospatial.EchoParameterRequest
  */
@@ -198,7 +263,7 @@ export type EchoParameterRequest = Message<"geospatial.EchoParameterRequest"> & 
  * Use `create(EchoParameterRequestSchema)` to create a new message.
  */
 export const EchoParameterRequestSchema: GenMessage<EchoParameterRequest> = /*@__PURE__*/
-  messageDesc(file_geospatial, 6);
+  messageDesc(file_geospatial, 7);
 
 /**
  * @generated from message geospatial.EchoParameterResponse
@@ -225,7 +290,49 @@ export type EchoParameterResponse = Message<"geospatial.EchoParameterResponse"> 
  * Use `create(EchoParameterResponseSchema)` to create a new message.
  */
 export const EchoParameterResponseSchema: GenMessage<EchoParameterResponse> = /*@__PURE__*/
-  messageDesc(file_geospatial, 7);
+  messageDesc(file_geospatial, 8);
+
+/**
+ * Verificación de salud
+ *
+ * @generated from message geospatial.HealthCheckRequest
+ */
+export type HealthCheckRequest = Message<"geospatial.HealthCheckRequest"> & {
+};
+
+/**
+ * Describes the message geospatial.HealthCheckRequest.
+ * Use `create(HealthCheckRequestSchema)` to create a new message.
+ */
+export const HealthCheckRequestSchema: GenMessage<HealthCheckRequest> = /*@__PURE__*/
+  messageDesc(file_geospatial, 9);
+
+/**
+ * @generated from message geospatial.HealthCheckResponse
+ */
+export type HealthCheckResponse = Message<"geospatial.HealthCheckResponse"> & {
+  /**
+   * @generated from field: bool healthy = 1;
+   */
+  healthy: boolean;
+
+  /**
+   * @generated from field: string version = 2;
+   */
+  version: string;
+
+  /**
+   * @generated from field: map<string, string> status = 3;
+   */
+  status: { [key: string]: string };
+};
+
+/**
+ * Describes the message geospatial.HealthCheckResponse.
+ * Use `create(HealthCheckResponseSchema)` to create a new message.
+ */
+export const HealthCheckResponseSchema: GenMessage<HealthCheckResponse> = /*@__PURE__*/
+  messageDesc(file_geospatial, 10);
 
 /**
  * @generated from message geospatial.GetFeaturesRequest
@@ -252,7 +359,7 @@ export type GetFeaturesRequest = Message<"geospatial.GetFeaturesRequest"> & {
  * Use `create(GetFeaturesRequestSchema)` to create a new message.
  */
 export const GetFeaturesRequestSchema: GenMessage<GetFeaturesRequest> = /*@__PURE__*/
-  messageDesc(file_geospatial, 8);
+  messageDesc(file_geospatial, 11);
 
 /**
  * @generated from message geospatial.GetFeaturesResponse
@@ -274,7 +381,7 @@ export type GetFeaturesResponse = Message<"geospatial.GetFeaturesResponse"> & {
  * Use `create(GetFeaturesResponseSchema)` to create a new message.
  */
 export const GetFeaturesResponseSchema: GenMessage<GetFeaturesResponse> = /*@__PURE__*/
-  messageDesc(file_geospatial, 9);
+  messageDesc(file_geospatial, 12);
 
 /**
  * @generated from message geospatial.StreamDataRequest
@@ -301,7 +408,7 @@ export type StreamDataRequest = Message<"geospatial.StreamDataRequest"> & {
  * Use `create(StreamDataRequestSchema)` to create a new message.
  */
 export const StreamDataRequestSchema: GenMessage<StreamDataRequest> = /*@__PURE__*/
-  messageDesc(file_geospatial, 10);
+  messageDesc(file_geospatial, 13);
 
 /**
  * @generated from message geospatial.GetBatchDataRequest
@@ -323,7 +430,7 @@ export type GetBatchDataRequest = Message<"geospatial.GetBatchDataRequest"> & {
   maxPoints: number;
 
   /**
-   * Grid resolution for generated data
+   * Resolución de cuadrícula para datos generados
    *
    * @generated from field: int32 resolution = 4;
    */
@@ -335,7 +442,7 @@ export type GetBatchDataRequest = Message<"geospatial.GetBatchDataRequest"> & {
  * Use `create(GetBatchDataRequestSchema)` to create a new message.
  */
 export const GetBatchDataRequestSchema: GenMessage<GetBatchDataRequest> = /*@__PURE__*/
-  messageDesc(file_geospatial, 11);
+  messageDesc(file_geospatial, 14);
 
 /**
  * @generated from message geospatial.GetBatchDataResponse
@@ -362,71 +469,7 @@ export type GetBatchDataResponse = Message<"geospatial.GetBatchDataResponse"> & 
  * Use `create(GetBatchDataResponseSchema)` to create a new message.
  */
 export const GetBatchDataResponseSchema: GenMessage<GetBatchDataResponse> = /*@__PURE__*/
-  messageDesc(file_geospatial, 12);
-
-/**
- * Optimized data format messages
- *
- * @generated from message geospatial.OptimizedDataPoint
- */
-export type OptimizedDataPoint = Message<"geospatial.OptimizedDataPoint"> & {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * float32 instead of double
-   *
-   * @generated from field: float latitude = 2;
-   */
-  latitude: number;
-
-  /**
-   * float32 instead of double
-   *
-   * @generated from field: float longitude = 3;
-   */
-  longitude: number;
-
-  /**
-   * float32 instead of double
-   *
-   * @generated from field: float altitude = 4;
-   */
-  altitude: number;
-
-  /**
-   * float32 instead of double
-   *
-   * @generated from field: float value = 5;
-   */
-  value: number;
-
-  /**
-   * @generated from field: string unit = 6;
-   */
-  unit: string;
-
-  /**
-   * @generated from field: int64 timestamp = 7;
-   */
-  timestamp: bigint;
-
-  /**
-   * Flattened metadata
-   *
-   * @generated from field: string generation_method = 8;
-   */
-  generationMethod: string;
-};
-
-/**
- * Describes the message geospatial.OptimizedDataPoint.
- * Use `create(OptimizedDataPointSchema)` to create a new message.
- */
-export const OptimizedDataPointSchema: GenMessage<OptimizedDataPoint> = /*@__PURE__*/
-  messageDesc(file_geospatial, 13);
+  messageDesc(file_geospatial, 15);
 
 /**
  * @generated from message geospatial.GetBatchDataOptimizedResponse
@@ -453,10 +496,10 @@ export type GetBatchDataOptimizedResponse = Message<"geospatial.GetBatchDataOpti
  * Use `create(GetBatchDataOptimizedResponseSchema)` to create a new message.
  */
 export const GetBatchDataOptimizedResponseSchema: GenMessage<GetBatchDataOptimizedResponse> = /*@__PURE__*/
-  messageDesc(file_geospatial, 14);
+  messageDesc(file_geospatial, 16);
 
 /**
- * Chunked streaming messages  
+ * Mensajes de streaming por fragmentos  
  *
  * @generated from message geospatial.GetBatchDataChunk
  */
@@ -497,100 +540,5 @@ export type GetBatchDataChunk = Message<"geospatial.GetBatchDataChunk"> & {
  * Use `create(GetBatchDataChunkSchema)` to create a new message.
  */
 export const GetBatchDataChunkSchema: GenMessage<GetBatchDataChunk> = /*@__PURE__*/
-  messageDesc(file_geospatial, 15);
-
-/**
- * @generated from message geospatial.HealthCheckRequest
- */
-export type HealthCheckRequest = Message<"geospatial.HealthCheckRequest"> & {
-};
-
-/**
- * Describes the message geospatial.HealthCheckRequest.
- * Use `create(HealthCheckRequestSchema)` to create a new message.
- */
-export const HealthCheckRequestSchema: GenMessage<HealthCheckRequest> = /*@__PURE__*/
-  messageDesc(file_geospatial, 16);
-
-/**
- * @generated from message geospatial.HealthCheckResponse
- */
-export type HealthCheckResponse = Message<"geospatial.HealthCheckResponse"> & {
-  /**
-   * @generated from field: bool healthy = 1;
-   */
-  healthy: boolean;
-
-  /**
-   * @generated from field: string version = 2;
-   */
-  version: string;
-
-  /**
-   * @generated from field: map<string, string> status = 3;
-   */
-  status: { [key: string]: string };
-};
-
-/**
- * Describes the message geospatial.HealthCheckResponse.
- * Use `create(HealthCheckResponseSchema)` to create a new message.
- */
-export const HealthCheckResponseSchema: GenMessage<HealthCheckResponse> = /*@__PURE__*/
   messageDesc(file_geospatial, 17);
-
-/**
- * Definición de servicios
- *
- * @generated from service geospatial.GeospatialService
- */
-export const GeospatialService: GenService<{
-  /**
-   * Ejemplos de hello world y parametro para de echo
-   *
-   * @generated from rpc geospatial.GeospatialService.HelloWorld
-   */
-  helloWorld: {
-    methodKind: "unary";
-    input: typeof HelloWorldRequestSchema;
-    output: typeof HelloWorldResponseSchema;
-  },
-  /**
-   * @generated from rpc geospatial.GeospatialService.EchoParameter
-   */
-  echoParameter: {
-    methodKind: "unary";
-    input: typeof EchoParameterRequestSchema;
-    output: typeof EchoParameterResponseSchema;
-  },
-  /**
-   * Health check (Para ver si gRPC esta funcionando)
-   *
-   * @generated from rpc geospatial.GeospatialService.HealthCheck
-   */
-  healthCheck: {
-    methodKind: "unary";
-    input: typeof HealthCheckRequestSchema;
-    output: typeof HealthCheckResponseSchema;
-  },
-  /**
-   * Funciones de prueba en python para obtener datos 
-   *
-   * @generated from rpc geospatial.GeospatialService.GetFeatures
-   */
-  getFeatures: {
-    methodKind: "unary";
-    input: typeof GetFeaturesRequestSchema;
-    output: typeof GetFeaturesResponseSchema;
-  },
-  /**
-   * @generated from rpc geospatial.GeospatialService.GetBatchDataStreamed
-   */
-  getBatchDataStreamed: {
-    methodKind: "server_streaming";
-    input: typeof GetBatchDataRequestSchema;
-    output: typeof GetBatchDataChunkSchema;
-  },
-}> = /*@__PURE__*/
-  serviceDesc(file_geospatial, 0);
 

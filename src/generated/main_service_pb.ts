@@ -4,27 +4,25 @@
 
 import type { GenFile, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { GetBatchDataChunkSchema } from "./common_pb";
-import { file_common } from "./common_pb";
-import type { EchoParameterRequestSchema, EchoParameterResponseSchema, HealthCheckRequestSchema, HealthCheckResponseSchema, HelloWorldRequestSchema, HelloWorldResponseSchema } from "./core_service_pb";
-import { file_core_service } from "./core_service_pb";
-import type { GetBatchDataRequestSchema, GetFeaturesRequestSchema, GetFeaturesResponseSchema } from "./geospatial_service_pb";
-import { file_geospatial_service } from "./geospatial_service_pb";
+import type { EchoParameterRequestSchema, EchoParameterResponseSchema, GetBatchDataChunkSchema, GetBatchDataRequestSchema, GetFeaturesRequestSchema, GetFeaturesResponseSchema, HealthCheckRequestSchema, HealthCheckResponseSchema, HelloWorldRequestSchema, HelloWorldResponseSchema } from "./geospatial_pb";
+import { file_geospatial } from "./geospatial_pb";
+import type { AnalyzeCsvRequestSchema, AnalyzeCsvResponseSchema, GetLoadedDataStatsRequestSchema, GetLoadedDataStatsResponseSchema, SendFileRequestSchema, SendFileResponseSchema } from "./files_pb";
+import { file_files } from "./files_pb";
 
 /**
  * Describes the file main_service.proto.
  */
 export const file_main_service: GenFile = /*@__PURE__*/
-  fileDesc("ChJtYWluX3NlcnZpY2UucHJvdG8SCmdlb3NwYXRpYWwysAMKEUdlb3NwYXRpYWxTZXJ2aWNlEksKCkhlbGxvV29ybGQSHS5nZW9zcGF0aWFsLkhlbGxvV29ybGRSZXF1ZXN0Gh4uZ2Vvc3BhdGlhbC5IZWxsb1dvcmxkUmVzcG9uc2USVAoNRWNob1BhcmFtZXRlchIgLmdlb3NwYXRpYWwuRWNob1BhcmFtZXRlclJlcXVlc3QaIS5nZW9zcGF0aWFsLkVjaG9QYXJhbWV0ZXJSZXNwb25zZRJOCgtIZWFsdGhDaGVjaxIeLmdlb3NwYXRpYWwuSGVhbHRoQ2hlY2tSZXF1ZXN0Gh8uZ2Vvc3BhdGlhbC5IZWFsdGhDaGVja1Jlc3BvbnNlEk4KC0dldEZlYXR1cmVzEh4uZ2Vvc3BhdGlhbC5HZXRGZWF0dXJlc1JlcXVlc3QaHy5nZW9zcGF0aWFsLkdldEZlYXR1cmVzUmVzcG9uc2USWAoUR2V0QmF0Y2hEYXRhU3RyZWFtZWQSHy5nZW9zcGF0aWFsLkdldEJhdGNoRGF0YVJlcXVlc3QaHS5nZW9zcGF0aWFsLkdldEJhdGNoRGF0YUNodW5rMAFiBnByb3RvMw", [file_common, file_core_service, file_geospatial_service]);
+  fileDesc("ChJtYWluX3NlcnZpY2UucHJvdG8SCmdlb3NwYXRpYWwyqQUKEUdlb3NwYXRpYWxTZXJ2aWNlEksKCkhlbGxvV29ybGQSHS5nZW9zcGF0aWFsLkhlbGxvV29ybGRSZXF1ZXN0Gh4uZ2Vvc3BhdGlhbC5IZWxsb1dvcmxkUmVzcG9uc2USVAoNRWNob1BhcmFtZXRlchIgLmdlb3NwYXRpYWwuRWNob1BhcmFtZXRlclJlcXVlc3QaIS5nZW9zcGF0aWFsLkVjaG9QYXJhbWV0ZXJSZXNwb25zZRJOCgtIZWFsdGhDaGVjaxIeLmdlb3NwYXRpYWwuSGVhbHRoQ2hlY2tSZXF1ZXN0Gh8uZ2Vvc3BhdGlhbC5IZWFsdGhDaGVja1Jlc3BvbnNlEk4KC0dldEZlYXR1cmVzEh4uZ2Vvc3BhdGlhbC5HZXRGZWF0dXJlc1JlcXVlc3QaHy5nZW9zcGF0aWFsLkdldEZlYXR1cmVzUmVzcG9uc2USWAoUR2V0QmF0Y2hEYXRhU3RyZWFtZWQSHy5nZW9zcGF0aWFsLkdldEJhdGNoRGF0YVJlcXVlc3QaHS5nZW9zcGF0aWFsLkdldEJhdGNoRGF0YUNodW5rMAESSwoKQW5hbHl6ZUNzdhIdLmdlb3NwYXRpYWwuQW5hbHl6ZUNzdlJlcXVlc3QaHi5nZW9zcGF0aWFsLkFuYWx5emVDc3ZSZXNwb25zZRJFCghTZW5kRmlsZRIbLmdlb3NwYXRpYWwuU2VuZEZpbGVSZXF1ZXN0GhwuZ2Vvc3BhdGlhbC5TZW5kRmlsZVJlc3BvbnNlEmMKEkdldExvYWRlZERhdGFTdGF0cxIlLmdlb3NwYXRpYWwuR2V0TG9hZGVkRGF0YVN0YXRzUmVxdWVzdBomLmdlb3NwYXRpYWwuR2V0TG9hZGVkRGF0YVN0YXRzUmVzcG9uc2ViBnByb3RvMw", [file_geospatial, file_files]);
 
 /**
- * Main service definition that combines all services
+ * Aggregated service combining all RPC methods from different domains
  *
  * @generated from service geospatial.GeospatialService
  */
 export const GeospatialService: GenService<{
   /**
-   * Core examples and health check
+   * Basic services (from geospatial.proto)
    *
    * @generated from rpc geospatial.GeospatialService.HelloWorld
    */
@@ -50,7 +48,7 @@ export const GeospatialService: GenService<{
     output: typeof HealthCheckResponseSchema;
   },
   /**
-   * Geospatial data methods
+   * Geospatial data methods (from geospatial.proto)
    *
    * @generated from rpc geospatial.GeospatialService.GetFeatures
    */
@@ -66,6 +64,32 @@ export const GeospatialService: GenService<{
     methodKind: "server_streaming";
     input: typeof GetBatchDataRequestSchema;
     output: typeof GetBatchDataChunkSchema;
+  },
+  /**
+   * CSV file processing methods (from files.proto)
+   *
+   * @generated from rpc geospatial.GeospatialService.AnalyzeCsv
+   */
+  analyzeCsv: {
+    methodKind: "unary";
+    input: typeof AnalyzeCsvRequestSchema;
+    output: typeof AnalyzeCsvResponseSchema;
+  },
+  /**
+   * @generated from rpc geospatial.GeospatialService.SendFile
+   */
+  sendFile: {
+    methodKind: "unary";
+    input: typeof SendFileRequestSchema;
+    output: typeof SendFileResponseSchema;
+  },
+  /**
+   * @generated from rpc geospatial.GeospatialService.GetLoadedDataStats
+   */
+  getLoadedDataStats: {
+    methodKind: "unary";
+    input: typeof GetLoadedDataStatsRequestSchema;
+    output: typeof GetLoadedDataStatsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_main_service, 0);

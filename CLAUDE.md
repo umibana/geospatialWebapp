@@ -315,14 +315,14 @@ service GeospatialService {
 
 ### Development (Recommended)
 ```bash
-npm run dev                  # Generate protos + start backend + frontend together
+npm run dev                  # Generate protos + start backend + frontend together (uses pythonvenv)
 ```
 
 ### Individual Commands
 ```bash
 npm start                    # Start Electron app only (auto-generates protos first)
-npm run dev:backend         # Start gRPC server only (port 50077)
-npm run setup:backend       # Install Python dependencies (uses pip3)
+npm run dev:backend         # Start gRPC server only (port 50077, uses pythonvenv)
+npm run setup:backend       # Install Python dependencies in pythonvenv
 npm run lint                 # ESLint check
 npm run format              # Prettier check  
 npm run format:write        # Prettier format
@@ -330,7 +330,9 @@ npm run format:write        # Prettier format
 
 ### Protocol Buffers
 ```bash
-npm run generate:protos     # Generate both frontend and backend protobuf files
+npm run generate:protos     # Generate both frontend and backend protobuf files from protos/ directory
+npm run generate:simple     # Alternative: Generate using simplified system
+npm run generate:full-stack # Generate full-stack protobuf definitions
 ```
 
 ### Testing
@@ -374,10 +376,15 @@ npm run make              # Create platform distributables
 - `requirements.txt` - Python dependencies (gRPC, numpy, protobuf)
 
 ### Configuration Files
-- `geospatial.proto` - Protocol Buffer definitions with optimization methods (Original, Compressed, Optimized, Streamed)
-- `forge.config.ts` - Electron packaging and distribution settings
-- `backend/requirements.txt` - Python dependencies (grpcio, grpcio-tools, protobuf, numpy)
-- `scripts/generate-protos.js` - Protocol buffer generation script
+- `protos/` - Protocol Buffer definitions directory with modular proto files:
+  - `main_service.proto` - Main service combining all services
+  - `geospatial.proto` - Geospatial data types and messages
+  - `geospatial_service.proto` - Geospatial service methods
+  - `core_service.proto` - Core service methods (health, echo, etc.)
+  - `common.proto` - Common types and enums
+- `forge.config.ts` - Electron packaging and distribution settings (includes PyInstaller backend)
+- `backend/requirements.txt` - Python dependencies (grpcio>=1.73.0, numpy>=1.24.0)
+- `scripts/generate-protos.js` - Protocol buffer generation script with dependency checking
 
 ## Development Workflow
 
@@ -439,7 +446,7 @@ The application includes four different performance optimization approaches for 
 - **gRPC-Only**: All communication uses gRPC on port 50077 - no REST API
 - **IPC Security**: gRPC calls routed through Electron IPC for security (context isolation)
 - **Fixed Port**: gRPC server always uses port 50077 for consistency
-- **Python Commands**: Uses `python3` and `pip3` for better compatibility
+- **Python Environment**: Uses `pythonvenv/` virtual environment with `source pythonvenv/bin/activate`
 - **Bundled Backend**: Production uses PyInstaller-built executable to avoid Python dependency issues
 - **Protocol Buffers**: Changes to `.proto` files require regeneration for both frontend and backend
 - **Health Checks**: Health monitoring is done via gRPC HealthCheck service through IPC

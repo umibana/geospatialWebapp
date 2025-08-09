@@ -70,5 +70,36 @@ export function registerAutoGrpcHandlers() {
     }
   });
 
+  // Unary method: AnalyzeCsv
+  ipcMain.handle('grpc-analyzecsv', async (event, request) => {
+    try {
+      console.log('🔍 IPC Handler received AnalyzeCsv request:', JSON.stringify(request, null, 2));
+      return await autoMainGrpcClient.analyzeCsv(request);
+    } catch (error) {
+      console.error('gRPC analyzeCsv failed:', error);
+      throw error;
+    }
+  });
+
+  // Unary method: SendFile
+  ipcMain.handle('grpc-sendfile', async (event, request) => {
+    try {
+      return await autoMainGrpcClient.sendFile(request);
+    } catch (error) {
+      console.error('gRPC sendFile failed:', error);
+      throw error;
+    }
+  });
+
+  // Unary method: GetLoadedDataStats
+  ipcMain.handle('grpc-getloadeddatastats', async (event, request) => {
+    try {
+      return await autoMainGrpcClient.getLoadedDataStats(request);
+    } catch (error) {
+      console.error('gRPC getLoadedDataStats failed:', error);
+      throw error;
+    }
+  });
+
   console.log('✅ Auto-generated gRPC IPC handlers registered successfully');
 }

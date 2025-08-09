@@ -3,9 +3,8 @@
 import grpc
 import warnings
 
-import common_pb2 as common__pb2
-import core_service_pb2 as core__service__pb2
-import geospatial_service_pb2 as geospatial__service__pb2
+import files_pb2 as files__pb2
+import geospatial_pb2 as geospatial__pb2
 
 GRPC_GENERATED_VERSION = '1.74.0'
 GRPC_VERSION = grpc.__version__
@@ -28,7 +27,7 @@ if _version_not_supported:
 
 
 class GeospatialServiceStub(object):
-    """Main service definition that combines all services
+    """Aggregated service combining all RPC methods from different domains
     """
 
     def __init__(self, channel):
@@ -39,37 +38,52 @@ class GeospatialServiceStub(object):
         """
         self.HelloWorld = channel.unary_unary(
                 '/geospatial.GeospatialService/HelloWorld',
-                request_serializer=core__service__pb2.HelloWorldRequest.SerializeToString,
-                response_deserializer=core__service__pb2.HelloWorldResponse.FromString,
+                request_serializer=geospatial__pb2.HelloWorldRequest.SerializeToString,
+                response_deserializer=geospatial__pb2.HelloWorldResponse.FromString,
                 _registered_method=True)
         self.EchoParameter = channel.unary_unary(
                 '/geospatial.GeospatialService/EchoParameter',
-                request_serializer=core__service__pb2.EchoParameterRequest.SerializeToString,
-                response_deserializer=core__service__pb2.EchoParameterResponse.FromString,
+                request_serializer=geospatial__pb2.EchoParameterRequest.SerializeToString,
+                response_deserializer=geospatial__pb2.EchoParameterResponse.FromString,
                 _registered_method=True)
         self.HealthCheck = channel.unary_unary(
                 '/geospatial.GeospatialService/HealthCheck',
-                request_serializer=core__service__pb2.HealthCheckRequest.SerializeToString,
-                response_deserializer=core__service__pb2.HealthCheckResponse.FromString,
+                request_serializer=geospatial__pb2.HealthCheckRequest.SerializeToString,
+                response_deserializer=geospatial__pb2.HealthCheckResponse.FromString,
                 _registered_method=True)
         self.GetFeatures = channel.unary_unary(
                 '/geospatial.GeospatialService/GetFeatures',
-                request_serializer=geospatial__service__pb2.GetFeaturesRequest.SerializeToString,
-                response_deserializer=geospatial__service__pb2.GetFeaturesResponse.FromString,
+                request_serializer=geospatial__pb2.GetFeaturesRequest.SerializeToString,
+                response_deserializer=geospatial__pb2.GetFeaturesResponse.FromString,
                 _registered_method=True)
         self.GetBatchDataStreamed = channel.unary_stream(
                 '/geospatial.GeospatialService/GetBatchDataStreamed',
-                request_serializer=geospatial__service__pb2.GetBatchDataRequest.SerializeToString,
-                response_deserializer=common__pb2.GetBatchDataChunk.FromString,
+                request_serializer=geospatial__pb2.GetBatchDataRequest.SerializeToString,
+                response_deserializer=geospatial__pb2.GetBatchDataChunk.FromString,
+                _registered_method=True)
+        self.AnalyzeCsv = channel.unary_unary(
+                '/geospatial.GeospatialService/AnalyzeCsv',
+                request_serializer=files__pb2.AnalyzeCsvRequest.SerializeToString,
+                response_deserializer=files__pb2.AnalyzeCsvResponse.FromString,
+                _registered_method=True)
+        self.SendFile = channel.unary_unary(
+                '/geospatial.GeospatialService/SendFile',
+                request_serializer=files__pb2.SendFileRequest.SerializeToString,
+                response_deserializer=files__pb2.SendFileResponse.FromString,
+                _registered_method=True)
+        self.GetLoadedDataStats = channel.unary_unary(
+                '/geospatial.GeospatialService/GetLoadedDataStats',
+                request_serializer=files__pb2.GetLoadedDataStatsRequest.SerializeToString,
+                response_deserializer=files__pb2.GetLoadedDataStatsResponse.FromString,
                 _registered_method=True)
 
 
 class GeospatialServiceServicer(object):
-    """Main service definition that combines all services
+    """Aggregated service combining all RPC methods from different domains
     """
 
     def HelloWorld(self, request, context):
-        """Core examples and health check
+        """Basic services (from geospatial.proto)
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -88,7 +102,7 @@ class GeospatialServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def GetFeatures(self, request, context):
-        """Geospatial data methods
+        """Geospatial data methods (from geospatial.proto)
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -100,33 +114,67 @@ class GeospatialServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def AnalyzeCsv(self, request, context):
+        """CSV file processing methods (from files.proto)
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SendFile(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetLoadedDataStats(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_GeospatialServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'HelloWorld': grpc.unary_unary_rpc_method_handler(
                     servicer.HelloWorld,
-                    request_deserializer=core__service__pb2.HelloWorldRequest.FromString,
-                    response_serializer=core__service__pb2.HelloWorldResponse.SerializeToString,
+                    request_deserializer=geospatial__pb2.HelloWorldRequest.FromString,
+                    response_serializer=geospatial__pb2.HelloWorldResponse.SerializeToString,
             ),
             'EchoParameter': grpc.unary_unary_rpc_method_handler(
                     servicer.EchoParameter,
-                    request_deserializer=core__service__pb2.EchoParameterRequest.FromString,
-                    response_serializer=core__service__pb2.EchoParameterResponse.SerializeToString,
+                    request_deserializer=geospatial__pb2.EchoParameterRequest.FromString,
+                    response_serializer=geospatial__pb2.EchoParameterResponse.SerializeToString,
             ),
             'HealthCheck': grpc.unary_unary_rpc_method_handler(
                     servicer.HealthCheck,
-                    request_deserializer=core__service__pb2.HealthCheckRequest.FromString,
-                    response_serializer=core__service__pb2.HealthCheckResponse.SerializeToString,
+                    request_deserializer=geospatial__pb2.HealthCheckRequest.FromString,
+                    response_serializer=geospatial__pb2.HealthCheckResponse.SerializeToString,
             ),
             'GetFeatures': grpc.unary_unary_rpc_method_handler(
                     servicer.GetFeatures,
-                    request_deserializer=geospatial__service__pb2.GetFeaturesRequest.FromString,
-                    response_serializer=geospatial__service__pb2.GetFeaturesResponse.SerializeToString,
+                    request_deserializer=geospatial__pb2.GetFeaturesRequest.FromString,
+                    response_serializer=geospatial__pb2.GetFeaturesResponse.SerializeToString,
             ),
             'GetBatchDataStreamed': grpc.unary_stream_rpc_method_handler(
                     servicer.GetBatchDataStreamed,
-                    request_deserializer=geospatial__service__pb2.GetBatchDataRequest.FromString,
-                    response_serializer=common__pb2.GetBatchDataChunk.SerializeToString,
+                    request_deserializer=geospatial__pb2.GetBatchDataRequest.FromString,
+                    response_serializer=geospatial__pb2.GetBatchDataChunk.SerializeToString,
+            ),
+            'AnalyzeCsv': grpc.unary_unary_rpc_method_handler(
+                    servicer.AnalyzeCsv,
+                    request_deserializer=files__pb2.AnalyzeCsvRequest.FromString,
+                    response_serializer=files__pb2.AnalyzeCsvResponse.SerializeToString,
+            ),
+            'SendFile': grpc.unary_unary_rpc_method_handler(
+                    servicer.SendFile,
+                    request_deserializer=files__pb2.SendFileRequest.FromString,
+                    response_serializer=files__pb2.SendFileResponse.SerializeToString,
+            ),
+            'GetLoadedDataStats': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetLoadedDataStats,
+                    request_deserializer=files__pb2.GetLoadedDataStatsRequest.FromString,
+                    response_serializer=files__pb2.GetLoadedDataStatsResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -137,7 +185,7 @@ def add_GeospatialServiceServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class GeospatialService(object):
-    """Main service definition that combines all services
+    """Aggregated service combining all RPC methods from different domains
     """
 
     @staticmethod
@@ -155,8 +203,8 @@ class GeospatialService(object):
             request,
             target,
             '/geospatial.GeospatialService/HelloWorld',
-            core__service__pb2.HelloWorldRequest.SerializeToString,
-            core__service__pb2.HelloWorldResponse.FromString,
+            geospatial__pb2.HelloWorldRequest.SerializeToString,
+            geospatial__pb2.HelloWorldResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -182,8 +230,8 @@ class GeospatialService(object):
             request,
             target,
             '/geospatial.GeospatialService/EchoParameter',
-            core__service__pb2.EchoParameterRequest.SerializeToString,
-            core__service__pb2.EchoParameterResponse.FromString,
+            geospatial__pb2.EchoParameterRequest.SerializeToString,
+            geospatial__pb2.EchoParameterResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -209,8 +257,8 @@ class GeospatialService(object):
             request,
             target,
             '/geospatial.GeospatialService/HealthCheck',
-            core__service__pb2.HealthCheckRequest.SerializeToString,
-            core__service__pb2.HealthCheckResponse.FromString,
+            geospatial__pb2.HealthCheckRequest.SerializeToString,
+            geospatial__pb2.HealthCheckResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -236,8 +284,8 @@ class GeospatialService(object):
             request,
             target,
             '/geospatial.GeospatialService/GetFeatures',
-            geospatial__service__pb2.GetFeaturesRequest.SerializeToString,
-            geospatial__service__pb2.GetFeaturesResponse.FromString,
+            geospatial__pb2.GetFeaturesRequest.SerializeToString,
+            geospatial__pb2.GetFeaturesResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -263,8 +311,89 @@ class GeospatialService(object):
             request,
             target,
             '/geospatial.GeospatialService/GetBatchDataStreamed',
-            geospatial__service__pb2.GetBatchDataRequest.SerializeToString,
-            common__pb2.GetBatchDataChunk.FromString,
+            geospatial__pb2.GetBatchDataRequest.SerializeToString,
+            geospatial__pb2.GetBatchDataChunk.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def AnalyzeCsv(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/geospatial.GeospatialService/AnalyzeCsv',
+            files__pb2.AnalyzeCsvRequest.SerializeToString,
+            files__pb2.AnalyzeCsvResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SendFile(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/geospatial.GeospatialService/SendFile',
+            files__pb2.SendFileRequest.SerializeToString,
+            files__pb2.SendFileResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetLoadedDataStats(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/geospatial.GeospatialService/GetLoadedDataStats',
+            files__pb2.GetLoadedDataStatsRequest.SerializeToString,
+            files__pb2.GetLoadedDataStatsResponse.FromString,
             options,
             channel_credentials,
             insecure,

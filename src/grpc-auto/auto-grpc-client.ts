@@ -2,17 +2,11 @@
 // DO NOT EDIT - This file is auto-generated
 
 import { ipcRenderer } from 'electron';
-import {
-  HelloWorldRequest,
-  HelloWorldResponse,
-  EchoParameterRequest,
-  EchoParameterResponse,
-  HealthCheckResponse,
-  GetFeaturesRequest,
-  GetFeaturesResponse,
-  GetBatchDataRequest,
-  GetBatchDataChunk,
-} from './types';
+import * as FilesTypes from '../generated/files_pb';
+import * as GeospatialTypes from '../generated/geospatial_pb';
+import * as MainserviceTypes from '../generated/main_service_pb';
+
+type Types = typeof FilesTypes & typeof GeospatialTypes & typeof MainserviceTypes;
 
 export class AutoGrpcClient {
   private async callMethod<T, R>(methodName: string, request: T): Promise<R> {
@@ -24,17 +18,13 @@ export class AutoGrpcClient {
     return new Promise((resolve, reject) => {
       const requestId = `stream-${Date.now()}-${Math.random()}`;
       const results: R[] = [];
-      type StreamDataEvent = { requestId: string; type: 'data' | 'complete'; payload?: R };
-      type StreamErrorEvent = { requestId: string; error: string };
-
-      const handleData = (_event: unknown, data: StreamDataEvent) => {
+      
+      const handleData = (event: any, data: any) => {
         if (data.requestId !== requestId) return;
         
         if (data.type === 'data') {
-          if (data.payload !== undefined) {
-            results.push(data.payload);
-            if (onData) onData(data.payload);
-          }
+          results.push(data.payload);
+          if (onData) onData(data.payload);
         } else if (data.type === 'complete') {
           ipcRenderer.off('grpc-stream-data', handleData);
           ipcRenderer.off('grpc-stream-error', handleError);
@@ -42,7 +32,7 @@ export class AutoGrpcClient {
         }
       };
       
-      const handleError = (_event: unknown, data: StreamErrorEvent) => {
+      const handleError = (event: any, data: any) => {
         if (data.requestId !== requestId) return;
         ipcRenderer.off('grpc-stream-data', handleData);
         ipcRenderer.off('grpc-stream-error', handleError);
@@ -65,7 +55,7 @@ export class AutoGrpcClient {
     return this.callMethod('EchoParameter', request);
   }
 
-  async healthCheck(request: object = {}): Promise<HealthCheckResponse> {
+  async healthCheck(request: HealthCheckRequest): Promise<HealthCheckResponse> {
     return this.callMethod('HealthCheck', request);
   }
 
@@ -75,6 +65,18 @@ export class AutoGrpcClient {
 
   async getBatchDataStreamed(request: GetBatchDataRequest, onData?: (data: GetBatchDataChunk) => void): Promise<GetBatchDataChunk[]> {
     return this.callStreamingMethod('GetBatchDataStreamed', request, onData);
+  }
+
+  async analyzeCsv(request: AnalyzeCsvRequest): Promise<AnalyzeCsvResponse> {
+    return this.callMethod('AnalyzeCsv', request);
+  }
+
+  async sendFile(request: SendFileRequest): Promise<SendFileResponse> {
+    return this.callMethod('SendFile', request);
+  }
+
+  async getLoadedDataStats(request: GetLoadedDataStatsRequest): Promise<GetLoadedDataStatsResponse> {
+    return this.callMethod('GetLoadedDataStats', request);
   }
 }
 

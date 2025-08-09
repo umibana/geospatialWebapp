@@ -10,6 +10,9 @@ export interface AutoGrpcContext {
   healthCheck: (request: HealthCheckRequest) => Promise<HealthCheckResponse>;
   getFeatures: (request: GetFeaturesRequest) => Promise<GetFeaturesResponse>;
   getBatchDataStreamed: (request: GetBatchDataRequest, onData?: (data: GetBatchDataChunk) => void) => Promise<GetBatchDataChunk[]>;
+  analyzeCsv: (request: AnalyzeCsvRequest) => Promise<AnalyzeCsvResponse>;
+  sendFile: (request: SendFileRequest) => Promise<SendFileResponse>;
+  getLoadedDataStats: (request: GetLoadedDataStatsRequest) => Promise<GetLoadedDataStatsResponse>;
 }
 
 const autoGrpcContext: AutoGrpcContext = {
@@ -18,6 +21,9 @@ const autoGrpcContext: AutoGrpcContext = {
   healthCheck: autoGrpcClient.healthCheck.bind(autoGrpcClient),
   getFeatures: autoGrpcClient.getFeatures.bind(autoGrpcClient),
   getBatchDataStreamed: autoGrpcClient.getBatchDataStreamed.bind(autoGrpcClient),
+  analyzeCsv: autoGrpcClient.analyzeCsv.bind(autoGrpcClient),
+  sendFile: autoGrpcClient.sendFile.bind(autoGrpcClient),
+  getLoadedDataStats: autoGrpcClient.getLoadedDataStats.bind(autoGrpcClient),
 };
 
 export function exposeAutoGrpcContext() {

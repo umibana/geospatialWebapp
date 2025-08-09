@@ -14,6 +14,33 @@ const grpcApi = {
   getFeatures: (request: { bounds: GrpcBounds; featureTypes: string[]; limit: number }) => 
     ipcRenderer.invoke('grpc-getfeatures', request),
   
+  // CSV file processing methods
+  analyzeCsv: (request: { filePath: string; fileName: string; rowsToAnalyze?: number }) => {
+    // Convert camelCase to snake_case for gRPC (keepCase: true)
+    const snakeRequest = {
+      file_path: request.filePath,
+      file_name: request.fileName,
+      rows_to_analyze: request.rowsToAnalyze ?? 2,
+    } as const;
+    return ipcRenderer.invoke('grpc-analyzecsv', snakeRequest);
+  },
+  sendFile: (request: { filePath: string; fileName: string; fileType: string; xVariable: string; yVariable: string; zVariable?: string; idVariable?: string; depthVariable?: string }) => {
+    // Convert camelCase to snake_case for gRPC (keepCase: true)
+    const snakeRequest = {
+      file_path: request.filePath,
+      file_name: request.fileName,
+      file_type: request.fileType,
+      x_variable: request.xVariable,
+      y_variable: request.yVariable,
+      z_variable: request.zVariable ?? '',
+      id_variable: request.idVariable ?? '',
+      depth_variable: request.depthVariable ?? '',
+    } as const;
+    return ipcRenderer.invoke('grpc-sendfile', snakeRequest);
+  },
+  getLoadedDataStats: () => 
+    ipcRenderer.invoke('grpc-getloadeddatastats', {}),
+  
   // Legacy streaming removed
   
   // Legacy worker-stream removed
@@ -239,5 +266,15 @@ const grpcApi = {
 };
 
 contextBridge.exposeInMainWorld('grpc', grpcApi);
+
+// Electron API for file dialogs and system functionality
+const electronAPI = {
+  showOpenDialog: (options: Electron.OpenDialogOptions) => 
+    ipcRenderer.invoke('dialog:openFile', options),
+  showSaveDialog: (options: Electron.SaveDialogOptions) => 
+    ipcRenderer.invoke('dialog:saveFile', options),
+};
+
+contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 
 // Legacy electronGrpc removed

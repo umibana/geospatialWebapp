@@ -2,7 +2,11 @@ syntax = "proto3";
 
 package geospatial;
 
-// Common data types for geospatial operations
+import "files.proto";
+
+// =============================================================================
+// TIPOS DE DATOS COMUNES
+// =============================================================================
 
 message Coordinate {
   double latitude = 1;
@@ -32,9 +36,23 @@ message DataPoint {
   map<string, string> metadata = 6;
 }
 
-// Request/Response messages for the service
+// Mensajes de formato de datos optimizados
+message OptimizedDataPoint {
+  string id = 1;
+  float latitude = 2;    // float32 en lugar de double
+  float longitude = 3;   // float32 en lugar de double
+  float altitude = 4;    // float32 en lugar de double
+  float value = 5;       // float32 en lugar de double
+  string unit = 6;
+  int64 timestamp = 7;
+  string generation_method = 8; // Metadatos aplanados
+}
 
-// Simple Hello World example
+// =============================================================================
+// SOLICITUDES/RESPUESTAS DEL SERVICIO PRINCIPAL
+// =============================================================================
+
+// Ejemplo simple de Hello World
 message HelloWorldRequest {
   string message = 1;
 }
@@ -43,7 +61,7 @@ message HelloWorldResponse {
   string message = 1;
 }
 
-// Echo Parameter example
+// Ejemplo de parámetro de echo
 message EchoParameterRequest {
   double value = 1;
   string operation = 2;
@@ -54,6 +72,19 @@ message EchoParameterResponse {
   double processed_value = 2;
   string operation = 3;
 }
+
+// Verificación de salud
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  bool healthy = 1;
+  string version = 2;
+  map<string, string> status = 3;
+}
+
+// =============================================================================
+// SOLICITUDES/RESPUESTAS DEL SERVICIO GEOESPACIAL
+// =============================================================================
 
 message GetFeaturesRequest {
   BoundingBox bounds = 1;
@@ -76,7 +107,7 @@ message GetBatchDataRequest {
   BoundingBox bounds = 1;
   repeated string data_types = 2;
   int32 max_points = 3;
-  int32 resolution = 4; // Grid resolution for generated data
+  int32 resolution = 4; // Resolución de cuadrícula para datos generados
 }
 
 message GetBatchDataResponse {
@@ -85,25 +116,13 @@ message GetBatchDataResponse {
   string generation_method = 3;
 }
 
-// Optimized data format messages
-message OptimizedDataPoint {
-  string id = 1;
-  float latitude = 2;    // float32 instead of double
-  float longitude = 3;   // float32 instead of double
-  float altitude = 4;    // float32 instead of double
-  float value = 5;       // float32 instead of double
-  string unit = 6;
-  int64 timestamp = 7;
-  string generation_method = 8; // Flattened metadata
-}
-
 message GetBatchDataOptimizedResponse {
   repeated OptimizedDataPoint data_points = 1;
   int32 total_count = 2;
   string generation_method = 3;
 }
 
-// Chunked streaming messages  
+// Mensajes de streaming por fragmentos  
 message GetBatchDataChunk {
   repeated DataPoint data_points = 1;
   int32 chunk_number = 2;
@@ -112,24 +131,3 @@ message GetBatchDataChunk {
   bool is_final_chunk = 5;
   string generation_method = 6;
 }
-
-message HealthCheckRequest {}
-
-message HealthCheckResponse {
-  bool healthy = 1;
-  string version = 2;
-  map<string, string> status = 3;
-}
-
-// Definición de servicios
-service GeospatialService {
-  // Ejemplos de hello world y parametro para de echo
-  rpc HelloWorld(HelloWorldRequest) returns (HelloWorldResponse);
-  rpc EchoParameter(EchoParameterRequest) returns (EchoParameterResponse);
-  // Health check (Para ver si gRPC esta funcionando)
-  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
-  // Funciones de prueba en python para obtener datos 
-  rpc GetFeatures(GetFeaturesRequest) returns (GetFeaturesResponse);
-  rpc GetBatchDataStreamed(GetBatchDataRequest) returns (stream GetBatchDataChunk);
-  
-} 

@@ -25,10 +25,16 @@ interface ElectronBackend {
   restartBackend: () => Promise<{ port: number; url: string }>;
 }
 
+interface ElectronAPI {
+  showOpenDialog: (options: Electron.OpenDialogOptions) => Promise<Electron.OpenDialogReturnValue>;
+  showSaveDialog: (options: Electron.SaveDialogOptions) => Promise<Electron.SaveDialogReturnValue>;
+}
+
 declare interface Window {
   themeMode: ThemeModeContext;
   electronWindow: ElectronWindow;
   electronBackend: ElectronBackend;
+  electronAPI: ElectronAPI;
   grpc: GrpcAPI;
   electronGrpc: GrpcAPI;
 }
@@ -40,6 +46,39 @@ interface GrpcAPI {
   helloWorld: (request: { message: string }) => Promise<{ message: string }>;
   echoParameter: (request: { value: number; operation: string }) => Promise<{ originalValue: number; processedValue: number; operation: string }>;
   getFeatures: (request: { bounds: any; featureTypes: string[]; limit: number }) => Promise<{ features: any[]; total_count?: number }>;
+
+  // CSV file processing methods
+  analyzeCsv: (request: { filePath: string; fileName: string; rowsToAnalyze?: number }) => Promise<{
+    columns: Array<{ name: string; type: string; is_required: boolean }>;
+    auto_detected_mapping: Record<string, string>;
+    success: boolean;
+    error_message?: string;
+  }>;
+  sendFile: (request: { 
+    filePath: string; 
+    fileName: string; 
+    fileType: string; 
+    xVariable: string; 
+    yVariable: string; 
+    zVariable?: string; 
+    idVariable?: string; 
+    depthVariable?: string 
+  }) => Promise<{
+    total_rows_processed: number;
+    valid_rows: number;
+    invalid_rows: number;
+    errors: string[];
+    success: boolean;
+    processing_time: string;
+  }>;
+  getLoadedDataStats: () => Promise<{
+    total_points: number;
+    x_stats: Record<string, number>;
+    y_stats: Record<string, number>;
+    z_stats: Record<string, number>;
+    available_columns: string[];
+    has_data: boolean;
+  }>;
 
   // Streaming helpers
   getBatchDataStreamed?: (

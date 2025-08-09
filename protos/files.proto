@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package geospatial;
+
+// =============================================================================
+// SOLICITUDES/RESPUESTAS DE ARCHIVOS (.CSV)
+// =============================================================================
+
+// Información de columna detectada automáticamente
+message ColumnInfo {
+    string name = 1;
+    string type = 2; // "number" or "string"
+    bool is_required = 3; // true for ID, X, Y, Z columns
+}
+
+// Solicitud para analizar las primeras filas y detectar columnas
+message AnalyzeCsvRequest {
+    string file_path = 1;
+    string file_name = 2;
+    int32 rows_to_analyze = 3; // default: 2 (header + first data row)
+}
+
+// Respuesta con información de columnas detectadas
+message AnalyzeCsvResponse {
+    repeated ColumnInfo columns = 1;
+    map<string, string> auto_detected_mapping = 2; // suggested mappings like "id" -> "ID_COLUMN"
+    bool success = 3;
+    string error_message = 4;
+}
+
+// Solicitud para procesar el archivo completo con mapping de variables
+message SendFileRequest {
+    string file_path = 1;
+    string file_name = 2;
+    string file_type = 3;
+    string x_variable = 4;    // Column name for X coordinate
+    string y_variable = 5;    // Column name for Y coordinate 
+    string z_variable = 6;    // Column name for Z value (optional)
+    string id_variable = 7;   // Column name for ID (optional)
+    string depth_variable = 8; // Column name for DEPTH (optional)
+}
+
+// Respuesta después de procesar el archivo
+message SendFileResponse {
+    int32 total_rows_processed = 1;
+    int32 valid_rows = 2;
+    int32 invalid_rows = 3;
+    repeated string errors = 4;
+    bool success = 5;
+    string processing_time = 6;
+}
+
+// Solicitud para obtener estadísticas de los datos cargados
+message GetLoadedDataStatsRequest {
+    // Empty for now, might add filtering options later
+}
+
+// Respuesta con estadísticas de los datos en memoria
+message GetLoadedDataStatsResponse {
+    int32 total_points = 1;
+    map<string, double> x_stats = 2; // min, max, avg for X
+    map<string, double> y_stats = 3; // min, max, avg for Y  
+    map<string, double> z_stats = 4; // min, max, avg for Z
+    repeated string available_columns = 5;
+    bool has_data = 6;
+}

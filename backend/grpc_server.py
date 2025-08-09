@@ -22,13 +22,14 @@ import grpc
 
 # Import the generated protobuf files
 import geospatial_pb2
-import geospatial_pb2_grpc
+import files_pb2
+import main_service_pb2_grpc
 
 # Import the data generator
 from data_generator import data_generator
 
 
-class GeospatialServicer(geospatial_pb2_grpc.GeospatialServiceServicer):
+class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
     """Implementation of the GeospatialService"""
     
     def __init__(self):
@@ -539,6 +540,252 @@ class GeospatialServicer(geospatial_pb2_grpc.GeospatialServiceServicer):
             context.set_details(f"EchoParameter failed: {str(e)}")
             return geospatial_pb2.EchoParameterResponse()
     
+    def AnalyzeCsv(self, request, context):
+        """
+        Analyze CSV file to detect column names and types from the first two rows
+        
+        @param request: AnalyzeCsvRequest with file_path, file_name, and rows_to_analyze
+        @param context: gRPC context
+        @returns: AnalyzeCsvResponse with column info and auto-detected mappings
+        """
+        try:
+            import pandas as pd
+            import numpy as np
+            
+            print(f"📊 AnalyzeCsv request: {request.file_path}")
+            
+            # Read only the first few rows for analysis
+            rows_to_analyze = request.rows_to_analyze if request.rows_to_analyze > 0 else 2
+            df_sample = pd.read_csv(request.file_path, nrows=rows_to_analyze)
+            
+            response = files_pb2.AnalyzeCsvResponse()
+            response.success = True
+            
+            # Analyze each column
+            auto_mapping = {}
+            
+            for col_name in df_sample.columns:
+                column_info = response.columns.add()
+                column_info.name = str(col_name)
+                
+                # Infer type from the first data row (skip header)
+                if len(df_sample) > 0:
+                    sample_value = df_sample[col_name].iloc[0]
+                    try:
+                        # Try to convert to numeric
+                        pd.to_numeric(sample_value)
+                        column_info.type = "number"
+                    except (ValueError, TypeError):
+                        column_info.type = "string"
+                else:
+                    column_info.type = "string"
+                
+                # Auto-detect mappings based on column names (case-insensitive)
+                col_lower = str(col_name).lower()
+                if any(x in col_lower for x in ['id', 'identifier', 'key']):
+                    auto_mapping['id'] = str(col_name)
+                    column_info.is_required = True
+                elif any(x in col_lower for x in ['x', 'longitude', 'lng', 'long']):
+                    auto_mapping['x'] = str(col_name)
+                    column_info.is_required = True
+                elif any(x in col_lower for x in ['y', 'latitude', 'lat']):
+                    auto_mapping['y'] = str(col_name)
+                    column_info.is_required = True
+                elif any(x in col_lower for x in ['z', 'elevation', 'height', 'altitude']):
+                    auto_mapping['z'] = str(col_name)
+                    column_info.is_required = True
+                elif any(x in col_lower for x in ['depth', 'profundidad']):
+                    auto_mapping['depth'] = str(col_name)
+                    column_info.is_required = True
+                else:
+                    column_info.is_required = False
+            
+            # Set auto-detected mappings
+            for key, value in auto_mapping.items():
+                response.auto_detected_mapping[key] = value
+            
+            print(f"📊 AnalyzeCsv found {len(response.columns)} columns, auto-mapped: {auto_mapping}")
+            return response
+            
+        except Exception as e:
+            print(f"❌ AnalyzeCsv error: {e}")
+            response = files_pb2.AnalyzeCsvResponse()
+            response.success = False
+            response.error_message = str(e)
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f"AnalyzeCsv failed: {str(e)}")
+            return response
+
+    def SendFile(self, request, context):
+        """
+        Process the complete CSV file with variable mappings and keep data in memory
+        
+        @param request: SendFileRequest with file path and variable mappings
+        @param context: gRPC context
+        @returns: SendFileResponse with processing statistics
+        """
+        try:
+            import pandas as pd
+            import numpy as np
+            import time as time_module
+            
+            start_time = time_module.time()
+            print(f"📂 SendFile request: {request.file_path}")
+            print(f"   Variables: X={request.x_variable}, Y={request.y_variable}, Z={request.z_variable}, ID={request.id_variable}, DEPTH={request.depth_variable}")
+            
+            # Read the entire CSV file
+            df = pd.read_csv(request.file_path)
+            total_rows = len(df)
+            
+            # Validate that required columns exist
+            required_cols = []
+            if request.x_variable:
+                required_cols.append(request.x_variable)
+            if request.y_variable:
+                required_cols.append(request.y_variable)
+            
+            missing_cols = [col for col in required_cols if col not in df.columns]
+            if missing_cols:
+                raise ValueError(f"Missing required columns: {missing_cols}")
+            
+            # Filter and process the data
+            valid_rows = 0
+            invalid_rows = 0
+            errors = []
+            
+            # Create a processed dataset (store in memory for now)
+            processed_data = []
+            
+            for idx, row in df.iterrows():
+                try:
+                    data_point = {}
+                    
+                    # Map the variables
+                    if request.x_variable and request.x_variable in row:
+                        data_point['x'] = float(row[request.x_variable])
+                    if request.y_variable and request.y_variable in row:
+                        data_point['y'] = float(row[request.y_variable])
+                    if request.z_variable and request.z_variable in row:
+                        data_point['z'] = float(row[request.z_variable])
+                    if request.id_variable and request.id_variable in row:
+                        data_point['id'] = str(row[request.id_variable])
+                    if request.depth_variable and request.depth_variable in row:
+                        data_point['depth'] = float(row[request.depth_variable])
+                    
+                    # Validate required fields
+                    if 'x' in data_point and 'y' in data_point:
+                        processed_data.append(data_point)
+                        valid_rows += 1
+                    else:
+                        invalid_rows += 1
+                        if len(errors) < 10:  # Limit error messages
+                            errors.append(f"Row {idx}: Missing X or Y coordinate")
+                        
+                except (ValueError, TypeError) as e:
+                    invalid_rows += 1
+                    if len(errors) < 10:
+                        errors.append(f"Row {idx}: {str(e)}")
+            
+            # Store the processed data globally (in a real app, use a database)
+            global loaded_csv_data
+            loaded_csv_data = {
+                'data': processed_data,
+                'file_name': request.file_name,
+                'file_path': request.file_path,
+                'variable_mapping': {
+                    'x': request.x_variable,
+                    'y': request.y_variable,
+                    'z': request.z_variable,
+                    'id': request.id_variable,
+                    'depth': request.depth_variable
+                },
+                'timestamp': time_module.time()
+            }
+            
+            processing_time = time_module.time() - start_time
+            
+            response = files_pb2.SendFileResponse()
+            response.total_rows_processed = total_rows
+            response.valid_rows = valid_rows
+            response.invalid_rows = invalid_rows
+            response.errors.extend(errors[:10])  # Return up to 10 errors
+            response.success = True
+            response.processing_time = f"{processing_time:.2f}s"
+            
+            print(f"📂 SendFile completed: {valid_rows}/{total_rows} valid rows in {processing_time:.2f}s")
+            return response
+            
+        except Exception as e:
+            print(f"❌ SendFile error: {e}")
+            response = files_pb2.SendFileResponse()
+            response.success = False
+            response.errors.append(str(e))
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f"SendFile failed: {str(e)}")
+            return response
+
+    def GetLoadedDataStats(self, request, context):
+        """
+        Get statistics about the currently loaded CSV data
+        
+        @param request: GetLoadedDataStatsRequest (empty for now)
+        @param context: gRPC context
+        @returns: GetLoadedDataStatsResponse with statistics
+        """
+        try:
+            global loaded_csv_data
+            
+            response = files_pb2.GetLoadedDataStatsResponse()
+            
+            if 'loaded_csv_data' not in globals() or not loaded_csv_data:
+                response.has_data = False
+                response.total_points = 0
+                return response
+                
+            data = loaded_csv_data['data']
+            response.has_data = True
+            response.total_points = len(data)
+            
+            if data:
+                # Calculate statistics for X, Y, Z
+                x_values = [p['x'] for p in data if 'x' in p]
+                y_values = [p['y'] for p in data if 'y' in p]
+                z_values = [p['z'] for p in data if 'z' in p]
+                
+                if x_values:
+                    response.x_stats['min'] = min(x_values)
+                    response.x_stats['max'] = max(x_values)
+                    response.x_stats['avg'] = sum(x_values) / len(x_values)
+                    
+                if y_values:
+                    response.y_stats['min'] = min(y_values)
+                    response.y_stats['max'] = max(y_values)
+                    response.y_stats['avg'] = sum(y_values) / len(y_values)
+                    
+                if z_values:
+                    response.z_stats['min'] = min(z_values)
+                    response.z_stats['max'] = max(z_values)
+                    response.z_stats['avg'] = sum(z_values) / len(z_values)
+                
+                # Available columns
+                if loaded_csv_data.get('variable_mapping'):
+                    mapping = loaded_csv_data['variable_mapping']
+                    for key, value in mapping.items():
+                        if value:  # Only add non-empty mappings
+                            response.available_columns.append(f"{key}:{value}")
+            
+            print(f"📊 GetLoadedDataStats: {response.total_points} points loaded")
+            return response
+            
+        except Exception as e:
+            print(f"❌ GetLoadedDataStats error: {e}")
+            response = files_pb2.GetLoadedDataStatsResponse()
+            response.has_data = False
+            response.total_points = 0
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f"GetLoadedDataStats failed: {str(e)}")
+            return response
+    
 
 
 def find_free_port(start_port=50051):
@@ -567,7 +814,7 @@ def serve():
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=10), options=options)
         
         # Add service to server
-        geospatial_pb2_grpc.add_GeospatialServiceServicer_to_server(
+        main_service_pb2_grpc.add_GeospatialServiceServicer_to_server(
             GeospatialServicer(), server
         )
         
