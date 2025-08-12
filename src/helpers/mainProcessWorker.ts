@@ -291,4 +291,100 @@ export class MainProcessWorker {
       onWorkerMessage: (handler: (msg: unknown) => void) => { worker.on('message', handler as (message: { type: string }) => void); }
     };
   }
+
+  /** CSV series aggregator: accumulates per-metric scatter series [x,y,value,id] with reservoir sampling per series */
+  public startCsvSeriesProcessor(
+    requestId: string,
+    config: { xKey: 'x' | 'y' | 'z'; yKey: 'x' | 'y' | 'z'; metrics: string[]; maxPerSeries?: number },
+    onProgress: (progress: { processed: number; total: number; percentage: number; phase: string }) => void
+  ): { postRows: (rows: Array<{ x?: number; y?: number; z?: number; id?: string; metrics?: Record<string, number> }>, totalChunks?: number) => void; finalize: () => Promise<{ series: Record<string, Array<[number, number, number, string | undefined]>>; ranges: Record<string, { min: number; max: number }>; total: number; availableMetrics: string[] }>; terminate: () => void } {
+    const { xKey, yKey, metrics, maxPerSeries = 10000 } = config;
+    const workerCode = `
+      const { parentPort } = require('worker_threads');
+      const xKey = ${JSON.stringify(xKey)};
+      const yKey = ${JSON.stringify(yKey)};
+      const metrics = ${JSON.stringify(metrics)};
+      const MAX_PER_SERIES = ${JSON.stringify(maxPerSeries)};
+      const series = Object.create(null);
+      const ranges = Object.create(null);
+      const available = new Set();
+      for (const m of metrics) { series[m] = []; ranges[m] = { min: Infinity, max: -Infinity }; }
+      let totalProcessed = 0;
+      let chunksSeen = 0;
+      let totalChunksHint = null;
+      function isFiniteNumber(v) { return typeof v === 'number' && Number.isFinite(v); }
+      function reservoirPush(arr, item) {
+        if (MAX_PER_SERIES <= 0) { arr.push(item); return; }
+        if (arr.length < MAX_PER_SERIES) { arr.push(item); return; }
+        const j = Math.floor(Math.random() * (totalProcessed + 1));
+        if (j < MAX_PER_SERIES) arr[j] = item;
+      }
+      async function processRows(rows) {
+        const BATCH = 2000;
+        for (let i = 0; i < rows.length; i += BATCH) {
+          const end = Math.min(i + BATCH, rows.length);
+          for (let j = i; j < end; j++) {
+            const row = rows[j] || {};
+            const xv = row[xKey];
+            const yv = row[yKey];
+            const id = row.id;
+            const mMap = row.metrics || {};
+            if (!isFiniteNumber(xv) || !isFiniteNumber(yv)) { totalProcessed++; continue; }
+            for (const m of metrics) {
+              const mv = mMap[m];
+              if (!isFiniteNumber(mv)) continue;
+              available.add(m);
+              reservoirPush(series[m], [xv, yv, mv, id]);
+              const r = ranges[m];
+              if (mv < r.min) r.min = mv;
+              if (mv > r.max) r.max = mv;
+            }
+            totalProcessed++;
+          }
+          if (end < rows.length) await new Promise(r => setImmediate(r));
+        }
+      }
+      parentPort.on('message', async (msg) => {
+        if (!msg || !msg.type) return;
+        if (msg.type === 'rows') {
+          chunksSeen += 1;
+          if (msg.totalChunks && totalChunksHint == null) totalChunksHint = msg.totalChunks;
+          await processRows(msg.rows || []);
+          const pct = totalChunksHint ? (chunksSeen / totalChunksHint) * 100 : 0;
+          parentPort.postMessage({ type: 'progress', processed: totalProcessed, total: totalProcessed, percentage: pct, phase: 'csv_chunk_' + chunksSeen + (totalChunksHint ? ('_of_' + totalChunksHint) : '') });
+        } else if (msg.type === 'end') {
+          parentPort.postMessage({ type: 'complete', result: { series, ranges, total: totalProcessed, availableMetrics: Array.from(available) } });
+        } else if (msg.type === 'abort') {
+          parentPort.postMessage({ type: 'error', error: 'aborted' });
+        }
+      });
+    `;
+    const worker = new Worker(workerCode, { eval: true });
+    let resolveFinal: ((r: { series: Record<string, Array<[number, number, number, string | undefined]>>; ranges: Record<string, { min: number; max: number }>; total: number; availableMetrics: string[] }) => void) | null = null;
+    let rejectFinal: ((e: Error) => void) | null = null;
+    const finalizePromise: Promise<{ series: Record<string, Array<[number, number, number, string | undefined]>>; ranges: Record<string, { min: number; max: number }>; total: number; availableMetrics: string[] }>
+      = new Promise((resolve, reject) => { resolveFinal = resolve; rejectFinal = reject; });
+    worker.on('message', (message: { type: string; processed?: number; total?: number; percentage?: number; phase?: string; result?: { series: Record<string, Array<[number, number, number, string | undefined]>>; ranges: Record<string, { min: number; max: number }>; total: number; availableMetrics: string[] }; error?: string }) => {
+      if (message.type === 'progress') {
+        onProgress({ processed: message.processed ?? 0, total: message.total ?? 0, percentage: message.percentage ?? 0, phase: message.phase ?? 'processing' });
+      } else if (message.type === 'complete') {
+        worker.terminate();
+        if (resolveFinal) {
+          resolveFinal(message.result as { series: Record<string, Array<[number, number, number, string | undefined]>>; ranges: Record<string, { min: number; max: number }>; total: number; availableMetrics: string[] });
+        }
+      } else if (message.type === 'error') {
+        worker.terminate();
+        if (rejectFinal) {
+          rejectFinal(new Error(message.error || 'CSV worker error'));
+        }
+      }
+    });
+    worker.on('error', (err) => { worker.terminate(); if (rejectFinal) { rejectFinal(err as unknown as Error); } });
+    worker.on('exit', (code) => { if (code !== 0 && rejectFinal) rejectFinal(new Error('CSV worker exited with code ' + String(code))); });
+    return {
+      postRows: (rows, totalChunks) => { worker.postMessage({ type: 'rows', rows, totalChunks }); },
+      finalize: () => { worker.postMessage({ type: 'end' }); return finalizePromise; },
+      terminate: () => { try { worker.postMessage({ type: 'abort' }); } catch { /* no-op */ } finally { worker.terminate(); } },
+    };
+  }
 }

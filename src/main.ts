@@ -83,7 +83,7 @@ async function processDataStreamingInMainProcess(
         }
         
         // Yield control after EVERY micro-batch to prevent blocking
-        await new Promise(resolve => setImmediate(resolve));
+        await new Promise<void>((resolve) => { setImmediate(resolve as () => void); });
       }
     }
     
@@ -189,6 +189,27 @@ async function createWindow() {
       console.log('Main process gRPC client initialized');
       // 🎉 Register auto-generated gRPC handlers
       registerAutoGrpcHandlers();
+      // Register CSV series aggregator IPC
+      ipcMain.handle('csv-start-series-aggregation', async (_event, request: { xAxis: 'x'|'y'|'z'; yAxis: 'x'|'y'|'z'; metrics: string[]; sampleCap?: number }) => {
+        try {
+          const { xAxis, yAxis, metrics, sampleCap } = request;
+          const worker = MainProcessWorker.getInstance().startCsvSeriesProcessor('csv-' + Date.now(), { xKey: xAxis, yKey: yAxis, metrics, maxPerSeries: typeof sampleCap === 'number' ? sampleCap : 10000 }, () => {});
+          let offset = 0;
+          const limit = 5000;
+          // Stream chunks from backend and translate rows to worker format
+          while (true) {
+            const res = await autoMainGrpcClient.getLoadedDataChunk({ offset, limit });
+            const rows = (res.rows || []).map((r: { x?: number; y?: number; z?: number; id?: string; metrics?: Record<string, number> }) => ({ x: r.x, y: r.y, z: r.z, id: r.id, metrics: r.metrics }));
+            worker.postRows(rows, res.is_complete ? (Math.ceil((offset + rows.length) / limit)) : undefined);
+            offset = res.next_offset;
+            if (res.is_complete) break;
+          }
+          const result = await worker.finalize();
+          return { success: true, ...result };
+        } catch (err) {
+          return { success: false, error: err instanceof Error ? err.message : String(err) };
+        }
+      });
     })
     .catch((error) => {
       console.error('Failed to start gRPC backend or initialize client:', error);
@@ -243,21 +264,21 @@ ipcMain.on('grpc-start-child-process-stream', async (event, request) => {
     });
     try {
       const totals = await (async () => {
-        // start gRPC stream and register cancel handle
-        const cancel = (rid: string) => () => autoMainGrpcClient.cancelStream(rid);
-        inflightStreams.set(requestId, { terminate: streamer.terminate, cancelGrpc: cancel(requestId) });
+        // Fallback to one-shot chunk retrieval and forward to worker
+        inflightStreams.set(requestId, { terminate: streamer.terminate });
         try {
-          const res = await autoMainGrpcClient.streamBatchDataIncremental(
-            { bounds, data_types: dataTypes, max_points: maxPoints, resolution },
-            (chunk) => { streamer.postChunk(chunk); },
-            requestId
-          );
-          return res;
+          const chunks = await autoMainGrpcClient.getBatchDataStreamed({ bounds, data_types: dataTypes, max_points: maxPoints, resolution });
+          let computedTotal = 0;
+          for (const chunk of chunks as Array<{ data_points?: Array<{ location: { latitude: number; longitude: number }; value: number }> }>) {
+            computedTotal += (chunk.data_points?.length || 0);
+            streamer.postChunk(chunk as unknown as { data_points?: Array<{ location: { latitude: number; longitude: number }; value: number; unit?: string; metadata?: Record<string, unknown> }>; total_chunks?: number });
+          }
+          return { totalPoints: computedTotal } as { totalPoints: number };
         } finally {
           inflightStreams.delete(requestId);
         }
       })();
-      totalPoints = totals.totalPoints;
+      totalPoints = (totals as { totalPoints: number }).totalPoints;
       sendProgressCoalesced(event, { requestId, type: 'progress', processed: 0, total: totalPoints, percentage: 0, phase: 'worker_receiving_stream' });
       const result = await streamer.finalize();
       // Cache y completar

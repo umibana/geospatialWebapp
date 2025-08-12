@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
-import * as echarts from 'echarts';
+import CsvScatterChart from './CsvScatterChart';
 
 interface ColumnInfo {
   name: string;
@@ -57,11 +57,9 @@ export default function CsvProcessor() {
   const [columnIncluded, setColumnIncluded] = useState<Record<string, boolean>>({});
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
   const [axisMapping, setAxisMapping] = useState<{ x: 'x' | 'y' | 'z'; y: 'x' | 'y' | 'z' }>({ x: 'x', y: 'y' });
-  const chartRef = useRef<HTMLDivElement | null>(null);
-  const chartInstanceRef = useRef<echarts.EChartsType | null>(null);
-  const workerRef = useRef<Worker | null>(null);
+  const [fullResolution, setFullResolution] = useState<boolean>(true);
   const [availableMetricKeys, setAvailableMetricKeys] = useState<string[]>([]);
-  const [isChartProcessing, setIsChartProcessing] = useState(false);
+  const [chartKey, setChartKey] = useState<number>(0);
 
   const handleFileSelect = async () => {
     try {
@@ -175,8 +173,7 @@ export default function CsvProcessor() {
         // Get statistics of loaded data
         const stats = await window.autoGrpc.getLoadedDataStats({}) as LoadedDataStats;
         setDataStats(stats);
-        // Prepare chart after sending
-        await prepareChartDataAndRender();
+        setChartKey((k) => k + 1);
       }
     } catch (error) {
       console.error('Error processing file:', error);
@@ -185,103 +182,7 @@ export default function CsvProcessor() {
     }
   };
 
-  // Initialize or dispose chart instance
-  useEffect(() => {
-    if (chartRef.current && !chartInstanceRef.current) {
-      chartInstanceRef.current = echarts.init(chartRef.current);
-    }
-    return () => {
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.dispose();
-        chartInstanceRef.current = null;
-      }
-    };
-  }, []);
-
-  const prepareChartDataAndRender = async () => {
-    setIsChartProcessing(true);
-    try {
-      // Setup worker
-      if (workerRef.current) {
-        workerRef.current.terminate();
-        workerRef.current = null;
-      }
-      // Vite worker import
-      // @ts-expect-error Vite resolves worker via import.meta.url even with CJS module in tsconfig
-      const worker = new Worker(new URL('../workers/csvChart.worker.ts', import.meta.url), { type: 'module' });
-      workerRef.current = worker;
-
-      // Decide metrics: if none selected yet, fetch first chunk to infer
-      const firstChunk = await window.autoGrpc.getLoadedDataChunk({ offset: 0, limit: 1000 });
-      setAvailableMetricKeys(firstChunk.available_metric_keys);
-      const metrics = selectedMetrics.length > 0 ? selectedMetrics : firstChunk.available_metric_keys.slice(0, 1);
-
-      // Init worker with current axis selection and metrics
-      worker.postMessage({ type: 'init', payload: { xKey: axisMapping.x, yKey: axisMapping.y, metrics } });
-
-      // Stream chunks in batches to worker
-      let offset = 0;
-      const limit = 5000;
-      // Feed the first chunk we fetched
-      worker.postMessage({ type: 'chunk', payload: { rows: firstChunk.rows } });
-      offset = firstChunk.next_offset;
-
-      while (!firstChunk.is_complete) {
-        const res = await window.autoGrpc.getLoadedDataChunk({ offset, limit });
-        worker.postMessage({ type: 'chunk', payload: { rows: res.rows } });
-        offset = res.next_offset;
-        if (res.is_complete) break;
-      }
-
-      // Finalize aggregation
-      const result: { series?: Record<string, Array<[number, number, number, string | undefined]>>; ranges?: Record<string, { min: number; max: number }>; total?: number } = await new Promise((resolve, reject) => {
-        const onMessage = (e: MessageEvent) => {
-          const data = e.data as unknown as { type?: string; series?: Record<string, Array<[number, number, number, string | undefined]>>; ranges?: Record<string, { min: number; max: number }>; total?: number };
-          if (data?.type === 'complete') {
-            worker.removeEventListener('message', onMessage);
-            resolve(data);
-          }
-        };
-        const onError = (err: unknown) => {
-          worker.removeEventListener('message', onMessage);
-          reject(err);
-        };
-        worker.addEventListener('message', onMessage);
-        worker.addEventListener('error', onError as EventListener, { once: true } as unknown as AddEventListenerOptions);
-        worker.postMessage({ type: 'finalize' });
-      });
-
-      // Render chart with ECharts
-      if (chartInstanceRef.current) {
-        const series = Object.entries(result.series || {}).map(([metric, points]) => ({
-          name: metric,
-          type: 'scatter',
-          data: points.map(([x, y, value, id]) => [x, y, value, id]),
-          symbolSize: (val: number[]) => {
-            // val: [x, y, value, id]
-            const v = val[2] ?? 0;
-            // scale symbol size: clamp between 4 and 20
-            const size = 4 + 16 * (Math.max(0, Math.min(1, v / ((result.ranges?.[metric]?.max || 1)))));
-            return size;
-          },
-          emphasis: { focus: 'series' },
-          encode: { tooltip: [0, 1, 2] },
-        }));
-
-        chartInstanceRef.current.setOption({
-          tooltip: { trigger: 'item' },
-          legend: { top: 0 },
-          xAxis: { name: axisMapping.x.toUpperCase() },
-          yAxis: { name: axisMapping.y.toUpperCase() },
-          series,
-        }, { notMerge: true });
-      }
-    } catch (err) {
-      console.error('Chart data preparation failed:', err);
-    } finally {
-      setIsChartProcessing(false);
-    }
-  };
+  // Chart rendering delegated to CsvScatterChart component using main-process aggregators
 
   const handleMappingChange = (variable: string, columnName: string) => {
     setManualMapping(prev => ({
@@ -428,6 +329,15 @@ export default function CsvProcessor() {
                       </label>
                     ))
                   )}
+                  <label className="flex items-center gap-2 text-sm ml-4">
+                    <input
+                      type="checkbox"
+                      checked={fullResolution}
+                      onChange={(e) => setFullResolution(e.target.checked)}
+                      aria-label="Toggle full resolution points"
+                    />
+                    Full resolution (no sampling)
+                  </label>
                 </div>
               </div>
             </div>
@@ -524,10 +434,13 @@ export default function CsvProcessor() {
             {loading ? 'Processing...' : 'Process File'}
           </Button>
           <div className="mt-4">
-            <div ref={chartRef} className="w-full h-[420px] border rounded" aria-label="CSV Scatter Chart" />
-            {isChartProcessing && (
-              <p className="text-xs text-gray-500 mt-2" aria-live="polite">Preparing chart data…</p>
-            )}
+            <CsvScatterChart
+              key={chartKey}
+              axes={axisMapping}
+              metrics={selectedMetrics}
+              fullResolution={fullResolution}
+              onMetricsDetected={(keys) => setAvailableMetricKeys(keys)}
+            />
           </div>
         </div>
       )}

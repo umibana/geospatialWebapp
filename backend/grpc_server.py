@@ -670,10 +670,14 @@ class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
             if missing_cols:
                 raise ValueError(f"Missing required columns: {missing_cols}")
             
-            # If user selected specific columns, restrict to those
+            # If user selected specific columns, restrict to those (ensure mapping vars are included)
             try:
                 if hasattr(request, 'included_columns') and request.included_columns:
                     keep_cols = [c for c in request.included_columns if c in df.columns]
+                    # Always include mapping variables so required fields exist
+                    for mvar in [request.x_variable, request.y_variable, request.z_variable, request.id_variable, request.depth_variable]:
+                        if mvar and mvar in df.columns and mvar not in keep_cols:
+                            keep_cols.append(mvar)
                     if keep_cols:
                         df = df[keep_cols]
             except Exception:
@@ -702,6 +706,28 @@ class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
                         data_point['id'] = str(row[request.id_variable])
                     if request.depth_variable and request.depth_variable in row:
                         data_point['depth'] = float(row[request.depth_variable])
+
+                    # Copy remaining columns so chunk API can expose metrics/attrs
+                    try:
+                        for col in df.columns:
+                            if col in [request.x_variable, request.y_variable, request.z_variable, request.id_variable, request.depth_variable]:
+                                continue
+                            val = row[col]
+                            # Skip NaN
+                            try:
+                                import math
+                                if val is None or (isinstance(val, float) and math.isnan(val)):
+                                    continue
+                            except Exception:
+                                pass
+                            # Keep numeric vs string
+                            if isinstance(val, (int, float, np.integer, np.floating)):
+                                data_point[col] = float(val)
+                            else:
+                                data_point[col] = str(val)
+                    except Exception as copy_err:
+                        # Non-fatal, continue processing
+                        pass
                     
                     # Validate required fields
                     if 'x' in data_point and 'y' in data_point:

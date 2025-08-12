@@ -42,6 +42,9 @@ const grpcApi = {
   
   // Allow optional requestId to cancel a specific in-flight request
   stopStream: (requestId?: string) => ipcRenderer.invoke('grpc-stop-stream', requestId ? { requestId } : {}),
+  // CSV: aggregate series in main-process worker-threads and return ready-to-plot series
+  aggregateCsvSeries: (xAxis: 'x'|'y'|'z', yAxis: 'x'|'y'|'z', metrics: string[], sampleCap?: number) =>
+    ipcRenderer.invoke('csv-start-series-aggregation', { xAxis, yAxis, metrics, sampleCap }),
   
   // Helper function to fetch chart data in chunks
   fetchChartDataInChunks: async (requestId: string): Promise<Array<[number, number, number]>> => {

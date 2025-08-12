@@ -127,4 +127,5 @@ interface GrpcAPI {
 
   fetchChartDataInChunks: (requestId: string) => Promise<Array<[number, number, number]>>;
   stopStream: (requestId?: string) => Promise<{ success: boolean; cancelled?: boolean }>;
+  aggregateCsvSeries: (xAxis: 'x'|'y'|'z', yAxis: 'x'|'y'|'z', metrics: string[], sampleCap?: number) => Promise<{ success: boolean; series?: Record<string, Array<[number, number, number, string | undefined]>>; ranges?: Record<string, { min: number; max: number }>; total?: number; error?: string }>;
 }
