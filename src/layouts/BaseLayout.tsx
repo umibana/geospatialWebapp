@@ -14,7 +14,7 @@ function BaseLayoutContent({
   return (
     <SidebarProvider>
       <AppSidebar />
-      <main className="flex flex-1 flex-col relative">
+      <main className="flex flex-1 flex-col relative overflow-y-auto">
         <SidebarTrigger />
         {children}
         

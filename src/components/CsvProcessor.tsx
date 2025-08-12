@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
+import * as echarts from 'echarts';
 
 interface ColumnInfo {
   name: string;
@@ -54,6 +55,13 @@ export default function CsvProcessor() {
   const [previewRows, setPreviewRows] = useState<string[][]>([]);
   const [columnTypes, setColumnTypes] = useState<Record<string, 'string' | 'number'>>({});
   const [columnIncluded, setColumnIncluded] = useState<Record<string, boolean>>({});
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
+  const [axisMapping, setAxisMapping] = useState<{ x: 'x' | 'y' | 'z'; y: 'x' | 'y' | 'z' }>({ x: 'x', y: 'y' });
+  const chartRef = useRef<HTMLDivElement | null>(null);
+  const chartInstanceRef = useRef<echarts.EChartsType | null>(null);
+  const workerRef = useRef<Worker | null>(null);
+  const [availableMetricKeys, setAvailableMetricKeys] = useState<string[]>([]);
+  const [isChartProcessing, setIsChartProcessing] = useState(false);
 
   const handleFileSelect = async () => {
     try {
@@ -79,10 +87,10 @@ export default function CsvProcessor() {
       setLoading(true);
       
       // Analyze the CSV file (backend typed columns + auto mapping)
-      const response = await window.grpc.analyzeCsv({
-        filePath: filePath,
-        fileName: fileName,
-        rowsToAnalyze: 2
+      const response = await window.autoGrpc.analyzeCsv({
+        file_path: filePath,
+        file_name: fileName,
+        rows_to_analyze: 2
       }) as AnalyzeCsvResponse;
       
       if (response.success) {
@@ -147,31 +155,131 @@ export default function CsvProcessor() {
     try {
       setLoading(true);
       
-      const response = await window.grpc.sendFile({
-        filePath: selectedFile,
-        fileName: fileName,
-        fileType: 'csv',
-        xVariable: manualMapping.x,
-        yVariable: manualMapping.y,
-        zVariable: manualMapping.z,
-        idVariable: manualMapping.id,
-        depthVariable: manualMapping.depth,
-        columnTypes: columnTypes,
-        includeFirstRow: true,
-        includedColumns: previewHeaders.filter((h) => columnIncluded[h])
+      const response = await window.autoGrpc.sendFile({
+        file_path: selectedFile,
+        file_name: fileName,
+        file_type: 'csv',
+        x_variable: manualMapping.x,
+        y_variable: manualMapping.y,
+        z_variable: manualMapping.z,
+        id_variable: manualMapping.id,
+        depth_variable: manualMapping.depth,
+        column_types: columnTypes,
+        include_first_row: true,
+        included_columns: previewHeaders.filter((h) => columnIncluded[h])
       }) as SendFileResponse;
       
       setProcessingResult(response);
       
       if (response.success) {
         // Get statistics of loaded data
-        const stats = await window.grpc.getLoadedDataStats() as LoadedDataStats;
+        const stats = await window.autoGrpc.getLoadedDataStats({}) as LoadedDataStats;
         setDataStats(stats);
+        // Prepare chart after sending
+        await prepareChartDataAndRender();
       }
     } catch (error) {
       console.error('Error processing file:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Initialize or dispose chart instance
+  useEffect(() => {
+    if (chartRef.current && !chartInstanceRef.current) {
+      chartInstanceRef.current = echarts.init(chartRef.current);
+    }
+    return () => {
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.dispose();
+        chartInstanceRef.current = null;
+      }
+    };
+  }, []);
+
+  const prepareChartDataAndRender = async () => {
+    setIsChartProcessing(true);
+    try {
+      // Setup worker
+      if (workerRef.current) {
+        workerRef.current.terminate();
+        workerRef.current = null;
+      }
+      // Vite worker import
+      // @ts-expect-error Vite resolves worker via import.meta.url even with CJS module in tsconfig
+      const worker = new Worker(new URL('../workers/csvChart.worker.ts', import.meta.url), { type: 'module' });
+      workerRef.current = worker;
+
+      // Decide metrics: if none selected yet, fetch first chunk to infer
+      const firstChunk = await window.autoGrpc.getLoadedDataChunk({ offset: 0, limit: 1000 });
+      setAvailableMetricKeys(firstChunk.available_metric_keys);
+      const metrics = selectedMetrics.length > 0 ? selectedMetrics : firstChunk.available_metric_keys.slice(0, 1);
+
+      // Init worker with current axis selection and metrics
+      worker.postMessage({ type: 'init', payload: { xKey: axisMapping.x, yKey: axisMapping.y, metrics } });
+
+      // Stream chunks in batches to worker
+      let offset = 0;
+      const limit = 5000;
+      // Feed the first chunk we fetched
+      worker.postMessage({ type: 'chunk', payload: { rows: firstChunk.rows } });
+      offset = firstChunk.next_offset;
+
+      while (!firstChunk.is_complete) {
+        const res = await window.autoGrpc.getLoadedDataChunk({ offset, limit });
+        worker.postMessage({ type: 'chunk', payload: { rows: res.rows } });
+        offset = res.next_offset;
+        if (res.is_complete) break;
+      }
+
+      // Finalize aggregation
+      const result: { series?: Record<string, Array<[number, number, number, string | undefined]>>; ranges?: Record<string, { min: number; max: number }>; total?: number } = await new Promise((resolve, reject) => {
+        const onMessage = (e: MessageEvent) => {
+          const data = e.data as unknown as { type?: string; series?: Record<string, Array<[number, number, number, string | undefined]>>; ranges?: Record<string, { min: number; max: number }>; total?: number };
+          if (data?.type === 'complete') {
+            worker.removeEventListener('message', onMessage);
+            resolve(data);
+          }
+        };
+        const onError = (err: unknown) => {
+          worker.removeEventListener('message', onMessage);
+          reject(err);
+        };
+        worker.addEventListener('message', onMessage);
+        worker.addEventListener('error', onError as EventListener, { once: true } as unknown as AddEventListenerOptions);
+        worker.postMessage({ type: 'finalize' });
+      });
+
+      // Render chart with ECharts
+      if (chartInstanceRef.current) {
+        const series = Object.entries(result.series || {}).map(([metric, points]) => ({
+          name: metric,
+          type: 'scatter',
+          data: points.map(([x, y, value, id]) => [x, y, value, id]),
+          symbolSize: (val: number[]) => {
+            // val: [x, y, value, id]
+            const v = val[2] ?? 0;
+            // scale symbol size: clamp between 4 and 20
+            const size = 4 + 16 * (Math.max(0, Math.min(1, v / ((result.ranges?.[metric]?.max || 1)))));
+            return size;
+          },
+          emphasis: { focus: 'series' },
+          encode: { tooltip: [0, 1, 2] },
+        }));
+
+        chartInstanceRef.current.setOption({
+          tooltip: { trigger: 'item' },
+          legend: { top: 0 },
+          xAxis: { name: axisMapping.x.toUpperCase() },
+          yAxis: { name: axisMapping.y.toUpperCase() },
+          series,
+        }, { notMerge: true });
+      }
+    } catch (err) {
+      console.error('Chart data preparation failed:', err);
+    } finally {
+      setIsChartProcessing(false);
     }
   };
 
@@ -271,6 +379,58 @@ export default function CsvProcessor() {
           <div className="p-4 space-y-4">
             <p className="text-sm text-gray-600">Header and first row preview. Select columns, adjust types, and set variable mapping.</p>
             {previewTable}
+            {/* Axis selection & metrics selection */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h4 className="text-md font-semibold mb-2">Axis Mapping</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">X Axis</label>
+                    <select
+                      className="w-full p-2 border border-gray-300 rounded"
+                      value={axisMapping.x}
+                      onChange={(e) => setAxisMapping((prev) => ({ ...prev, x: e.target.value as 'x' | 'y' | 'z' }))}
+                    >
+                      {(['x','y','z'] as const).map(ax => (
+                        <option key={ax} value={ax}>{ax.toUpperCase()}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Y Axis</label>
+                    <select
+                      className="w-full p-2 border border-gray-300 rounded"
+                      value={axisMapping.y}
+                      onChange={(e) => setAxisMapping((prev) => ({ ...prev, y: e.target.value as 'x' | 'y' | 'z' }))}
+                    >
+                      {(['x','y','z'] as const).map(ax => (
+                        <option key={ax} value={ax}>{ax.toUpperCase()}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 className="text-md font-semibold mb-2">Metrics (dot size)</h4>
+                <div className="flex flex-wrap gap-2">
+                  {availableMetricKeys.length === 0 ? (
+                    <p className="text-sm text-gray-500">Metrics will be available after processing.</p>
+                  ) : (
+                    availableMetricKeys.map((m) => (
+                      <label key={m} className="flex items-center gap-1 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={selectedMetrics.includes(m)}
+                          onChange={() => setSelectedMetrics((prev) => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
+                          aria-label={`Toggle metric ${m}`}
+                        />
+                        {m}
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
             {/* Mapping inside dialog */}
             <div>
               <h4 className="text-md font-semibold mb-2">Variable Mapping</h4>
@@ -363,6 +523,12 @@ export default function CsvProcessor() {
           >
             {loading ? 'Processing...' : 'Process File'}
           </Button>
+          <div className="mt-4">
+            <div ref={chartRef} className="w-full h-[420px] border rounded" aria-label="CSV Scatter Chart" />
+            {isChartProcessing && (
+              <p className="text-xs text-gray-500 mt-2" aria-live="polite">Preparing chart data…</p>
+            )}
+          </div>
         </div>
       )}
 

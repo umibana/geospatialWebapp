@@ -38,6 +38,7 @@ declare interface Window {
   electronAPI: ElectronAPI;
   grpc: GrpcAPI;
   electronGrpc: GrpcAPI;
+  autoGrpc: import('./grpc-auto/auto-context').AutoGrpcContext;
 }
 
 // Minimal preload API surface so TS recognizes window.grpc usages.
@@ -46,7 +47,7 @@ interface GrpcAPI {
   healthCheck: () => Promise<{ healthy: boolean; version?: string }>;
   helloWorld: (request: { message: string }) => Promise<{ message: string }>;
   echoParameter: (request: { value: number; operation: string }) => Promise<{ originalValue: number; processedValue: number; operation: string }>;
-  getFeatures: (request: { bounds: any; featureTypes: string[]; limit: number }) => Promise<{ features: any[]; total_count?: number }>;
+  getFeatures: (request: { bounds: { northeast: { latitude: number; longitude: number }; southwest: { latitude: number; longitude: number } }; featureTypes: string[]; limit: number }) => Promise<{ features: Array<{ id: string; name: string; location: { latitude: number; longitude: number; altitude?: number }; properties: Record<string, string>; timestamp: number }>; total_count?: number }>;
 
   // CSV file processing methods
   analyzeCsv: (request: { filePath: string; fileName: string; rowsToAnalyze?: number }) => Promise<{
@@ -83,39 +84,46 @@ interface GrpcAPI {
     available_columns: string[];
     has_data: boolean;
   }>;
+  getLoadedDataChunk: (offset: number, limit: number) => Promise<{
+    rows: Array<{ x: number; y: number; z: number; id: string; metrics: Record<string, number>; attrs: Record<string, string> }>;
+    total_rows: number;
+    is_complete: boolean;
+    next_offset: number;
+    available_metric_keys: string[];
+  }>;
 
   // Streaming helpers
   getBatchDataStreamed?: (
-    request: { bounds: any; dataTypes: string[]; maxPoints: number; resolution?: number },
-    onData?: (data: any) => void
-  ) => Promise<any[]>;
+    request: { bounds: { northeast: { latitude: number; longitude: number }; southwest: { latitude: number; longitude: number } }; dataTypes: string[]; maxPoints: number; resolution?: number },
+    onData?: (data: unknown) => void
+  ) => Promise<unknown[]>;
 
   getBatchDataWorkerStreamed: (
-    bounds: any,
+    bounds: { northeast: { latitude: number; longitude: number }; southwest: { latitude: number; longitude: number } },
     dataTypes: string[],
     maxPoints: number,
     resolution?: number,
     onProgress?: (progress: { processed: number; total: number; percentage: number; phase: string }) => void,
-    onChunkData?: (chunk: any) => void
-  ) => Promise<{ totalProcessed: number; processingTime: number; generationMethod: string; summary: Record<string, unknown>; dataSample?: any[] }>;
+    onChunkData?: (chunk: unknown) => void
+  ) => Promise<{ totalProcessed: number; processingTime: number; generationMethod: string; summary: Record<string, unknown>; dataSample?: unknown[] }>;
 
   getBatchDataChildProcessStreamed: (
-    bounds: any,
+    bounds: { northeast: { latitude: number; longitude: number }; southwest: { latitude: number; longitude: number } },
     dataTypes: string[],
     maxPoints: number,
     resolution?: number,
     onProgress?: (progress: { processed: number; total: number; percentage: number; phase: string }) => void
-  ) => Promise<{ stats?: any; chartConfig?: any; message?: string }>;
+  ) => Promise<{ stats?: Record<string, unknown>; chartConfig?: Record<string, unknown>; message?: string }>;
 
   getBatchDataOptimized: (
-    bounds: any,
+    bounds: { northeast: { latitude: number; longitude: number }; southwest: { latitude: number; longitude: number } },
     dataTypes: string[],
     maxPoints: number,
     resolution?: number,
     onProgress?: (progress: { processed: number; total: number; percentage: number; phase: string }) => void,
-    onChunkData?: (chunk: any) => void,
+    onChunkData?: (chunk: unknown) => void,
     options?: { threshold?: number }
-  ) => Promise<any>;
+  ) => Promise<Record<string, unknown>>;
 
   fetchChartDataInChunks: (requestId: string) => Promise<Array<[number, number, number]>>;
   stopStream: (requestId?: string) => Promise<{ success: boolean; cancelled?: boolean }>;

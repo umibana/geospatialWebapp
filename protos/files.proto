@@ -68,3 +68,29 @@ message GetLoadedDataStatsResponse {
     repeated string available_columns = 5;
     bool has_data = 6;
 }
+
+// =============================================================================
+// CHUNKED ACCESS TO LOADED CSV DATA
+// =============================================================================
+
+message CsvDataRow {
+    double x = 1;
+    double y = 2;
+    double z = 3;
+    string id = 4;
+    map<string, double> metrics = 5; // numeric properties (e.g., ppm_cu)
+    map<string, string> attrs = 6;   // string properties
+}
+
+message GetLoadedDataChunkRequest {
+    int32 offset = 1;
+    int32 limit = 2;
+}
+
+message GetLoadedDataChunkResponse {
+    repeated CsvDataRow rows = 1;
+    int32 total_rows = 2;
+    bool is_complete = 3;
+    int32 next_offset = 4;
+    repeated string available_metric_keys = 5;
+}

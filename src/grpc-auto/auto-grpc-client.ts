@@ -78,6 +78,10 @@ export class AutoGrpcClient {
   async getLoadedDataStats(request: GetLoadedDataStatsRequest): Promise<GetLoadedDataStatsResponse> {
     return this.callMethod('GetLoadedDataStats', request);
   }
+
+  async getLoadedDataChunk(request: GetLoadedDataChunkRequest): Promise<GetLoadedDataChunkResponse> {
+    return this.callMethod('GetLoadedDataChunk', request);
+  }
 }
 
 export const autoGrpcClient = new AutoGrpcClient();

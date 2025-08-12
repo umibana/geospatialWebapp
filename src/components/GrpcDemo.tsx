@@ -116,10 +116,16 @@ export function GrpcDemo() {
       
       // This is the power of gRPC - simple async iteration with numpy data types!
       // Using getBatchDataWorkerStreamed with progress callback for real-time updates
-      const result = await window.grpc.getBatchDataWorkerStreamed(bounds, ['elevation', 'temperature'], 30, 10, (progress) => {
+      const result = await window.grpc.getBatchDataOptimized(
+        bounds,
+        ['elevation', 'temperature'],
+        30,
+        10,
+        (progress) => {
         console.log('Streaming progress:', progress);
         // Update UI with progress - you could show real-time progress here
-      });
+        }
+      );
       
       console.log('Stream completed, result:', result);
       toast.success(`Processed ${result.totalProcessed} data points`);

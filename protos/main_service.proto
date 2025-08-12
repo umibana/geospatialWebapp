@@ -20,4 +20,5 @@ service GeospatialService {
   rpc AnalyzeCsv(AnalyzeCsvRequest) returns (AnalyzeCsvResponse);
   rpc SendFile(SendFileRequest) returns (SendFileResponse);
   rpc GetLoadedDataStats(GetLoadedDataStatsRequest) returns (GetLoadedDataStatsResponse);
+  rpc GetLoadedDataChunk(GetLoadedDataChunkRequest) returns (GetLoadedDataChunkResponse);
 }

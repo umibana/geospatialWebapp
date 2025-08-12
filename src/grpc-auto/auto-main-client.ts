@@ -136,13 +136,10 @@ class AutoMainGrpcClient {
   async analyzeCsv(request: Types.AnalyzeCsvRequest): Promise<Types.AnalyzeCsvResponse> {
     return new Promise((resolve, reject) => {
       const client = this.ensureClient();
-      console.log('📤 gRPC Client sending AnalyzeCsv request:', JSON.stringify(request, null, 2));
       client.AnalyzeCsv(request, (error: any, response: any) => {
         if (error) {
-          console.error('📤 gRPC Client AnalyzeCsv error:', error);
           reject(error);
         } else {
-          console.log('📤 gRPC Client AnalyzeCsv response:', JSON.stringify(response, null, 2));
           resolve(response);
         }
       });
@@ -166,6 +163,19 @@ class AutoMainGrpcClient {
     return new Promise((resolve, reject) => {
       const client = this.ensureClient();
       client.GetLoadedDataStats(request, (error: any, response: any) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+
+  async getLoadedDataChunk(request: Types.GetLoadedDataChunkRequest): Promise<Types.GetLoadedDataChunkResponse> {
+    return new Promise((resolve, reject) => {
+      const client = this.ensureClient();
+      client.GetLoadedDataChunk(request, (error: any, response: any) => {
         if (error) {
           reject(error);
         } else {

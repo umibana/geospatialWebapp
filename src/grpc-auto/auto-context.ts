@@ -13,6 +13,7 @@ export interface AutoGrpcContext {
   analyzeCsv: (request: AnalyzeCsvRequest) => Promise<AnalyzeCsvResponse>;
   sendFile: (request: SendFileRequest) => Promise<SendFileResponse>;
   getLoadedDataStats: (request: GetLoadedDataStatsRequest) => Promise<GetLoadedDataStatsResponse>;
+  getLoadedDataChunk: (request: GetLoadedDataChunkRequest) => Promise<GetLoadedDataChunkResponse>;
 }
 
 const autoGrpcContext: AutoGrpcContext = {
@@ -24,6 +25,7 @@ const autoGrpcContext: AutoGrpcContext = {
   analyzeCsv: autoGrpcClient.analyzeCsv.bind(autoGrpcClient),
   sendFile: autoGrpcClient.sendFile.bind(autoGrpcClient),
   getLoadedDataStats: autoGrpcClient.getLoadedDataStats.bind(autoGrpcClient),
+  getLoadedDataChunk: autoGrpcClient.getLoadedDataChunk.bind(autoGrpcClient),
 };
 
 export function exposeAutoGrpcContext() {

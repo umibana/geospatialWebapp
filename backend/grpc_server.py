@@ -817,6 +817,66 @@ class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
             context.set_details(f"GetLoadedDataStats failed: {str(e)}")
             return response
     
+    def GetLoadedDataChunk(self, request, context):
+        """
+        Return a chunk of the currently loaded CSV data for charting/processing.
+        - offset: starting row index
+        - limit: number of rows to return
+        Response includes numeric metrics keys for frontend selection.
+        """
+        try:
+            import math
+            global loaded_csv_data
+            response = files_pb2.GetLoadedDataChunkResponse()
+            if 'loaded_csv_data' not in globals() or not loaded_csv_data:
+                response.total_rows = 0
+                response.is_complete = True
+                response.next_offset = 0
+                return response
+
+            data = loaded_csv_data['data']
+            total = len(data)
+            offset = max(0, request.offset)
+            limit = max(1, request.limit) if request.limit > 0 else 1000
+            end = min(offset + limit, total)
+
+            # Infer metric keys (numeric) and attrs (string) from first row
+            metric_keys = set()
+            if total > 0:
+                sample = data[0]
+                for k, v in sample.items():
+                    if k in ['x', 'y', 'z', 'id', 'depth']:
+                        continue
+                    if isinstance(v, (int, float)):
+                        metric_keys.add(k)
+            for k in sorted(metric_keys):
+                response.available_metric_keys.append(k)
+
+            for i in range(offset, end):
+                row = data[i]
+                out = response.rows.add()
+                out.x = float(row['x']) if 'x' in row else 0.0
+                out.y = float(row['y']) if 'y' in row else 0.0
+                out.z = float(row['z']) if 'z' in row else 0.0
+                out.id = str(row['id']) if 'id' in row else ''
+                for k, v in row.items():
+                    if k in ['x', 'y', 'z', 'id', 'depth']:
+                        continue
+                    if isinstance(v, (int, float)):
+                        out.metrics[k] = float(v)
+                    else:
+                        out.attrs[k] = str(v)
+
+            response.total_rows = total
+            response.is_complete = end >= total
+            response.next_offset = 0 if response.is_complete else end
+            return response
+        except Exception as e:
+            print(f"❌ GetLoadedDataChunk error: {e}")
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f"GetLoadedDataChunk failed: {str(e)}")
+            return files_pb2.GetLoadedDataChunkResponse()
+    
 
 
 def find_free_port(start_port=50051):

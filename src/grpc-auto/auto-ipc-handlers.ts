@@ -73,7 +73,6 @@ export function registerAutoGrpcHandlers() {
   // Unary method: AnalyzeCsv
   ipcMain.handle('grpc-analyzecsv', async (event, request) => {
     try {
-      console.log('🔍 IPC Handler received AnalyzeCsv request:', JSON.stringify(request, null, 2));
       return await autoMainGrpcClient.analyzeCsv(request);
     } catch (error) {
       console.error('gRPC analyzeCsv failed:', error);
@@ -97,6 +96,16 @@ export function registerAutoGrpcHandlers() {
       return await autoMainGrpcClient.getLoadedDataStats(request);
     } catch (error) {
       console.error('gRPC getLoadedDataStats failed:', error);
+      throw error;
+    }
+  });
+
+  // Unary method: GetLoadedDataChunk
+  ipcMain.handle('grpc-getloadeddatachunk', async (event, request) => {
+    try {
+      return await autoMainGrpcClient.getLoadedDataChunk(request);
+    } catch (error) {
+      console.error('gRPC getLoadedDataChunk failed:', error);
       throw error;
     }
   });
