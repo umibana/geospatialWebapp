@@ -26,7 +26,7 @@ import geospatial_pb2 as geospatial__pb2
 import files_pb2 as files__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x12main_service.proto\x12\ngeospatial\x1a\x10geospatial.proto\x1a\x0b\x66iles.proto2\xa9\x05\n\x11GeospatialService\x12K\n\nHelloWorld\x12\x1d.geospatial.HelloWorldRequest\x1a\x1e.geospatial.HelloWorldResponse\x12T\n\rEchoParameter\x12 .geospatial.EchoParameterRequest\x1a!.geospatial.EchoParameterResponse\x12N\n\x0bHealthCheck\x12\x1e.geospatial.HealthCheckRequest\x1a\x1f.geospatial.HealthCheckResponse\x12N\n\x0bGetFeatures\x12\x1e.geospatial.GetFeaturesRequest\x1a\x1f.geospatial.GetFeaturesResponse\x12X\n\x14GetBatchDataStreamed\x12\x1f.geospatial.GetBatchDataRequest\x1a\x1d.geospatial.GetBatchDataChunk0\x01\x12K\n\nAnalyzeCsv\x12\x1d.geospatial.AnalyzeCsvRequest\x1a\x1e.geospatial.AnalyzeCsvResponse\x12\x45\n\x08SendFile\x12\x1b.geospatial.SendFileRequest\x1a\x1c.geospatial.SendFileResponse\x12\x63\n\x12GetLoadedDataStats\x12%.geospatial.GetLoadedDataStatsRequest\x1a&.geospatial.GetLoadedDataStatsResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x12main_service.proto\x12\ngeospatial\x1a\x10geospatial.proto\x1a\x0b\x66iles.proto2\x8e\x06\n\x11GeospatialService\x12K\n\nHelloWorld\x12\x1d.geospatial.HelloWorldRequest\x1a\x1e.geospatial.HelloWorldResponse\x12T\n\rEchoParameter\x12 .geospatial.EchoParameterRequest\x1a!.geospatial.EchoParameterResponse\x12N\n\x0bHealthCheck\x12\x1e.geospatial.HealthCheckRequest\x1a\x1f.geospatial.HealthCheckResponse\x12N\n\x0bGetFeatures\x12\x1e.geospatial.GetFeaturesRequest\x1a\x1f.geospatial.GetFeaturesResponse\x12X\n\x14GetBatchDataStreamed\x12\x1f.geospatial.GetBatchDataRequest\x1a\x1d.geospatial.GetBatchDataChunk0\x01\x12K\n\nAnalyzeCsv\x12\x1d.geospatial.AnalyzeCsvRequest\x1a\x1e.geospatial.AnalyzeCsvResponse\x12\x45\n\x08SendFile\x12\x1b.geospatial.SendFileRequest\x1a\x1c.geospatial.SendFileResponse\x12\x63\n\x12GetLoadedDataStats\x12%.geospatial.GetLoadedDataStatsRequest\x1a&.geospatial.GetLoadedDataStatsResponse\x12\x63\n\x12GetLoadedDataChunk\x12%.geospatial.GetLoadedDataChunkRequest\x1a&.geospatial.GetLoadedDataChunkResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,5 +34,5 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'main_service_pb2', _globals
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
   _globals['_GEOSPATIALSERVICE']._serialized_start=66
-  _globals['_GEOSPATIALSERVICE']._serialized_end=747
+  _globals['_GEOSPATIALSERVICE']._serialized_end=848
 # @@protoc_insertion_point(module_scope)

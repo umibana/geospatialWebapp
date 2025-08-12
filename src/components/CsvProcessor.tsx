@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Button } from './ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 
 interface ColumnInfo {
   name: string;
@@ -47,6 +49,11 @@ export default function CsvProcessor() {
   const [processingResult, setProcessingResult] = useState<SendFileResponse | null>(null);
   const [dataStats, setDataStats] = useState<LoadedDataStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewHeaders, setPreviewHeaders] = useState<string[]>([]);
+  const [previewRows, setPreviewRows] = useState<string[][]>([]);
+  const [columnTypes, setColumnTypes] = useState<Record<string, 'string' | 'number'>>({});
+  const [columnIncluded, setColumnIncluded] = useState<Record<string, boolean>>({});
 
   const handleFileSelect = async () => {
     try {
@@ -71,7 +78,7 @@ export default function CsvProcessor() {
       
       setLoading(true);
       
-      // Analyze the CSV file
+      // Analyze the CSV file (backend typed columns + auto mapping)
       const response = await window.grpc.analyzeCsv({
         filePath: filePath,
         fileName: fileName,
@@ -90,6 +97,32 @@ export default function CsvProcessor() {
           z: response.auto_detected_mapping.z || '',
           depth: response.auto_detected_mapping.depth || ''
         });
+
+        // Local preview of first two rows (header + first row)
+        const preview = await window.electronAPI.readCsvPreview(filePath, 2);
+        setPreviewHeaders(preview.headers);
+        setPreviewRows(preview.rows);
+
+        // Initialize column types using backend-detected types if available, else infer from row 1
+        const detectedTypes: Record<string, 'string' | 'number'> = {};
+        preview.headers.forEach((header, index) => {
+          const backendType = response.columns.find((c) => c.name === header)?.type;
+          if (backendType === 'number' || backendType === 'string') {
+            detectedTypes[header] = backendType as 'string' | 'number';
+            return;
+          }
+          const value = preview.rows[0]?.[index] ?? '';
+          const numeric = value !== '' && !Number.isNaN(Number(value));
+          detectedTypes[header] = numeric ? 'number' : 'string';
+        });
+        setColumnTypes(detectedTypes);
+        // Default include all columns initially
+        const initialIncluded: Record<string, boolean> = {};
+        preview.headers.forEach((h) => { initialIncluded[h] = true; });
+        setColumnIncluded(initialIncluded);
+
+        // Open the preview dialog
+        setPreviewOpen(true);
       } else {
         console.error('Failed to analyze CSV:', response.error_message);
       }
@@ -122,7 +155,10 @@ export default function CsvProcessor() {
         yVariable: manualMapping.y,
         zVariable: manualMapping.z,
         idVariable: manualMapping.id,
-        depthVariable: manualMapping.depth
+        depthVariable: manualMapping.depth,
+        columnTypes: columnTypes,
+        includeFirstRow: true,
+        includedColumns: previewHeaders.filter((h) => columnIncluded[h])
       }) as SendFileResponse;
       
       setProcessingResult(response);
@@ -146,19 +182,145 @@ export default function CsvProcessor() {
     }));
   };
 
+  const handleChangeType = (header: string, type: 'string' | 'number') => {
+    setColumnTypes((prev) => ({ ...prev, [header]: type }));
+  };
+
+  const handleToggleColumn = (header: string) => {
+    setColumnIncluded((prev) => ({ ...prev, [header]: !prev[header] }));
+  };
+
+  const previewTable = useMemo(() => {
+    if (previewHeaders.length === 0) return null;
+    const rowsToShow: Array<{ label: string; values: string[] }> = [
+      { label: 'Header', values: previewHeaders },
+      ...(previewRows[0] ? [{ label: 'Row 1', values: previewRows[0] }] : []),
+    ];
+    return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full border border-gray-300">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border border-gray-300 px-2 py-2 text-left">Include</th>
+              {previewHeaders.map((h) => (
+                <th key={h} className="border border-gray-300 px-2 py-2 text-left">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{h}</span>
+                    <input
+                      type="checkbox"
+                      className="ml-1"
+                      checked={columnIncluded[h] ?? true}
+                      onChange={() => handleToggleColumn(h)}
+                      aria-label={`Include column ${h}`}
+                    />
+                    <ToggleGroup
+                      type="single"
+                      value={columnTypes[h]}
+                      onValueChange={(val) => val && handleChangeType(h, val as 'string' | 'number')}
+                      className="ml-2"
+                    >
+                      <ToggleGroupItem value="string" aria-label={`Set ${h} type to string`}>
+                        str
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="number" aria-label={`Set ${h} type to number`}>
+                        num
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rowsToShow.map((r) => (
+              <tr key={r.label}>
+                <td className="border border-gray-300 px-2 py-2 text-sm text-gray-600">{r.label}</td>
+                {r.values.map((v, cidx) => (
+                  <td key={`${r.label}-${cidx}`} className="border border-gray-300 px-2 py-2">
+                    <span className="text-sm">{v}</span>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }, [previewHeaders, previewRows, columnTypes, columnIncluded]);
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <h2 className="text-2xl font-bold mb-6">CSV File Processor</h2>
       
       {/* File Selection */}
       <div className="mb-6">
-        <Button onClick={handleFileSelect} disabled={loading}>
+        <Button onClick={handleFileSelect} disabled={loading} aria-label="Select CSV File">
           {loading ? 'Analyzing...' : 'Select CSV File'}
         </Button>
         {selectedFile && (
           <p className="mt-2 text-sm text-gray-600">Selected: {fileName}</p>
         )}
       </div>
+
+      {/* Preview Dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>CSV Preview and Mapping</DialogTitle>
+          </DialogHeader>
+          <div className="p-4 space-y-4">
+            <p className="text-sm text-gray-600">Header and first row preview. Select columns, adjust types, and set variable mapping.</p>
+            {previewTable}
+            {/* Mapping inside dialog */}
+            <div>
+              <h4 className="text-md font-semibold mb-2">Variable Mapping</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {(['id', 'x', 'y', 'z', 'depth'] as const).map((variable) => (
+                  <div key={variable}>
+                    <label className="block text-sm font-medium mb-1">
+                      {variable.toUpperCase()} {(['x', 'y'].includes(variable)) && '(Required)'}
+                    </label>
+                    <select
+                      value={manualMapping[variable]}
+                      onChange={(e) => handleMappingChange(variable, e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded"
+                    >
+                      <option value="">— Select Column —</option>
+                      {previewHeaders.filter((h) => columnIncluded[h]).map((h) => (
+                        <option key={h} value={h}>
+                          {h} ({columnTypes[h]})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600">Columns selected: {Object.values(columnIncluded).filter(Boolean).length}</div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setPreviewOpen(false)}
+                  variant="secondary"
+                  aria-label="Close preview"
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-900"
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={() => setPreviewOpen(false)}
+                  aria-label="Confirm preview"
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Confirm
+                </Button>
+              </div>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Column Information */}
       {columns.length > 0 && (
@@ -179,7 +341,7 @@ export default function CsvProcessor() {
                     <td className="border border-gray-300 px-4 py-2">{col.name}</td>
                     <td className="border border-gray-300 px-4 py-2">{col.type}</td>
                     <td className="border border-gray-300 px-4 py-2">
-                      {Object.entries(autoMapping).find(([_, value]) => value === col.name)?.[0] || '—'}
+                      {Object.entries(autoMapping).find((entry) => entry[1] === col.name)?.[0] || '—'}
                     </td>
                   </tr>
                 ))}
@@ -189,33 +351,7 @@ export default function CsvProcessor() {
         </div>
       )}
 
-      {/* Variable Mapping */}
-      {columns.length > 0 && (
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-3">Variable Mapping</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(['id', 'x', 'y', 'z', 'depth'] as const).map((variable) => (
-              <div key={variable}>
-                <label className="block text-sm font-medium mb-1">
-                  {variable.toUpperCase()} {(['x', 'y'].includes(variable)) && '(Required)'}
-                </label>
-                <select
-                  value={manualMapping[variable]}
-                  onChange={(e) => handleMappingChange(variable, e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded"
-                >
-                  <option value="">— Select Column —</option>
-                  {columns.map((col) => (
-                    <option key={col.name} value={col.name}>
-                      {col.name} ({col.type})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Variable Mapping moved to dialog */}
 
       {/* Process Button */}
       {columns.length > 0 && (

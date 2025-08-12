@@ -38,6 +38,10 @@ message SendFileRequest {
     string z_variable = 6;    // Column name for Z value (optional)
     string id_variable = 7;   // Column name for ID (optional)
     string depth_variable = 8; // Column name for DEPTH (optional)
+    // Frontend preview overrides
+    map<string, string> column_types = 9; // header -> "string" | "number"
+    bool include_first_row = 10; // include first data row from preview in processing
+    repeated string included_columns = 11; // columns selected in preview to process
 }
 
 // Respuesta después de procesar el archivo

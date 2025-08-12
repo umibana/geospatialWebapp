@@ -588,7 +588,7 @@ class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
                 elif any(x in col_lower for x in ['x', 'longitude', 'lng', 'long']):
                     auto_mapping['x'] = str(col_name)
                     column_info.is_required = True
-                elif any(x in col_lower for x in ['y', 'latitude', 'lat']):
+                elif any(x in col_lower for x in ['y', 'latitude', 'lat']) and not any(k in col_lower for k in ['year', 'yr']):
                     auto_mapping['y'] = str(col_name)
                     column_info.is_required = True
                 elif any(x in col_lower for x in ['z', 'elevation', 'height', 'altitude']):
@@ -635,6 +635,28 @@ class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
             
             # Read the entire CSV file
             df = pd.read_csv(request.file_path)
+
+            # Apply preview-driven overrides
+            # 1) Include/skip the first data row (preview row)
+            try:
+                if hasattr(request, 'include_first_row') and not request.include_first_row and len(df) > 0:
+                    df = df.iloc[1:].reset_index(drop=True)
+            except Exception:
+                # Be conservative and continue if field not present
+                pass
+
+            # 2) Enforce column types from preview where provided
+            try:
+                # request.column_types is a map<string, string>
+                if hasattr(request, 'column_types') and request.column_types:
+                    for col_name, col_type in request.column_types.items():
+                        if col_name in df.columns:
+                            if str(col_type).lower() == 'number':
+                                df[col_name] = pd.to_numeric(df[col_name], errors='coerce')
+                            else:
+                                df[col_name] = df[col_name].astype(str)
+            except Exception as e:
+                print(f"⚠️ Column type enforcement failed: {e}")
             total_rows = len(df)
             
             # Validate that required columns exist
@@ -648,6 +670,15 @@ class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
             if missing_cols:
                 raise ValueError(f"Missing required columns: {missing_cols}")
             
+            # If user selected specific columns, restrict to those
+            try:
+                if hasattr(request, 'included_columns') and request.included_columns:
+                    keep_cols = [c for c in request.included_columns if c in df.columns]
+                    if keep_cols:
+                        df = df[keep_cols]
+            except Exception:
+                pass
+
             # Filter and process the data
             valid_rows = 0
             invalid_rows = 0

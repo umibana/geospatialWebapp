@@ -28,6 +28,7 @@ interface ElectronBackend {
 interface ElectronAPI {
   showOpenDialog: (options: Electron.OpenDialogOptions) => Promise<Electron.OpenDialogReturnValue>;
   showSaveDialog: (options: Electron.SaveDialogOptions) => Promise<Electron.SaveDialogReturnValue>;
+  readCsvPreview: (filePath: string, numRows?: number) => Promise<{ headers: string[]; rows: string[][]; delimiter: string }>;
 }
 
 declare interface Window {
@@ -62,7 +63,10 @@ interface GrpcAPI {
     yVariable: string; 
     zVariable?: string; 
     idVariable?: string; 
-    depthVariable?: string 
+    depthVariable?: string,
+    columnTypes?: Record<string, 'string' | 'number'>,
+    includeFirstRow?: boolean,
+    includedColumns?: string[]
   }) => Promise<{
     total_rows_processed: number;
     valid_rows: number;
