@@ -122,7 +122,43 @@ message GetBatchDataOptimizedResponse {
   string generation_method = 3;
 }
 
-// Mensajes de streaming por fragmentos  
+// =============================================================================
+// FORMATO COLUMNAR PARA DATOS MASIVOS
+// =============================================================================
+
+// Nuevo formato columnar para procesamiento eficiente de datasets masivos
+message ColumnarDataChunk {
+  repeated string id = 1;                    // Point IDs
+  repeated double x = 2;                     // X coordinates (longitude)
+  repeated double y = 3;                     // Y coordinates (latitude)  
+  repeated double z = 4;                     // Z values (main value like elevation)
+  repeated string id_value = 5;              // ID value column
+  map<string, DoubleArray> additional_data = 6;  // Dynamic additional columns (temperature, pressure, etc.)
+  int32 chunk_number = 7;
+  int32 total_chunks = 8;
+  int32 points_in_chunk = 9;
+  bool is_final_chunk = 10;
+  string generation_method = 11;
+}
+
+// Helper message for dynamic double arrays
+message DoubleArray {
+  repeated double values = 1;
+}
+
+// Helper message for dynamic string arrays  
+message StringArray {
+  repeated string values = 1;
+}
+
+// Response with new columnar format
+message GetBatchDataColumnarResponse {
+  ColumnarDataChunk columnar_data = 1;
+  int32 total_count = 2;
+  string generation_method = 3;
+}
+
+// Legacy streaming by chunks (DEPRECATED - use columnar format)
 message GetBatchDataChunk {
   repeated DataPoint data_points = 1;
   int32 chunk_number = 2;

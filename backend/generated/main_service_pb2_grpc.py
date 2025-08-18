@@ -61,6 +61,16 @@ class GeospatialServiceStub(object):
                 request_serializer=geospatial__pb2.GetBatchDataRequest.SerializeToString,
                 response_deserializer=geospatial__pb2.GetBatchDataChunk.FromString,
                 _registered_method=True)
+        self.GetBatchDataColumnar = channel.unary_unary(
+                '/geospatial.GeospatialService/GetBatchDataColumnar',
+                request_serializer=geospatial__pb2.GetBatchDataRequest.SerializeToString,
+                response_deserializer=geospatial__pb2.GetBatchDataColumnarResponse.FromString,
+                _registered_method=True)
+        self.GetBatchDataColumnarStreamed = channel.unary_stream(
+                '/geospatial.GeospatialService/GetBatchDataColumnarStreamed',
+                request_serializer=geospatial__pb2.GetBatchDataRequest.SerializeToString,
+                response_deserializer=geospatial__pb2.ColumnarDataChunk.FromString,
+                _registered_method=True)
         self.AnalyzeCsv = channel.unary_unary(
                 '/geospatial.GeospatialService/AnalyzeCsv',
                 request_serializer=files__pb2.AnalyzeCsvRequest.SerializeToString,
@@ -75,11 +85,6 @@ class GeospatialServiceStub(object):
                 '/geospatial.GeospatialService/GetLoadedDataStats',
                 request_serializer=files__pb2.GetLoadedDataStatsRequest.SerializeToString,
                 response_deserializer=files__pb2.GetLoadedDataStatsResponse.FromString,
-                _registered_method=True)
-        self.GetLoadedDataChunk = channel.unary_unary(
-                '/geospatial.GeospatialService/GetLoadedDataChunk',
-                request_serializer=files__pb2.GetLoadedDataChunkRequest.SerializeToString,
-                response_deserializer=files__pb2.GetLoadedDataChunkResponse.FromString,
                 _registered_method=True)
 
 
@@ -119,6 +124,19 @@ class GeospatialServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetBatchDataColumnar(self, request, context):
+        """New columnar format for efficient large dataset processing
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetBatchDataColumnarStreamed(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def AnalyzeCsv(self, request, context):
         """CSV file processing methods (from files.proto)
         """
@@ -133,12 +151,6 @@ class GeospatialServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def GetLoadedDataStats(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def GetLoadedDataChunk(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -172,6 +184,16 @@ def add_GeospatialServiceServicer_to_server(servicer, server):
                     request_deserializer=geospatial__pb2.GetBatchDataRequest.FromString,
                     response_serializer=geospatial__pb2.GetBatchDataChunk.SerializeToString,
             ),
+            'GetBatchDataColumnar': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetBatchDataColumnar,
+                    request_deserializer=geospatial__pb2.GetBatchDataRequest.FromString,
+                    response_serializer=geospatial__pb2.GetBatchDataColumnarResponse.SerializeToString,
+            ),
+            'GetBatchDataColumnarStreamed': grpc.unary_stream_rpc_method_handler(
+                    servicer.GetBatchDataColumnarStreamed,
+                    request_deserializer=geospatial__pb2.GetBatchDataRequest.FromString,
+                    response_serializer=geospatial__pb2.ColumnarDataChunk.SerializeToString,
+            ),
             'AnalyzeCsv': grpc.unary_unary_rpc_method_handler(
                     servicer.AnalyzeCsv,
                     request_deserializer=files__pb2.AnalyzeCsvRequest.FromString,
@@ -186,11 +208,6 @@ def add_GeospatialServiceServicer_to_server(servicer, server):
                     servicer.GetLoadedDataStats,
                     request_deserializer=files__pb2.GetLoadedDataStatsRequest.FromString,
                     response_serializer=files__pb2.GetLoadedDataStatsResponse.SerializeToString,
-            ),
-            'GetLoadedDataChunk': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetLoadedDataChunk,
-                    request_deserializer=files__pb2.GetLoadedDataChunkRequest.FromString,
-                    response_serializer=files__pb2.GetLoadedDataChunkResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -340,6 +357,60 @@ class GeospatialService(object):
             _registered_method=True)
 
     @staticmethod
+    def GetBatchDataColumnar(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/geospatial.GeospatialService/GetBatchDataColumnar',
+            geospatial__pb2.GetBatchDataRequest.SerializeToString,
+            geospatial__pb2.GetBatchDataColumnarResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetBatchDataColumnarStreamed(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(
+            request,
+            target,
+            '/geospatial.GeospatialService/GetBatchDataColumnarStreamed',
+            geospatial__pb2.GetBatchDataRequest.SerializeToString,
+            geospatial__pb2.ColumnarDataChunk.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
     def AnalyzeCsv(request,
             target,
             options=(),
@@ -410,33 +481,6 @@ class GeospatialService(object):
             '/geospatial.GeospatialService/GetLoadedDataStats',
             files__pb2.GetLoadedDataStatsRequest.SerializeToString,
             files__pb2.GetLoadedDataStatsResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def GetLoadedDataChunk(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/geospatial.GeospatialService/GetLoadedDataChunk',
-            files__pb2.GetLoadedDataChunkRequest.SerializeToString,
-            files__pb2.GetLoadedDataChunkResponse.FromString,
             options,
             channel_credentials,
             insecure,

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { ChildProcessVisualization } from './ChildProcessVisualization';
+import { WorkerThreadVisualization } from './WorkerThreadVisualization';
 
 interface GeospatialFeature {
   id: string;
@@ -64,8 +65,8 @@ export function GrpcDemo() {
     try {
       setLoading(true);
       
-      // Test connection via IPC
-      const health = await window.grpc.healthCheck();
+      // Test connection via IPC using auto-generated client
+      const health = await window.autoGrpc.healthCheck({});
       setIsConnected(health.healthy);
       
       console.log('✅ gRPC initialized via IPC:', health);
@@ -89,7 +90,7 @@ export function GrpcDemo() {
         southwest: { latitude: 37.7749, longitude: -122.4194 }
       };
       
-      const result = await window.grpc.getFeatures({ bounds, featureTypes: [], limit: 20 });
+      const result = await window.autoGrpc.getFeatures({ bounds, feature_types: [], limit: 20 });
       setFeatures(result.features);
       
       console.log(`📍 Loaded ${result.features.length} features via gRPC`);
@@ -115,14 +116,14 @@ export function GrpcDemo() {
       console.log('🔄 Starting real-time gRPC stream (10 seconds)...');
       
       // This is the power of gRPC - simple async iteration with numpy data types!
-      // Using getBatchDataWorkerStreamed with progress callback for real-time updates
-      const result = await window.grpc.getBatchDataOptimized(
+      // Using getBatchDataColumnarStreamed for optimal performance
+      const result = await window.autoGrpc.getBatchDataColumnarStreamed({
         bounds,
-        ['elevation', 'temperature'],
-        30,
-        10,
-        (progress) => {
-        console.log('Streaming progress:', progress);
+        data_types: ['elevation', 'temperature'],
+        max_points: 30,
+        resolution: 10
+      }, (chunk) => {
+        console.log('Streaming progress:', chunk);
         // Update UI with progress - you could show real-time progress here
         }
       );
@@ -139,7 +140,7 @@ export function GrpcDemo() {
 
   const handleStopStreaming = async () => {
     try {
-      await window.grpc.stopStream();
+      // Note: Auto-generated client doesn't have stopStream - handle via stream completion
       setStreaming(false);
       console.log('🛑 Stream stopped successfully');
     } catch (error) {
@@ -161,22 +162,21 @@ export function GrpcDemo() {
         southwest: { latitude: 37.7749, longitude: -122.4194 }
       };
       
-      console.log('📦 Loading batch data via Optimized API...');
-      const result = await window.grpc.getBatchDataOptimized(
+      console.log('📦 Loading batch data via Columnar API...');
+      const result = await window.autoGrpc.getBatchDataColumnar({
         bounds,
-        ['elevation'],
-        50000,
-        10,
-        (progress: { processed: number; total: number; percentage: number; phase: string }) => console.log('Batch progress:', progress)
-      );
+        data_types: ['elevation'],
+        max_points: 50000,
+        resolution: 10
+      });
       
-      const usedWorkerThreads = result.strategy === 'worker_threads';
-      const totalProcessed = usedWorkerThreads ? (result.stats?.totalProcessed || 0) : (result.totalProcessed || 0);
-      const processingTime = usedWorkerThreads ? (result.stats?.processingTime || 0) : (result.processingTime || 0);
+      // Extract columnar data info
+      const totalProcessed = result.columnar_data?.x?.length || 0;
+      const processingTime = 0; // processing_time not available in response
       // Logs reducidos para evitar overhead de DevTools con objetos grandes
       setBatchData([]);
       toast.success(`Batch Data Loaded!`, {
-        description: `${totalProcessed.toLocaleString()} points in ${processingTime.toFixed(2)}s via ${usedWorkerThreads ? 'Worker Threads' : 'Worker Stream'}`
+        description: `${totalProcessed.toLocaleString()} points in ${processingTime.toFixed(2)}s via Columnar API`
       });
     } catch (error) {
       console.error('Failed to load batch data:', error);
@@ -209,19 +209,18 @@ export function GrpcDemo() {
       console.log(`🔄 Starting gRPC call at ${new Date().toLocaleTimeString()}`);
       const grpcStartTime = performance.now();
       
-      const result = await window.grpc.getBatchDataOptimized(
+      const result = await window.autoGrpc.getBatchDataColumnar({
         bounds,
-        [testParams.dataType],
-        testParams.maxPoints,
-        testParams.resolution,
-        (progress: { processed: number; total: number; percentage: number; phase: string }) => console.log('Performance test progress:', progress)
-      );
+        data_types: [testParams.dataType],
+        max_points: testParams.maxPoints,
+        resolution: testParams.resolution
+      });
       
       const grpcEndTime = performance.now();
       const dataProcessingStartTime = performance.now();
       
-      // Note: result structure changed for getBatchDataWorkerStreamed
-      // No need for sample processing with the new worker-based approach
+      // Note: result structure changed for getBatchDataColumnar
+      // Process columnar data for display
       
       const dataProcessingEndTime = performance.now();
       const totalEndTime = performance.now();
@@ -230,18 +229,40 @@ export function GrpcDemo() {
       const dataProcessingTime = (dataProcessingEndTime - dataProcessingStartTime) / 1000;
       const totalDuration = (totalEndTime - totalStartTime) / 1000;
       
-      // Use the sample data for display purposes
-      const displayData = result.strategy === 'worker_stream' && result.dataSample ? result.dataSample : [];
+      // Convert columnar data to display format (sample)
+      const columnarData = result.columnar_data;
+      const displayData: DataPoint[] = [];
+      if (columnarData && columnarData.x && columnarData.y && columnarData.z) {
+        const sampleSize = Math.min(100, columnarData.x.length); // Show first 100 points
+        for (let i = 0; i < sampleSize; i++) {
+          displayData.push({
+            id: columnarData.id?.[i] || `point_${i}`,
+            location: {
+              latitude: columnarData.y[i],
+              longitude: columnarData.x[i],
+              altitude: columnarData.z[i]
+            },
+            value: columnarData.z[i],
+            unit: testParams.dataType === 'elevation' ? 'm' : testParams.dataType === 'temperature' ? '°C' : 'Pa',
+            timestamp: Date.now(),
+            metadata: {
+              generation_method: 'columnar_batch',
+              grid_position: `${i}_of_${columnarData.x.length}`
+            }
+          });
+        }
+      }
       setParamTestData(displayData);
       
       // Calculate data transfer rate
-      const estimatedDataSize = result.totalProcessed * 120; // rough estimate in bytes
+      const totalProcessed = columnarData?.x?.length || 0;
+      const estimatedDataSize = totalProcessed * 120; // rough estimate in bytes
       const transferRateMBps = (estimatedDataSize / (1024 * 1024)) / grpcTime;
       
       console.log(`⏱️ gRPC: ${grpcTime.toFixed(2)}s, Proc: ${dataProcessingTime.toFixed(2)}s, Total: ${totalDuration.toFixed(2)}s, Rate: ${transferRateMBps.toFixed(1)} MB/s`);
       
       toast.success(`Parameter Test Complete!`, {
-        description: `${result.totalProcessed.toLocaleString()} ${testParams.dataType} points generated in ${totalDuration.toFixed(2)}s (${transferRateMBps.toFixed(1)} MB/s)`
+        description: `${totalProcessed.toLocaleString()} ${testParams.dataType} points generated in ${totalDuration.toFixed(2)}s (${transferRateMBps.toFixed(1)} MB/s)`
       });
     } catch (error) {
       console.error('Parameter test failed:', error);
@@ -279,24 +300,26 @@ export function GrpcDemo() {
       console.log(`🎯 Processing ${testParams.maxPoints.toLocaleString()} points with auto strategy selection...`);
       const startTime = performance.now();
 
-      const result = await window.grpc.getBatchDataOptimized(
+      const result = await window.autoGrpc.getBatchDataColumnar({
         bounds,
-        [testParams.dataType],
-        testParams.maxPoints,
-        testParams.resolution,
-        (progress: { percentage: number }) => setProcessingProgress(progress.percentage)
-      );
+        data_types: [testParams.dataType],
+        max_points: testParams.maxPoints,
+        resolution: testParams.resolution
+      });
+      
+      // Since columnar API doesn't have progress callback, simulate progress completion
+      setProcessingProgress(100);
       
       const endTime = performance.now();
       const duration = (endTime - startTime) / 1000;
-      const usedWorkerThreads = result.strategy === 'worker_threads';
-      const totalProcessed = usedWorkerThreads ? (result.stats?.totalProcessed || 0) : (result.totalProcessed || 0);
+      const columnarData = result.columnar_data;
+      const totalProcessed = columnarData?.x?.length || 0;
       const pointsPerSecond = Math.round(totalProcessed / duration);
       
       setProcessingResult({
         duration,
         pointsPerSecond,
-        memoryUsage: usedWorkerThreads ? 'High (Node.js)' : 'Isolated (Worker)',
+        memoryUsage: 'Columnar (Optimized)',
         status: 'success',
         data: result
       });
@@ -304,7 +327,7 @@ export function GrpcDemo() {
       console.log(`✅ Processing completed: ${duration.toFixed(2)}s, ${pointsPerSecond.toLocaleString()} pts/s`);
       
       toast.success(`⚡ Processing Complete!`, {
-        description: `${totalProcessed.toLocaleString()} points in ${duration.toFixed(2)}s (${pointsPerSecond.toLocaleString()} pts/s) using ${usedWorkerThreads ? 'Worker Threads' : 'Worker Stream'}`
+        description: `${totalProcessed.toLocaleString()} points in ${duration.toFixed(2)}s (${pointsPerSecond.toLocaleString()} pts/s) using Columnar API`
       });
       
     } catch (error) {
@@ -542,7 +565,7 @@ export function GrpcDemo() {
                   onKeyDown={async (e) => {
                     if (e.key === 'Enter' && helloWorldInput.trim()) {
                       try {
-                        const response = await window.grpc.helloWorld({ message: helloWorldInput });
+                        const response = await window.autoGrpc.helloWorld({ message: helloWorldInput });
                         toast.success('Respuesta Hola Mundo', {
                           description: response.message
                         });
@@ -576,7 +599,7 @@ export function GrpcDemo() {
                           toast.error('Error', { description: 'Por favor ingresa un número válido' });
                           return;
                         }
-                        const response = await window.grpc.echoParameter({ value, operation: 'square' });
+                        const response = await window.autoGrpc.echoParameter({ value, operation: 'square' });
                         toast.success('Respuesta Parámetro Echo', {
                           description: `${response.originalValue} al cuadrado = ${response.processedValue}`
                         });
@@ -732,13 +755,20 @@ export function GrpcDemo() {
         </div>
       </div>
 
-      {/* ⚡ ECharts + Real Web Workers Visualization */}
 
-      {/* 🚀 NEW: Main Process Worker Threads Visualization */}
+      {/* 🚀 Columnar Data Streaming Visualization */}
       <div className="mt-8 border-t pt-6">
         <ChildProcessVisualization 
-          title="🚀 Main Process Worker Threads - Production Ready"
+          title="🚀 Columnar Data Streaming - Optimized Performance"
           maxPoints={2000000}
+        />
+      </div>
+
+      {/* 🚀 TRUE: Worker Thread Visualization for Ultra-Large Datasets */}
+      <div className="mt-8 border-t pt-6">
+        <WorkerThreadVisualization 
+          title="🚀 True Node.js Worker Threads - Ultra Large Datasets"
+          maxPoints={5000000}
         />
       </div>
     </div>

@@ -843,66 +843,143 @@ class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
             context.set_details(f"GetLoadedDataStats failed: {str(e)}")
             return response
     
-    def GetLoadedDataChunk(self, request, context):
+    def GetBatchDataColumnar(self, request, context):
         """
-        Return a chunk of the currently loaded CSV data for charting/processing.
-        - offset: starting row index
-        - limit: number of rows to return
-        Response includes numeric metrics keys for frontend selection.
+        Get batch data in columnar format for efficient processing
+        
+        @param request: GetBatchDataRequest with bounds, data types, max points, and resolution
+        @param context: gRPC context
+        @returns: GetBatchDataColumnarResponse with columnar data chunks
         """
         try:
-            import math
-            global loaded_csv_data
-            response = files_pb2.GetLoadedDataChunkResponse()
-            if 'loaded_csv_data' not in globals() or not loaded_csv_data:
-                response.total_rows = 0
-                response.is_complete = True
-                response.next_offset = 0
-                return response
-
-            data = loaded_csv_data['data']
-            total = len(data)
-            offset = max(0, request.offset)
-            limit = max(1, request.limit) if request.limit > 0 else 1000
-            end = min(offset + limit, total)
-
-            # Infer metric keys (numeric) and attrs (string) from first row
-            metric_keys = set()
-            if total > 0:
-                sample = data[0]
-                for k, v in sample.items():
-                    if k in ['x', 'y', 'z', 'id', 'depth']:
-                        continue
-                    if isinstance(v, (int, float)):
-                        metric_keys.add(k)
-            for k in sorted(metric_keys):
-                response.available_metric_keys.append(k)
-
-            for i in range(offset, end):
-                row = data[i]
-                out = response.rows.add()
-                out.x = float(row['x']) if 'x' in row else 0.0
-                out.y = float(row['y']) if 'y' in row else 0.0
-                out.z = float(row['z']) if 'z' in row else 0.0
-                out.id = str(row['id']) if 'id' in row else ''
-                for k, v in row.items():
-                    if k in ['x', 'y', 'z', 'id', 'depth']:
-                        continue
-                    if isinstance(v, (int, float)):
-                        out.metrics[k] = float(v)
-                    else:
-                        out.attrs[k] = str(v)
-
-            response.total_rows = total
-            response.is_complete = end >= total
-            response.next_offset = 0 if response.is_complete else end
+            print(f"📊 GetBatchDataColumnar request: Max points: {request.max_points}, Resolution: {request.resolution}")
+            print(f"   Bounds: NE({request.bounds.northeast.latitude}, {request.bounds.northeast.longitude}) to SW({request.bounds.southwest.latitude}, {request.bounds.southwest.longitude})")
+            print(f"   Data types: {list(request.data_types)}")
+            
+            start_time = time.time()
+            
+            # Use data generator to create columnar data
+            bounds = {
+                'lat_min': request.bounds.southwest.latitude,
+                'lat_max': request.bounds.northeast.latitude,
+                'lng_min': request.bounds.southwest.longitude,
+                'lng_max': request.bounds.northeast.longitude
+            }
+            
+            columnar_data, generation_method = data_generator.generate_columnar_data(
+                bounds=bounds,
+                data_types=list(request.data_types),
+                max_points=request.max_points,
+                resolution=request.resolution or 20
+            )
+            
+            # Create response
+            response = geospatial_pb2.GetBatchDataColumnarResponse()
+            response.total_count = len(columnar_data['x'])
+            response.generation_method = generation_method
+            
+            # Create columnar data chunk (single chunk for non-streaming)
+            chunk = response.columnar_data
+            chunk.id.extend(columnar_data['id'])
+            chunk.x.extend(columnar_data['x'])
+            chunk.y.extend(columnar_data['y'])
+            chunk.z.extend(columnar_data['z'])
+            chunk.id_value.extend(columnar_data['id_value'])
+            chunk.generation_method = generation_method
+            chunk.chunk_number = 0
+            chunk.total_chunks = 1
+            chunk.points_in_chunk = len(columnar_data['x'])
+            chunk.is_final_chunk = True
+            
+            # Add additional data columns
+            for key, values in columnar_data.get('additional_data', {}).items():
+                double_array = geospatial_pb2.DoubleArray()
+                double_array.values.extend(values)
+                chunk.additional_data[key].CopyFrom(double_array)
+            
+            print(f"✅ GetBatchDataColumnar finished, returning {response.total_count} points in columnar format")
             return response
+            
         except Exception as e:
-            print(f"❌ GetLoadedDataChunk error: {e}")
+            print(f"❌ Error in GetBatchDataColumnar: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(f"GetLoadedDataChunk failed: {str(e)}")
-            return files_pb2.GetLoadedDataChunkResponse()
+            context.set_details(f"Columnar batch data error: {str(e)}")
+            return geospatial_pb2.GetBatchDataColumnarResponse()
     
+    def GetBatchDataColumnarStreamed(self, request, context):
+        """
+        Stream batch data in columnar format with chunking
+        
+        @param request: GetBatchDataRequest with bounds, data types, max points, and resolution
+        @param context: gRPC context
+        @yields: ColumnarDataChunk messages
+        """
+        try:
+            print(f"🔄 GetBatchDataColumnarStreamed request: Max points: {request.max_points}, Resolution: {request.resolution}")
+            
+            start_time = time.time()
+            
+            # Use data generator to create columnar data
+            bounds = {
+                'lat_min': request.bounds.southwest.latitude,
+                'lat_max': request.bounds.northeast.latitude,
+                'lng_min': request.bounds.southwest.longitude,
+                'lng_max': request.bounds.northeast.longitude
+            }
+            
+            columnar_data, generation_method = data_generator.generate_columnar_data(
+                bounds=bounds,
+                data_types=list(request.data_types),
+                max_points=request.max_points,
+                resolution=request.resolution or 20
+            )
+            
+            total_points = len(columnar_data['x'])
+            chunk_size = 25000  # 25K points per chunk
+            total_chunks = (total_points + chunk_size - 1) // chunk_size
+            
+            print(f"🔄 Streaming {total_points} points in {total_chunks} chunks of {chunk_size} each")
+            
+            # Stream data in chunks
+            for chunk_index in range(total_chunks):
+                start_idx = chunk_index * chunk_size
+                end_idx = min(start_idx + chunk_size, total_points)
+                
+                # Create chunk
+                chunk = geospatial_pb2.ColumnarDataChunk()
+                chunk.chunk_number = chunk_index
+                chunk.total_chunks = total_chunks
+                chunk.points_in_chunk = end_idx - start_idx
+                chunk.is_final_chunk = (chunk_index == total_chunks - 1)
+                chunk.generation_method = generation_method
+                
+                # Add data for this chunk
+                chunk.id.extend(columnar_data['id'][start_idx:end_idx])
+                chunk.x.extend(columnar_data['x'][start_idx:end_idx])
+                chunk.y.extend(columnar_data['y'][start_idx:end_idx])
+                chunk.z.extend(columnar_data['z'][start_idx:end_idx])
+                chunk.id_value.extend(columnar_data['id_value'][start_idx:end_idx])
+                
+                # Add additional data columns
+                for key, values in columnar_data.get('additional_data', {}).items():
+                    double_array = geospatial_pb2.DoubleArray()
+                    double_array.values.extend(values[start_idx:end_idx])
+                    chunk.additional_data[key].CopyFrom(double_array)
+                
+                yield chunk
+                
+                # Brief pause between chunks to prevent overwhelming
+                if chunk_index < total_chunks - 1:
+                    time.sleep(0.001)  # 1ms pause
+            
+            processing_time = time.time() - start_time
+            print(f"✅ GetBatchDataColumnarStreamed finished, streamed {total_points} points in {total_chunks} chunks ({processing_time:.3f}s)")
+            
+        except Exception as e:
+            print(f"❌ Error in GetBatchDataColumnarStreamed: {e}")
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f"Columnar streamed data error: {str(e)}")
+
 
 
 def find_free_port(start_port=50051):

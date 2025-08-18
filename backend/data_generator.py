@@ -119,6 +119,93 @@ class GeospatialDataGenerator:
         
         return data_points, f'numpy_{data_type}_batch'
     
+    def generate_columnar_data(
+        self, 
+        bounds: Dict[str, float], 
+        data_types: List[str], 
+        max_points: int = 1000, 
+        resolution: int = 20
+    ) -> Tuple[Dict[str, Any], str]:
+        """
+        Generate geospatial data in efficient columnar format for large datasets.
+        
+        Args:
+            bounds: Dictionary with 'lat_min', 'lat_max', 'lng_min', 'lng_max'
+            data_types: List of data types to generate
+            max_points: Maximum number of points to generate
+            resolution: Grid resolution for data generation
+            
+        Returns:
+            Tuple of (columnar_data_dict, generation_method)
+        """
+        lat_min, lat_max = bounds['lat_min'], bounds['lat_max']
+        lng_min, lng_max = bounds['lng_min'], bounds['lng_max']
+        
+        # Choose the first available data type for primary Z values
+        primary_data_type = data_types[0] if data_types else 'elevation'
+        
+        # Calculate resolution to achieve desired point count
+        if max_points <= resolution * resolution:
+            actual_resolution = resolution
+        else:
+            actual_resolution = max(resolution, int(math.sqrt(max_points)) + 1)
+        
+        lat_grid = np.linspace(lat_min, lat_max, actual_resolution, dtype=np.float64)
+        lng_grid = np.linspace(lng_min, lng_max, actual_resolution, dtype=np.float64)
+        lat_mesh, lng_mesh = np.meshgrid(lat_grid, lng_grid)
+        
+        print(f"🔢 Columnar data generation: requested={max_points}, resolution={resolution}, actual_resolution={actual_resolution}, max_possible={actual_resolution*actual_resolution}")
+        
+        generation_start = time.time()
+        
+        # Generate primary Z values
+        primary_method = self.generation_methods.get(primary_data_type, self._generate_elevation_data)
+        z_values = primary_method(lat_mesh, lng_mesh, lat_min, lat_max, lng_min, lng_max).astype(np.float64)
+        
+        # Flatten to 1D arrays and limit to max_points
+        flat_lat = lat_mesh.flatten()[:max_points]
+        flat_lng = lng_mesh.flatten()[:max_points]
+        flat_z = z_values.flatten()[:max_points]
+        
+        actual_count = len(flat_lat)
+        
+        # Create columnar data structure
+        columnar_data = {
+            'id': [f'point_{i}' for i in range(actual_count)],
+            'x': flat_lng.tolist(),  # X = longitude
+            'y': flat_lat.tolist(),  # Y = latitude
+            'z': flat_z.tolist(),    # Z = primary value
+            'id_value': [f'{primary_data_type}_sensor_{i % 10}' for i in range(actual_count)],
+            'additional_data': {}
+        }
+        
+        # Generate additional data types if requested
+        for data_type in data_types[1:]:  # Skip the first one (already used for Z)
+            if data_type in self.generation_methods:
+                method = self.generation_methods[data_type]
+                additional_values = method(lat_mesh, lng_mesh, lat_min, lat_max, lng_min, lng_max).astype(np.float64)
+                flat_additional = additional_values.flatten()[:max_points]
+                columnar_data['additional_data'][data_type] = flat_additional.tolist()
+        
+        # Add some extra useful columns
+        if 'elevation' not in data_types:
+            elevation_values = self._generate_elevation_data(lat_mesh, lng_mesh, lat_min, lat_max, lng_min, lng_max).astype(np.float64)
+            flat_elevation = elevation_values.flatten()[:max_points]
+            columnar_data['additional_data']['elevation'] = flat_elevation.tolist()
+            
+        if 'temperature' not in data_types:
+            temp_values = self._generate_temperature_data(lat_mesh, lng_mesh, lat_min, lat_max, lng_min, lng_max).astype(np.float64)
+            flat_temp = temp_values.flatten()[:max_points]
+            columnar_data['additional_data']['temperature'] = flat_temp.tolist()
+        
+        generation_time = time.time() - generation_start
+        
+        print(f"⏱️  Columnar data generation took: {generation_time:.3f}s for {actual_count} points")
+        print(f"⏱️  Generation rate: {actual_count/generation_time:.0f} points/second")
+        print(f"📊 Generated columns: id, x, y, z, id_value + {len(columnar_data['additional_data'])} additional columns")
+        
+        return columnar_data, f'numpy_columnar_{primary_data_type}'
+    
     def generate_streaming_data(
         self, 
         bounds: Dict[str, float], 

@@ -1,10 +1,7 @@
 import exposeContexts from "./helpers/ipc/context-exposer";
 import { contextBridge, ipcRenderer } from 'electron';
-import type { OptimizedResult, GrpcBounds, GrpcProgress } from './lib/types';
-import { exposeAutoGrpcContext } from "./grpc-auto";
 
 exposeContexts();
-exposeAutoGrpcContext();
 
 // 🎉 New Auto-Generated gRPC Context Bridge
 const grpcApi = {
@@ -16,6 +13,35 @@ const grpcApi = {
   getFeatures: (request: { bounds: GrpcBounds; featureTypes: string[]; limit: number }) => 
     ipcRenderer.invoke('grpc-getfeatures', request),
   
+  // CSV file processing methods
+  analyzeCsv: (request: { filePath: string; fileName: string; rowsToAnalyze?: number }) => {
+    // Convert camelCase to snake_case for gRPC (keepCase: true)
+    const snakeRequest = {
+      file_path: request.filePath,
+      file_name: request.fileName,
+      rows_to_analyze: request.rowsToAnalyze ?? 2,
+    } as const;
+    return ipcRenderer.invoke('grpc-analyzecsv', snakeRequest);
+  },
+  sendFile: (request: { filePath: string; fileName: string; fileType: string; xVariable: string; yVariable: string; zVariable?: string; idVariable?: string; depthVariable?: string; columnTypes?: Record<string, 'string' | 'number'>; includeFirstRow?: boolean; includedColumns?: string[] }) => {
+    // Convert camelCase to snake_case for gRPC (keepCase: true)
+    const snakeRequest = {
+      file_path: request.filePath,
+      file_name: request.fileName,
+      file_type: request.fileType,
+      x_variable: request.xVariable,
+      y_variable: request.yVariable,
+      z_variable: request.zVariable ?? '',
+      id_variable: request.idVariable ?? '',
+      depth_variable: request.depthVariable ?? '',
+      column_types: request.columnTypes ?? {},
+      include_first_row: request.includeFirstRow ?? true,
+      included_columns: request.includedColumns ?? [],
+    } as const;
+    return ipcRenderer.invoke('grpc-sendfile', snakeRequest);
+  },
+  getLoadedDataStats: () => 
+    ipcRenderer.invoke('grpc-getloadeddatastats', {}),
   
   // Legacy streaming removed
   
@@ -31,6 +57,8 @@ const grpcApi = {
     onChunkData?: (chunk: unknown) => void,
     options: { threshold?: number } = {}
   ): Promise<OptimizedResult> => {
+    // Ensure options is marked as used to satisfy linter when not consumed
+    void options;
     return (grpcApi as unknown as { getBatchDataChildProcessStreamed: (b: GrpcBounds, d: string[], m: number, r?: number, p?: (g: GrpcProgress) => void) => Promise<unknown> }).getBatchDataChildProcessStreamed(
       bounds,
       dataTypes,
@@ -42,9 +70,6 @@ const grpcApi = {
   
   // Allow optional requestId to cancel a specific in-flight request
   stopStream: (requestId?: string) => ipcRenderer.invoke('grpc-stop-stream', requestId ? { requestId } : {}),
-  // CSV: aggregate series in main-process worker-threads and return ready-to-plot series
-  aggregateCsvSeries: (xAxis: 'x'|'y'|'z', yAxis: 'x'|'y'|'z', metrics: string[], sampleCap?: number) =>
-    ipcRenderer.invoke('csv-start-series-aggregation', { xAxis, yAxis, metrics, sampleCap }),
   
   // Helper function to fetch chart data in chunks
   fetchChartDataInChunks: async (requestId: string): Promise<Array<[number, number, number]>> => {
@@ -91,7 +116,7 @@ const grpcApi = {
     return new Promise((resolve, reject) => {
       const fetchChartDataSafely = (rid: string) => grpcApi.fetchChartDataInChunks(rid);
 
-      const progressHandler = (_event: unknown, data: { requestId: string; type: string; processed: number; total: number; percentage: number; phase: string; stats?: unknown; chartConfig?: any; message?: string; totalPoints?: number; totalChunks?: number }) => {
+      const progressHandler = (_event: Electron.IpcRendererEvent, data: { requestId: string; type: string; processed: number; total: number; percentage: number; phase: string; stats?: unknown; chartConfig?: (Record<string, unknown> & { dataReady?: boolean }); message?: string; totalPoints?: number; totalChunks?: number }) => {
         if (data.requestId === requestId) {
           if (data.type === 'progress' || data.type === 'chunk_forwarded') {
             if (onProgress) {
@@ -111,7 +136,7 @@ const grpcApi = {
             });
           } else if (data.type === 'complete') {
             // Check if we need to fetch chart data separately
-            if (data.chartConfig.dataReady) {
+            if (data.chartConfig && (data.chartConfig as { dataReady?: boolean }).dataReady) {
               // Fetch chart data in chunks to prevent IPC blocking
               fetchChartDataSafely(requestId).then(chartData => {
                 resolve({
@@ -143,18 +168,27 @@ const grpcApi = {
         }
       };
       
-      const errorHandler = (_event: unknown, data: { requestId: string; error: string }) => {
+      const errorHandler = (_event: Electron.IpcRendererEvent, data: { requestId: string; error: string }) => {
         if (data.requestId === requestId) {
           reject(new Error(data.error));
         }
       };
       
-      ipcRenderer.on('grpc-child-process-progress', progressHandler);
-      ipcRenderer.on('grpc-child-process-error', errorHandler);
+      const onChildProgress: (event: Electron.IpcRendererEvent, ...args: unknown[]) => void = (_event, ...args) => {
+        const [payload] = args as [Parameters<typeof progressHandler>[1]];
+        progressHandler(_event, payload);
+      };
+      const onChildError: (event: Electron.IpcRendererEvent, ...args: unknown[]) => void = (_event, ...args) => {
+        const [payload] = args as [Parameters<typeof errorHandler>[1]];
+        errorHandler(_event, payload);
+      };
+
+      ipcRenderer.on('grpc-child-process-progress', onChildProgress);
+      ipcRenderer.on('grpc-child-process-error', onChildError);
       
       const cleanup = () => {
-        ipcRenderer.removeListener('grpc-child-process-progress', progressHandler);
-        ipcRenderer.removeListener('grpc-child-process-error', errorHandler);
+        ipcRenderer.removeListener('grpc-child-process-progress', onChildProgress);
+        ipcRenderer.removeListener('grpc-child-process-error', onChildError);
       };
       
       ipcRenderer.send('grpc-start-child-process-stream', {
@@ -172,7 +206,89 @@ const grpcApi = {
     });
   },
 
-  
+  // Legacy/Small-dataset path: main forwards gRPC chunks to renderer without worker_threads
+  getBatchDataWorkerStreamed: (
+    bounds: GrpcBounds,
+    dataTypes: string[],
+    maxPoints: number,
+    resolution = 20,
+    onProgress?: (progress: GrpcProgress) => void,
+    onChunkData?: (chunk: unknown) => void
+  ) => {
+    const requestId = `worker-stream-${Date.now()}-${Math.random()}`;
+    return new Promise((resolve, reject) => {
+      const progressHandler = (_event: Electron.IpcRendererEvent, data: { requestId: string; type: string; processed?: number; total?: number; percentage?: number; phase?: string; totalProcessed?: number; processingTime?: number; generationMethod?: string; summary?: unknown; dataSample?: unknown[] }) => {
+        if (data.requestId !== requestId) return;
+        if (data.type === 'progress' || data.type === 'batch_complete') {
+          if (onProgress) {
+            onProgress({
+              processed: data.processed || 0,
+              total: data.total || 0,
+              percentage: data.percentage || 0,
+              phase: data.phase || 'processing'
+            });
+          }
+        } else if (data.type === 'complete') {
+          ipcRenderer.removeListener('grpc-worker-stream-progress', onWorkerProgress);
+          ipcRenderer.removeListener('grpc-worker-stream-chunk', onWorkerChunk);
+          resolve({
+            strategy: 'worker_stream',
+            totalProcessed: data.totalProcessed || 0,
+            processingTime: data.processingTime || 0,
+            generationMethod: data.generationMethod || 'chunked_streaming',
+            summary: (data.summary || {}) as Record<string, unknown>,
+            dataSample: data.dataSample || []
+          });
+        }
+      };
+
+      const chunkHandler = (_event: Electron.IpcRendererEvent, payload: { requestId: string; chunkData?: unknown }) => {
+        if (payload.requestId !== requestId) return;
+        onChunkData?.(payload.chunkData);
+      };
+
+      const errorHandler = (_event: Electron.IpcRendererEvent, data: { requestId: string; error: string }) => {
+        if (data.requestId !== requestId) return;
+        ipcRenderer.removeListener('grpc-worker-stream-progress', onWorkerProgress);
+        ipcRenderer.removeListener('grpc-worker-stream-chunk', onWorkerChunk);
+        ipcRenderer.removeListener('grpc-worker-stream-error', onWorkerError);
+        reject(new Error(data.error));
+      };
+
+      const onWorkerProgress: (event: Electron.IpcRendererEvent, ...args: unknown[]) => void = (_event, ...args) => {
+        const [payload] = args as [Parameters<typeof progressHandler>[1]];
+        progressHandler(_event, payload);
+      };
+      const onWorkerChunk: (event: Electron.IpcRendererEvent, ...args: unknown[]) => void = (_event, ...args) => {
+        const [payload] = args as [Parameters<typeof chunkHandler>[1]];
+        chunkHandler(_event, payload);
+      };
+      const onWorkerError: (event: Electron.IpcRendererEvent, ...args: unknown[]) => void = (_event, ...args) => {
+        const [payload] = args as [Parameters<typeof errorHandler>[1]];
+        errorHandler(_event, payload);
+      };
+
+      ipcRenderer.on('grpc-worker-stream-progress', onWorkerProgress);
+      ipcRenderer.on('grpc-worker-stream-chunk', onWorkerChunk);
+      ipcRenderer.on('grpc-worker-stream-error', onWorkerError);
+
+      ipcRenderer.send('grpc-start-worker-stream', {
+        requestId,
+        bounds,
+        dataTypes,
+        maxPoints,
+        resolution
+      });
+
+      // 5-minute safety timeout
+      setTimeout(() => {
+        ipcRenderer.removeListener('grpc-worker-stream-progress', onWorkerProgress);
+        ipcRenderer.removeListener('grpc-worker-stream-chunk', onWorkerChunk);
+        ipcRenderer.removeListener('grpc-worker-stream-error', onWorkerError);
+        reject(new Error('Worker stream timeout'));
+      }, 300000);
+    });
+  }
 };
 
 contextBridge.exposeInMainWorld('grpc', grpcApi);
@@ -183,6 +299,13 @@ const electronAPI = {
     ipcRenderer.invoke('dialog:openFile', options),
   showSaveDialog: (options: Electron.SaveDialogOptions) => 
     ipcRenderer.invoke('dialog:saveFile', options),
+  // IPC communication methods for worker thread processing
+  send: (channel: string, data: any) => 
+    ipcRenderer.send(channel, data),
+  on: (channel: string, listener: (event: any, data: any) => void) => 
+    ipcRenderer.on(channel, listener),
+  off: (channel: string, listener: (event: any, data: any) => void) => 
+    ipcRenderer.off(channel, listener),
   // Read only the first N lines from a CSV file (comma + UTF-8)
   readCsvPreview: async (filePath: string, numRows: number = 2): Promise<{ headers: string[]; rows: string[][]; delimiter: string }> => {
     // Helper to parse a single CSV line with basic quote handling

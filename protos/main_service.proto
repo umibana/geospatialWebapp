@@ -16,6 +16,10 @@ service GeospatialService {
   rpc GetFeatures(GetFeaturesRequest) returns (GetFeaturesResponse);
   rpc GetBatchDataStreamed(GetBatchDataRequest) returns (stream GetBatchDataChunk);
   
+  // New columnar format for efficient large dataset processing
+  rpc GetBatchDataColumnar(GetBatchDataRequest) returns (GetBatchDataColumnarResponse);
+  rpc GetBatchDataColumnarStreamed(GetBatchDataRequest) returns (stream ColumnarDataChunk);
+  
   // CSV file processing methods (from files.proto)
   rpc AnalyzeCsv(AnalyzeCsvRequest) returns (AnalyzeCsvResponse);
   rpc SendFile(SendFileRequest) returns (SendFileResponse);

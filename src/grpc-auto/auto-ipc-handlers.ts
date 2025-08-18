@@ -70,6 +70,39 @@ export function registerAutoGrpcHandlers() {
     }
   });
 
+  // Unary method: GetBatchDataColumnar
+  ipcMain.handle('grpc-getbatchdatacolumnar', async (event, request) => {
+    try {
+      return await autoMainGrpcClient.getBatchDataColumnar(request);
+    } catch (error) {
+      console.error('gRPC getBatchDataColumnar failed:', error);
+      throw error;
+    }
+  });
+
+  // Streaming method: GetBatchDataColumnarStreamed
+  ipcMain.on('grpc-getbatchdatacolumnarstreamed', async (event, request) => {
+    try {
+      const results = await autoMainGrpcClient.getBatchDataColumnarStreamed(request);
+      results.forEach(data => {
+        event.sender.send('grpc-stream-data', {
+          requestId: request.requestId,
+          type: 'data',
+          payload: data
+        });
+      });
+      event.sender.send('grpc-stream-data', {
+        requestId: request.requestId,
+        type: 'complete'
+      });
+    } catch (error) {
+      event.sender.send('grpc-stream-error', {
+        requestId: request.requestId,
+        error: error.message
+      });
+    }
+  });
+
   // Unary method: AnalyzeCsv
   ipcMain.handle('grpc-analyzecsv', async (event, request) => {
     try {

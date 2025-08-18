@@ -133,6 +133,39 @@ class AutoMainGrpcClient {
     });
   }
 
+  async getBatchDataColumnar(request: Types.GetBatchDataRequest): Promise<Types.GetBatchDataColumnarResponse> {
+    return new Promise((resolve, reject) => {
+      const client = this.ensureClient();
+      client.GetBatchDataColumnar(request, (error: any, response: any) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+
+  async getBatchDataColumnarStreamed(request: Types.GetBatchDataRequest): Promise<Types.ColumnarDataChunk[]> {
+    return new Promise((resolve, reject) => {
+      const client = this.ensureClient();
+      const stream = client.GetBatchDataColumnarStreamed(request);
+      const results: Types.ColumnarDataChunk[] = [];
+      
+      stream.on('data', (data: any) => {
+        results.push(data);
+      });
+      
+      stream.on('end', () => {
+        resolve(results);
+      });
+      
+      stream.on('error', (error: Error) => {
+        reject(error);
+      });
+    });
+  }
+
   async analyzeCsv(request: Types.AnalyzeCsvRequest): Promise<Types.AnalyzeCsvResponse> {
     return new Promise((resolve, reject) => {
       const client = this.ensureClient();

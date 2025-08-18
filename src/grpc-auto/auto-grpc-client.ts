@@ -67,6 +67,14 @@ export class AutoGrpcClient {
     return this.callStreamingMethod('GetBatchDataStreamed', request, onData);
   }
 
+  async getBatchDataColumnar(request: GetBatchDataRequest): Promise<GetBatchDataColumnarResponse> {
+    return this.callMethod('GetBatchDataColumnar', request);
+  }
+
+  async getBatchDataColumnarStreamed(request: GetBatchDataRequest, onData?: (data: ColumnarDataChunk) => void): Promise<ColumnarDataChunk[]> {
+    return this.callStreamingMethod('GetBatchDataColumnarStreamed', request, onData);
+  }
+
   async analyzeCsv(request: AnalyzeCsvRequest): Promise<AnalyzeCsvResponse> {
     return this.callMethod('AnalyzeCsv', request);
   }

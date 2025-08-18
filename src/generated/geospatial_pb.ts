@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file geospatial.proto.
  */
 export const file_geospatial: GenFile = /*@__PURE__*/
-  fileDesc("ChBnZW9zcGF0aWFsLnByb3RvEgpnZW9zcGF0aWFsIlUKCkNvb3JkaW5hdGUSEAoIbGF0aXR1ZGUYASABKAESEQoJbG9uZ2l0dWRlGAIgASgBEhUKCGFsdGl0dWRlGAMgASgBSACIAQFCCwoJX2FsdGl0dWRlImMKC0JvdW5kaW5nQm94EikKCW5vcnRoZWFzdBgBIAEoCzIWLmdlb3NwYXRpYWwuQ29vcmRpbmF0ZRIpCglzb3V0aHdlc3QYAiABKAsyFi5nZW9zcGF0aWFsLkNvb3JkaW5hdGUi4AEKEUdlb3NwYXRpYWxGZWF0dXJlEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSKAoIbG9jYXRpb24YAyABKAsyFi5nZW9zcGF0aWFsLkNvb3JkaW5hdGUSQQoKcHJvcGVydGllcxgEIAMoCzItLmdlb3NwYXRpYWwuR2Vvc3BhdGlhbEZlYXR1cmUuUHJvcGVydGllc0VudHJ5EhEKCXRpbWVzdGFtcBgFIAEoAxoxCg9Qcm9wZXJ0aWVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASLZAQoJRGF0YVBvaW50EgoKAmlkGAEgASgJEigKCGxvY2F0aW9uGAIgASgLMhYuZ2Vvc3BhdGlhbC5Db29yZGluYXRlEg0KBXZhbHVlGAMgASgBEgwKBHVuaXQYBCABKAkSEQoJdGltZXN0YW1wGAUgASgDEjUKCG1ldGFkYXRhGAYgAygLMiMuZ2Vvc3BhdGlhbC5EYXRhUG9pbnQuTWV0YWRhdGFFbnRyeRovCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiogEKEk9wdGltaXplZERhdGFQb2ludBIKCgJpZBgBIAEoCRIQCghsYXRpdHVkZRgCIAEoAhIRCglsb25naXR1ZGUYAyABKAISEAoIYWx0aXR1ZGUYBCABKAISDQoFdmFsdWUYBSABKAISDAoEdW5pdBgGIAEoCRIRCgl0aW1lc3RhbXAYByABKAMSGQoRZ2VuZXJhdGlvbl9tZXRob2QYCCABKAkiJAoRSGVsbG9Xb3JsZFJlcXVlc3QSDwoHbWVzc2FnZRgBIAEoCSIlChJIZWxsb1dvcmxkUmVzcG9uc2USDwoHbWVzc2FnZRgBIAEoCSI4ChRFY2hvUGFyYW1ldGVyUmVxdWVzdBINCgV2YWx1ZRgBIAEoARIRCglvcGVyYXRpb24YAiABKAkiWwoVRWNob1BhcmFtZXRlclJlc3BvbnNlEhYKDm9yaWdpbmFsX3ZhbHVlGAEgASgBEhcKD3Byb2Nlc3NlZF92YWx1ZRgCIAEoARIRCglvcGVyYXRpb24YAyABKAkiFAoSSGVhbHRoQ2hlY2tSZXF1ZXN0IqMBChNIZWFsdGhDaGVja1Jlc3BvbnNlEg8KB2hlYWx0aHkYASABKAgSDwoHdmVyc2lvbhgCIAEoCRI7CgZzdGF0dXMYAyADKAsyKy5nZW9zcGF0aWFsLkhlYWx0aENoZWNrUmVzcG9uc2UuU3RhdHVzRW50cnkaLQoLU3RhdHVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJjChJHZXRGZWF0dXJlc1JlcXVlc3QSJwoGYm91bmRzGAEgASgLMhcuZ2Vvc3BhdGlhbC5Cb3VuZGluZ0JveBIVCg1mZWF0dXJlX3R5cGVzGAIgAygJEg0KBWxpbWl0GAMgASgFIlsKE0dldEZlYXR1cmVzUmVzcG9uc2USLwoIZmVhdHVyZXMYASADKAsyHS5nZW9zcGF0aWFsLkdlb3NwYXRpYWxGZWF0dXJlEhMKC3RvdGFsX2NvdW50GAIgASgFIm8KEVN0cmVhbURhdGFSZXF1ZXN0EicKBmJvdW5kcxgBIAEoCzIXLmdlb3NwYXRpYWwuQm91bmRpbmdCb3gSEgoKZGF0YV90eXBlcxgCIAMoCRIdChVtYXhfcG9pbnRzX3Blcl9zZWNvbmQYAyABKAUiegoTR2V0QmF0Y2hEYXRhUmVxdWVzdBInCgZib3VuZHMYASABKAsyFy5nZW9zcGF0aWFsLkJvdW5kaW5nQm94EhIKCmRhdGFfdHlwZXMYAiADKAkSEgoKbWF4X3BvaW50cxgDIAEoBRISCgpyZXNvbHV0aW9uGAQgASgFInIKFEdldEJhdGNoRGF0YVJlc3BvbnNlEioKC2RhdGFfcG9pbnRzGAEgAygLMhUuZ2Vvc3BhdGlhbC5EYXRhUG9pbnQSEwoLdG90YWxfY291bnQYAiABKAUSGQoRZ2VuZXJhdGlvbl9tZXRob2QYAyABKAkihAEKHUdldEJhdGNoRGF0YU9wdGltaXplZFJlc3BvbnNlEjMKC2RhdGFfcG9pbnRzGAEgAygLMh4uZ2Vvc3BhdGlhbC5PcHRpbWl6ZWREYXRhUG9pbnQSEwoLdG90YWxfY291bnQYAiABKAUSGQoRZ2VuZXJhdGlvbl9tZXRob2QYAyABKAkitwEKEUdldEJhdGNoRGF0YUNodW5rEioKC2RhdGFfcG9pbnRzGAEgAygLMhUuZ2Vvc3BhdGlhbC5EYXRhUG9pbnQSFAoMY2h1bmtfbnVtYmVyGAIgASgFEhQKDHRvdGFsX2NodW5rcxgDIAEoBRIXCg9wb2ludHNfaW5fY2h1bmsYBCABKAUSFgoOaXNfZmluYWxfY2h1bmsYBSABKAgSGQoRZ2VuZXJhdGlvbl9tZXRob2QYBiABKAliBnByb3RvMw", [file_files]);
+  fileDesc("ChBnZW9zcGF0aWFsLnByb3RvEgpnZW9zcGF0aWFsIlUKCkNvb3JkaW5hdGUSEAoIbGF0aXR1ZGUYASABKAESEQoJbG9uZ2l0dWRlGAIgASgBEhUKCGFsdGl0dWRlGAMgASgBSACIAQFCCwoJX2FsdGl0dWRlImMKC0JvdW5kaW5nQm94EikKCW5vcnRoZWFzdBgBIAEoCzIWLmdlb3NwYXRpYWwuQ29vcmRpbmF0ZRIpCglzb3V0aHdlc3QYAiABKAsyFi5nZW9zcGF0aWFsLkNvb3JkaW5hdGUi4AEKEUdlb3NwYXRpYWxGZWF0dXJlEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSKAoIbG9jYXRpb24YAyABKAsyFi5nZW9zcGF0aWFsLkNvb3JkaW5hdGUSQQoKcHJvcGVydGllcxgEIAMoCzItLmdlb3NwYXRpYWwuR2Vvc3BhdGlhbEZlYXR1cmUuUHJvcGVydGllc0VudHJ5EhEKCXRpbWVzdGFtcBgFIAEoAxoxCg9Qcm9wZXJ0aWVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASLZAQoJRGF0YVBvaW50EgoKAmlkGAEgASgJEigKCGxvY2F0aW9uGAIgASgLMhYuZ2Vvc3BhdGlhbC5Db29yZGluYXRlEg0KBXZhbHVlGAMgASgBEgwKBHVuaXQYBCABKAkSEQoJdGltZXN0YW1wGAUgASgDEjUKCG1ldGFkYXRhGAYgAygLMiMuZ2Vvc3BhdGlhbC5EYXRhUG9pbnQuTWV0YWRhdGFFbnRyeRovCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiogEKEk9wdGltaXplZERhdGFQb2ludBIKCgJpZBgBIAEoCRIQCghsYXRpdHVkZRgCIAEoAhIRCglsb25naXR1ZGUYAyABKAISEAoIYWx0aXR1ZGUYBCABKAISDQoFdmFsdWUYBSABKAISDAoEdW5pdBgGIAEoCRIRCgl0aW1lc3RhbXAYByABKAMSGQoRZ2VuZXJhdGlvbl9tZXRob2QYCCABKAkiJAoRSGVsbG9Xb3JsZFJlcXVlc3QSDwoHbWVzc2FnZRgBIAEoCSIlChJIZWxsb1dvcmxkUmVzcG9uc2USDwoHbWVzc2FnZRgBIAEoCSI4ChRFY2hvUGFyYW1ldGVyUmVxdWVzdBINCgV2YWx1ZRgBIAEoARIRCglvcGVyYXRpb24YAiABKAkiWwoVRWNob1BhcmFtZXRlclJlc3BvbnNlEhYKDm9yaWdpbmFsX3ZhbHVlGAEgASgBEhcKD3Byb2Nlc3NlZF92YWx1ZRgCIAEoARIRCglvcGVyYXRpb24YAyABKAkiFAoSSGVhbHRoQ2hlY2tSZXF1ZXN0IqMBChNIZWFsdGhDaGVja1Jlc3BvbnNlEg8KB2hlYWx0aHkYASABKAgSDwoHdmVyc2lvbhgCIAEoCRI7CgZzdGF0dXMYAyADKAsyKy5nZW9zcGF0aWFsLkhlYWx0aENoZWNrUmVzcG9uc2UuU3RhdHVzRW50cnkaLQoLU3RhdHVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJjChJHZXRGZWF0dXJlc1JlcXVlc3QSJwoGYm91bmRzGAEgASgLMhcuZ2Vvc3BhdGlhbC5Cb3VuZGluZ0JveBIVCg1mZWF0dXJlX3R5cGVzGAIgAygJEg0KBWxpbWl0GAMgASgFIlsKE0dldEZlYXR1cmVzUmVzcG9uc2USLwoIZmVhdHVyZXMYASADKAsyHS5nZW9zcGF0aWFsLkdlb3NwYXRpYWxGZWF0dXJlEhMKC3RvdGFsX2NvdW50GAIgASgFIm8KEVN0cmVhbURhdGFSZXF1ZXN0EicKBmJvdW5kcxgBIAEoCzIXLmdlb3NwYXRpYWwuQm91bmRpbmdCb3gSEgoKZGF0YV90eXBlcxgCIAMoCRIdChVtYXhfcG9pbnRzX3Blcl9zZWNvbmQYAyABKAUiegoTR2V0QmF0Y2hEYXRhUmVxdWVzdBInCgZib3VuZHMYASABKAsyFy5nZW9zcGF0aWFsLkJvdW5kaW5nQm94EhIKCmRhdGFfdHlwZXMYAiADKAkSEgoKbWF4X3BvaW50cxgDIAEoBRISCgpyZXNvbHV0aW9uGAQgASgFInIKFEdldEJhdGNoRGF0YVJlc3BvbnNlEioKC2RhdGFfcG9pbnRzGAEgAygLMhUuZ2Vvc3BhdGlhbC5EYXRhUG9pbnQSEwoLdG90YWxfY291bnQYAiABKAUSGQoRZ2VuZXJhdGlvbl9tZXRob2QYAyABKAkihAEKHUdldEJhdGNoRGF0YU9wdGltaXplZFJlc3BvbnNlEjMKC2RhdGFfcG9pbnRzGAEgAygLMh4uZ2Vvc3BhdGlhbC5PcHRpbWl6ZWREYXRhUG9pbnQSEwoLdG90YWxfY291bnQYAiABKAUSGQoRZ2VuZXJhdGlvbl9tZXRob2QYAyABKAki5gIKEUNvbHVtbmFyRGF0YUNodW5rEgoKAmlkGAEgAygJEgkKAXgYAiADKAESCQoBeRgDIAMoARIJCgF6GAQgAygBEhAKCGlkX3ZhbHVlGAUgAygJEkoKD2FkZGl0aW9uYWxfZGF0YRgGIAMoCzIxLmdlb3NwYXRpYWwuQ29sdW1uYXJEYXRhQ2h1bmsuQWRkaXRpb25hbERhdGFFbnRyeRIUCgxjaHVua19udW1iZXIYByABKAUSFAoMdG90YWxfY2h1bmtzGAggASgFEhcKD3BvaW50c19pbl9jaHVuaxgJIAEoBRIWCg5pc19maW5hbF9jaHVuaxgKIAEoCBIZChFnZW5lcmF0aW9uX21ldGhvZBgLIAEoCRpOChNBZGRpdGlvbmFsRGF0YUVudHJ5EgsKA2tleRgBIAEoCRImCgV2YWx1ZRgCIAEoCzIXLmdlb3NwYXRpYWwuRG91YmxlQXJyYXk6AjgBIh0KC0RvdWJsZUFycmF5Eg4KBnZhbHVlcxgBIAMoASIdCgtTdHJpbmdBcnJheRIOCgZ2YWx1ZXMYASADKAkihAEKHEdldEJhdGNoRGF0YUNvbHVtbmFyUmVzcG9uc2USNAoNY29sdW1uYXJfZGF0YRgBIAEoCzIdLmdlb3NwYXRpYWwuQ29sdW1uYXJEYXRhQ2h1bmsSEwoLdG90YWxfY291bnQYAiABKAUSGQoRZ2VuZXJhdGlvbl9tZXRob2QYAyABKAkitwEKEUdldEJhdGNoRGF0YUNodW5rEioKC2RhdGFfcG9pbnRzGAEgAygLMhUuZ2Vvc3BhdGlhbC5EYXRhUG9pbnQSFAoMY2h1bmtfbnVtYmVyGAIgASgFEhQKDHRvdGFsX2NodW5rcxgDIAEoBRIXCg9wb2ludHNfaW5fY2h1bmsYBCABKAUSFgoOaXNfZmluYWxfY2h1bmsYBSABKAgSGQoRZ2VuZXJhdGlvbl9tZXRob2QYBiABKAliBnByb3RvMw", [file_files]);
 
 /**
  * @generated from message geospatial.Coordinate
@@ -499,7 +499,155 @@ export const GetBatchDataOptimizedResponseSchema: GenMessage<GetBatchDataOptimiz
   messageDesc(file_geospatial, 16);
 
 /**
- * Mensajes de streaming por fragmentos  
+ * Nuevo formato columnar para procesamiento eficiente de datasets masivos
+ *
+ * @generated from message geospatial.ColumnarDataChunk
+ */
+export type ColumnarDataChunk = Message<"geospatial.ColumnarDataChunk"> & {
+  /**
+   * Point IDs
+   *
+   * @generated from field: repeated string id = 1;
+   */
+  id: string[];
+
+  /**
+   * X coordinates (longitude)
+   *
+   * @generated from field: repeated double x = 2;
+   */
+  x: number[];
+
+  /**
+   * Y coordinates (latitude)  
+   *
+   * @generated from field: repeated double y = 3;
+   */
+  y: number[];
+
+  /**
+   * Z values (main value like elevation)
+   *
+   * @generated from field: repeated double z = 4;
+   */
+  z: number[];
+
+  /**
+   * ID value column
+   *
+   * @generated from field: repeated string id_value = 5;
+   */
+  idValue: string[];
+
+  /**
+   * Dynamic additional columns (temperature, pressure, etc.)
+   *
+   * @generated from field: map<string, geospatial.DoubleArray> additional_data = 6;
+   */
+  additionalData: { [key: string]: DoubleArray };
+
+  /**
+   * @generated from field: int32 chunk_number = 7;
+   */
+  chunkNumber: number;
+
+  /**
+   * @generated from field: int32 total_chunks = 8;
+   */
+  totalChunks: number;
+
+  /**
+   * @generated from field: int32 points_in_chunk = 9;
+   */
+  pointsInChunk: number;
+
+  /**
+   * @generated from field: bool is_final_chunk = 10;
+   */
+  isFinalChunk: boolean;
+
+  /**
+   * @generated from field: string generation_method = 11;
+   */
+  generationMethod: string;
+};
+
+/**
+ * Describes the message geospatial.ColumnarDataChunk.
+ * Use `create(ColumnarDataChunkSchema)` to create a new message.
+ */
+export const ColumnarDataChunkSchema: GenMessage<ColumnarDataChunk> = /*@__PURE__*/
+  messageDesc(file_geospatial, 17);
+
+/**
+ * Helper message for dynamic double arrays
+ *
+ * @generated from message geospatial.DoubleArray
+ */
+export type DoubleArray = Message<"geospatial.DoubleArray"> & {
+  /**
+   * @generated from field: repeated double values = 1;
+   */
+  values: number[];
+};
+
+/**
+ * Describes the message geospatial.DoubleArray.
+ * Use `create(DoubleArraySchema)` to create a new message.
+ */
+export const DoubleArraySchema: GenMessage<DoubleArray> = /*@__PURE__*/
+  messageDesc(file_geospatial, 18);
+
+/**
+ * Helper message for dynamic string arrays  
+ *
+ * @generated from message geospatial.StringArray
+ */
+export type StringArray = Message<"geospatial.StringArray"> & {
+  /**
+   * @generated from field: repeated string values = 1;
+   */
+  values: string[];
+};
+
+/**
+ * Describes the message geospatial.StringArray.
+ * Use `create(StringArraySchema)` to create a new message.
+ */
+export const StringArraySchema: GenMessage<StringArray> = /*@__PURE__*/
+  messageDesc(file_geospatial, 19);
+
+/**
+ * Response with new columnar format
+ *
+ * @generated from message geospatial.GetBatchDataColumnarResponse
+ */
+export type GetBatchDataColumnarResponse = Message<"geospatial.GetBatchDataColumnarResponse"> & {
+  /**
+   * @generated from field: geospatial.ColumnarDataChunk columnar_data = 1;
+   */
+  columnarData?: ColumnarDataChunk;
+
+  /**
+   * @generated from field: int32 total_count = 2;
+   */
+  totalCount: number;
+
+  /**
+   * @generated from field: string generation_method = 3;
+   */
+  generationMethod: string;
+};
+
+/**
+ * Describes the message geospatial.GetBatchDataColumnarResponse.
+ * Use `create(GetBatchDataColumnarResponseSchema)` to create a new message.
+ */
+export const GetBatchDataColumnarResponseSchema: GenMessage<GetBatchDataColumnarResponse> = /*@__PURE__*/
+  messageDesc(file_geospatial, 20);
+
+/**
+ * Legacy streaming by chunks (DEPRECATED - use columnar format)
  *
  * @generated from message geospatial.GetBatchDataChunk
  */
@@ -540,5 +688,5 @@ export type GetBatchDataChunk = Message<"geospatial.GetBatchDataChunk"> & {
  * Use `create(GetBatchDataChunkSchema)` to create a new message.
  */
 export const GetBatchDataChunkSchema: GenMessage<GetBatchDataChunk> = /*@__PURE__*/
-  messageDesc(file_geospatial, 17);
+  messageDesc(file_geospatial, 21);
 

@@ -98,14 +98,7 @@ interface GrpcAPI {
     onData?: (data: unknown) => void
   ) => Promise<unknown[]>;
 
-  getBatchDataWorkerStreamed: (
-    bounds: { northeast: { latitude: number; longitude: number }; southwest: { latitude: number; longitude: number } },
-    dataTypes: string[],
-    maxPoints: number,
-    resolution?: number,
-    onProgress?: (progress: { processed: number; total: number; percentage: number; phase: string }) => void,
-    onChunkData?: (chunk: unknown) => void
-  ) => Promise<{ totalProcessed: number; processingTime: number; generationMethod: string; summary: Record<string, unknown>; dataSample?: unknown[] }>;
+  // getBatchDataWorkerStreamed removed - use getBatchDataOptimized instead
 
   getBatchDataChildProcessStreamed: (
     bounds: { northeast: { latitude: number; longitude: number }; southwest: { latitude: number; longitude: number } },

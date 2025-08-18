@@ -25,10 +25,19 @@ function sendProgressCoalesced(event: Electron.IpcMainEvent, data: { requestId: 
 }
 
 // Ultra-fast streaming data processor - runs directly in main process with yielding
-type GrpcDataPoint = { id?: string; location: { latitude: number; longitude: number; altitude?: number }; value: number; unit?: string; timestamp?: number; metadata?: Record<string, unknown> };
-type GrpcChunk = { data_points?: GrpcDataPoint[] };
+// New columnar data format for efficient large dataset processing
+type GrpcColumnarData = {
+  id: string[];              // Point IDs
+  x: number[];               // X coordinates (longitude)
+  y: number[];               // Y coordinates (latitude)  
+  z: number[];               // Z values (main value like elevation)
+  id_value: string[];        // ID value column
+  additional_data: Record<string, number[]>; // Dynamic additional columns (temperature, pressure, etc.)
+};
+type GrpcChunk = { columnar_data: GrpcColumnarData }; // Only columnar format now
 type ProcessingStats = { totalProcessed: number; avgValue: number; minValue: number; maxValue: number; dataTypes: string[]; processingTime: number; pointsPerSecond: number };
 type ChartMetadata = { totalPoints: number; chartPoints: number; samplingRatio: number; bounds: { lng: [number, number]; lat: [number, number]; value: [number, number] } };
+
 async function processDataStreamingInMainProcess(
   chunks: GrpcChunk[],
   requestId: string,
@@ -45,46 +54,47 @@ async function processDataStreamingInMainProcess(
   };
   
   const startTime = performance.now();
-  const totalPoints = chunks.reduce((sum, chunk) => sum + (chunk.data_points?.length || 0), 0);
+  
+  // Calculate total points from columnar format
+  const totalPoints = chunks.reduce((sum, chunk) => {
+    return sum + (chunk.columnar_data.x?.length || 0);
+  }, 0);
   
   // Process chunks with ULTRA micro-batching and frequent yielding
   for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
     const chunk = chunks[chunkIndex];
+    const data = chunk.columnar_data;
+    const pointCount = data.x?.length || 0;
+    const microBatchSize = 500; // Very small batches
     
-    if (chunk.data_points) {
-      // Process points in VERY small batches
-      const microBatchSize = 500; // Very small batches
+    for (let i = 0; i < pointCount; i += microBatchSize) {
+      const batchEnd = Math.min(i + microBatchSize, pointCount);
       
-      for (let i = 0; i < chunk.data_points.length; i += microBatchSize) {
-        const batchEnd = Math.min(i + microBatchSize, chunk.data_points.length);
+      // Process micro-batch of columnar data
+      for (let j = i; j < batchEnd; j++) {
+        const x = data.x[j];
+        const y = data.y[j];
+        const z = data.z[j];
         
-        // Process micro-batch
-        for (let j = i; j < batchEnd; j++) {
-          const point = chunk.data_points[j] as GrpcDataPoint;
-          
-          // Store essential data for charting (limited amount)
-          if (processedPoints.length < 10000) { // Reduced limit for performance
-            processedPoints.push([
-              point.location.longitude,
-              point.location.latitude,
-              point.value
-            ]);
-          }
-          
-          // Update statistics
-          stats.totalProcessed++;
-          stats.sum += point.value;
-          stats.minValue = Math.min(stats.minValue, point.value);
-          stats.maxValue = Math.max(stats.maxValue, point.value);
-          
-           if (point.metadata && typeof (point.metadata as any).sensor_type === 'string') {
-             stats.dataTypes.add((point.metadata as any).sensor_type as string);
-          }
+        // Store essential data for charting (limited amount)
+        if (processedPoints.length < 10000) { // Reduced limit for performance
+          processedPoints.push([x, y, z]);
         }
         
-        // Yield control after EVERY micro-batch to prevent blocking
-        await new Promise<void>((resolve) => { setImmediate(resolve as () => void); });
+        // Update statistics
+        stats.totalProcessed++;
+        stats.sum += z;
+        stats.minValue = Math.min(stats.minValue, z);
+        stats.maxValue = Math.max(stats.maxValue, z);
       }
+      
+      // Add data types from additional columns
+      Object.keys(data.additional_data || {}).forEach(key => {
+        stats.dataTypes.add(key);
+      });
+      
+      // Yield control after EVERY micro-batch to prevent blocking
+      await new Promise(resolve => setImmediate(resolve));
     }
     
     // Send progress update every chunk
@@ -228,19 +238,16 @@ async function installExtensions() {
 
 app.whenReady().then(createWindow).then(installExtensions);
 
-// 🎉 All gRPC IPC handlers now auto-generated!
-// See registerAutoGrpcHandlers() call above
 
 // Track in-flight streaming by requestId for cancellation
-const inflightStreams = new Map<string, { terminate: () => void; cancelGrpc?: () => boolean }>();
+const inflightStreams = new Map<string, { terminate: () => void }>();
 
 ipcMain.handle('grpc-stop-stream', async (_event, payload?: { requestId?: string }) => {
   try {
     const rid = payload?.requestId;
     if (rid && inflightStreams.has(rid)) {
       const ctx = inflightStreams.get(rid)!;
-      try { ctx.cancelGrpc?.(); } catch {}
-      try { ctx.terminate(); } catch {}
+      try { ctx.terminate(); } catch { /* Worker termination error ignored */ }
       inflightStreams.delete(rid);
       return { success: true, cancelled: true };
     }
@@ -251,7 +258,7 @@ ipcMain.handle('grpc-stop-stream', async (_event, payload?: { requestId?: string
   }
 });
 
-// NEW: Main Process Worker Threads - no external dependencies, no JSON files
+// Main Process Worker Threads
 ipcMain.on('grpc-start-child-process-stream', async (event, request) => {
   const { requestId, bounds, dataTypes, maxPoints, resolution } = request;
   
@@ -264,16 +271,24 @@ ipcMain.on('grpc-start-child-process-stream', async (event, request) => {
     });
     try {
       const totals = await (async () => {
-        // Fallback to one-shot chunk retrieval and forward to worker
+        // start gRPC stream and register cancel handle
         inflightStreams.set(requestId, { terminate: streamer.terminate });
         try {
-          const chunks = await autoMainGrpcClient.getBatchDataStreamed({ bounds, data_types: dataTypes, max_points: maxPoints, resolution });
-          let computedTotal = 0;
-          for (const chunk of chunks as Array<{ data_points?: Array<{ location: { latitude: number; longitude: number }; value: number }> }>) {
-            computedTotal += (chunk.data_points?.length || 0);
-            streamer.postChunk(chunk as unknown as { data_points?: Array<{ location: { latitude: number; longitude: number }; value: number; unit?: string; metadata?: Record<string, unknown> }>; total_chunks?: number });
+          const chunks = await autoMainGrpcClient.getBatchDataColumnarStreamed({
+            bounds, 
+            data_types: dataTypes, 
+            max_points: maxPoints, 
+            resolution
+          });
+          
+          // Process each chunk through the worker
+          for (const chunk of chunks) {
+            streamer.postChunk({ 
+              columnar_data: chunk
+            });
           }
-          return { totalPoints: computedTotal } as { totalPoints: number };
+          
+          return { totalPoints: chunks.reduce((sum, chunk) => sum + (chunk.points_in_chunk || 0), 0) };
         } finally {
           inflightStreams.delete(requestId);
         }
@@ -293,10 +308,28 @@ ipcMain.on('grpc-start-child-process-stream', async (event, request) => {
       return;
     } catch (workerError) {
       console.warn(`⚠️ Worker Threads failed, falling back to main-thread streaming for ${requestId}:`, workerError);
-      // Fallback: compute in main process with ultra-yielding
-      const fallbackChunks = await autoMainGrpcClient.getBatchDataStreamed({ bounds, data_types: dataTypes, max_points: maxPoints, resolution });
+      // Fallback: use columnar streaming
+      const fallbackChunks = await autoMainGrpcClient.getBatchDataColumnarStreamed({ 
+        bounds, 
+        data_types: dataTypes, 
+        max_points: maxPoints, 
+        resolution 
+      });
+      
+      // Convert columnar chunks to the format expected by processDataStreamingInMainProcess
+      const convertedChunks = fallbackChunks.map(chunk => ({ 
+        columnar_data: {
+          id: chunk.id || [],
+          x: chunk.x || [],
+          y: chunk.y || [],
+          z: chunk.z || [],
+          id_value: chunk.id_value || [],
+          additional_data: chunk.additional_data || {}
+        }
+      }));
+      
       const fallback = await processDataStreamingInMainProcess(
-        fallbackChunks,
+        convertedChunks,
         requestId,
         (progress) => {
           sendProgressCoalesced(event, {
@@ -370,13 +403,6 @@ ipcMain.on('grpc-get-chart-data', (event, { requestId, chunkSize = 1000, offset 
   }
 });
 
-// Legacy Web Worker streaming removed
-
-
-
-
-
-// 🗑️ Old manual handlers removed - now auto-generated!
 
 // Handle app shutdown
 app.on("before-quit", async (event) => {

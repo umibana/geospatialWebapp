@@ -67,8 +67,8 @@ export default function CsvProcessor() {
       const result = await window.electronAPI.showOpenDialog({
         properties: ['openFile'],
         filters: [
-          { name: 'CSV Files', extensions: ['csv'] },
-          { name: 'All Files', extensions: ['*'] }
+          { name: 'Archivos CSV', extensions: ['csv'] },
+          { name: 'Todos los Archivos', extensions: ['*'] }
         ]
       });
       
@@ -210,7 +210,7 @@ export default function CsvProcessor() {
         <table className="min-w-full border border-gray-300">
           <thead>
             <tr className="bg-gray-100">
-              <th className="border border-gray-300 px-2 py-2 text-left">Include</th>
+              <th className="border border-gray-300 px-2 py-2 text-left">Incluir</th>
               {previewHeaders.map((h) => (
                 <th key={h} className="border border-gray-300 px-2 py-2 text-left">
                   <div className="flex items-center gap-2">
@@ -220,7 +220,7 @@ export default function CsvProcessor() {
                       className="ml-1"
                       checked={columnIncluded[h] ?? true}
                       onChange={() => handleToggleColumn(h)}
-                      aria-label={`Include column ${h}`}
+                      aria-label={`Incluir columna ${h}`}
                     />
                     <ToggleGroup
                       type="single"
@@ -228,11 +228,11 @@ export default function CsvProcessor() {
                       onValueChange={(val) => val && handleChangeType(h, val as 'string' | 'number')}
                       className="ml-2"
                     >
-                      <ToggleGroupItem value="string" aria-label={`Set ${h} type to string`}>
-                        str
+                      <ToggleGroupItem value="string" aria-label={`Establecer tipo de ${h} como texto`}>
+                        txt
                       </ToggleGroupItem>
-                      <ToggleGroupItem value="number" aria-label={`Set ${h} type to number`}>
-                        num
+                      <ToggleGroupItem value="number" aria-label={`Establecer tipo de ${h} como número`}>
+                        núm
                       </ToggleGroupItem>
                     </ToggleGroup>
                   </div>
@@ -259,15 +259,15 @@ export default function CsvProcessor() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6">CSV File Processor</h2>
+      <h2 className="text-2xl font-bold mb-6">Procesador de Archivos CSV</h2>
       
       {/* File Selection */}
       <div className="mb-6">
-        <Button onClick={handleFileSelect} disabled={loading} aria-label="Select CSV File">
-          {loading ? 'Analyzing...' : 'Select CSV File'}
+        <Button onClick={handleFileSelect} disabled={loading} aria-label="Seleccionar Archivo CSV">
+          {loading ? 'Analizando...' : 'Seleccionar Archivo CSV'}
         </Button>
         {selectedFile && (
-          <p className="mt-2 text-sm text-gray-600">Selected: {fileName}</p>
+          <p className="mt-2 text-sm text-gray-600">Seleccionado: {fileName}</p>
         )}
       </div>
 
@@ -275,10 +275,10 @@ export default function CsvProcessor() {
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>CSV Preview and Mapping</DialogTitle>
+            <DialogTitle>Vista Previa y Mapeo de CSV</DialogTitle>
           </DialogHeader>
           <div className="p-4 space-y-4">
-            <p className="text-sm text-gray-600">Header and first row preview. Select columns, adjust types, and set variable mapping.</p>
+            <p className="text-sm text-gray-600">Vista previa del encabezado y primera fila. Selecciona columnas, ajusta tipos y establece el mapeo de variables.</p>
             {previewTable}
             {/* Axis selection & metrics selection */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -343,19 +343,19 @@ export default function CsvProcessor() {
             </div>
             {/* Mapping inside dialog */}
             <div>
-              <h4 className="text-md font-semibold mb-2">Variable Mapping</h4>
+              <h4 className="text-md font-semibold mb-2">Mapeo de Variables</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {(['id', 'x', 'y', 'z', 'depth'] as const).map((variable) => (
                   <div key={variable}>
                     <label className="block text-sm font-medium mb-1">
-                      {variable.toUpperCase()} {(['x', 'y'].includes(variable)) && '(Required)'}
+                      {variable.toUpperCase()} {(['x', 'y'].includes(variable)) && '(Requerido)'}
                     </label>
                     <select
                       value={manualMapping[variable]}
                       onChange={(e) => handleMappingChange(variable, e.target.value)}
                       className="w-full p-2 border border-gray-300 rounded"
                     >
-                      <option value="">— Select Column —</option>
+                      <option value="">— Seleccionar Columna —</option>
                       {previewHeaders.filter((h) => columnIncluded[h]).map((h) => (
                         <option key={h} value={h}>
                           {h} ({columnTypes[h]})
@@ -369,22 +369,22 @@ export default function CsvProcessor() {
           </div>
           <DialogFooter>
             <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-600">Columns selected: {Object.values(columnIncluded).filter(Boolean).length}</div>
+              <div className="text-sm text-gray-600">Columnas seleccionadas: {Object.values(columnIncluded).filter(Boolean).length}</div>
               <div className="flex gap-2">
                 <Button
                   onClick={() => setPreviewOpen(false)}
                   variant="secondary"
-                  aria-label="Close preview"
+                  aria-label="Cerrar vista previa"
                   className="bg-gray-200 hover:bg-gray-300 text-gray-900"
                 >
-                  Close
+                  Cerrar
                 </Button>
                 <Button
                   onClick={() => setPreviewOpen(false)}
-                  aria-label="Confirm preview"
+                  aria-label="Confirmar vista previa"
                   className="bg-blue-600 hover:bg-blue-700"
                 >
-                  Confirm
+                  Confirmar
                 </Button>
               </div>
             </div>
@@ -395,14 +395,14 @@ export default function CsvProcessor() {
       {/* Column Information */}
       {columns.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-3">Detected Columns</h3>
+          <h3 className="text-lg font-semibold mb-3">Columnas Detectadas</h3>
           <div className="overflow-x-auto">
             <table className="min-w-full border border-gray-300">
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="border border-gray-300 px-4 py-2">Column Name</th>
-                  <th className="border border-gray-300 px-4 py-2">Type</th>
-                  <th className="border border-gray-300 px-4 py-2">Auto-Detected</th>
+                  <th className="border border-gray-300 px-4 py-2">Nombre de Columna</th>
+                  <th className="border border-gray-300 px-4 py-2">Tipo</th>
+                  <th className="border border-gray-300 px-4 py-2">Auto-Detectado</th>
                 </tr>
               </thead>
               <tbody>
@@ -431,7 +431,7 @@ export default function CsvProcessor() {
             disabled={loading || !manualMapping.x || !manualMapping.y}
             className="bg-blue-600 hover:bg-blue-700"
           >
-            {loading ? 'Processing...' : 'Process File'}
+            {loading ? 'Procesando...' : 'Procesar Archivo'}
           </Button>
           <div className="mt-4">
             <CsvScatterChart
@@ -448,29 +448,29 @@ export default function CsvProcessor() {
       {/* Processing Results */}
       {processingResult && (
         <div className="mb-6 p-4 border rounded">
-          <h3 className="text-lg font-semibold mb-3">Processing Results</h3>
+          <h3 className="text-lg font-semibold mb-3">Resultados del Procesamiento</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <p className="text-sm font-medium">Total Rows</p>
+              <p className="text-sm font-medium">Filas Totales</p>
               <p className="text-2xl">{processingResult.total_rows_processed}</p>
             </div>
             <div>
-              <p className="text-sm font-medium">Valid Rows</p>
+              <p className="text-sm font-medium">Filas Válidas</p>
               <p className="text-2xl text-green-600">{processingResult.valid_rows}</p>
             </div>
             <div>
-              <p className="text-sm font-medium">Invalid Rows</p>
+              <p className="text-sm font-medium">Filas Inválidas</p>
               <p className="text-2xl text-red-600">{processingResult.invalid_rows}</p>
             </div>
             <div>
-              <p className="text-sm font-medium">Processing Time</p>
+              <p className="text-sm font-medium">Tiempo de Procesamiento</p>
               <p className="text-2xl">{processingResult.processing_time}</p>
             </div>
           </div>
           
           {processingResult.errors.length > 0 && (
             <div className="mt-4">
-              <p className="text-sm font-medium text-red-600">Errors:</p>
+              <p className="text-sm font-medium text-red-600">Errores:</p>
               <ul className="list-disc list-inside text-sm">
                 {processingResult.errors.map((error, index) => (
                   <li key={index}>{error}</li>
@@ -484,41 +484,41 @@ export default function CsvProcessor() {
       {/* Data Statistics */}
       {dataStats && dataStats.has_data && (
         <div className="p-4 border rounded">
-          <h3 className="text-lg font-semibold mb-3">Loaded Data Statistics</h3>
-          <p className="mb-2"><strong>Total Points:</strong> {dataStats.total_points}</p>
+          <h3 className="text-lg font-semibold mb-3">Estadísticas de Datos Cargados</h3>
+          <p className="mb-2"><strong>Puntos Totales:</strong> {dataStats.total_points}</p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
             {dataStats.x_stats && Object.keys(dataStats.x_stats).length > 0 && (
               <div>
-                <p className="font-medium">X Coordinates</p>
-                <p>Min: {dataStats.x_stats.min?.toFixed(6)}</p>
-                <p>Max: {dataStats.x_stats.max?.toFixed(6)}</p>
-                <p>Avg: {dataStats.x_stats.avg?.toFixed(6)}</p>
+                <p className="font-medium">Coordenadas X</p>
+                <p>Mín: {dataStats.x_stats.min?.toFixed(6)}</p>
+                <p>Máx: {dataStats.x_stats.max?.toFixed(6)}</p>
+                <p>Prom: {dataStats.x_stats.avg?.toFixed(6)}</p>
               </div>
             )}
             
             {dataStats.y_stats && Object.keys(dataStats.y_stats).length > 0 && (
               <div>
-                <p className="font-medium">Y Coordinates</p>
-                <p>Min: {dataStats.y_stats.min?.toFixed(6)}</p>
-                <p>Max: {dataStats.y_stats.max?.toFixed(6)}</p>
-                <p>Avg: {dataStats.y_stats.avg?.toFixed(6)}</p>
+                <p className="font-medium">Coordenadas Y</p>
+                <p>Mín: {dataStats.y_stats.min?.toFixed(6)}</p>
+                <p>Máx: {dataStats.y_stats.max?.toFixed(6)}</p>
+                <p>Prom: {dataStats.y_stats.avg?.toFixed(6)}</p>
               </div>
             )}
             
             {dataStats.z_stats && Object.keys(dataStats.z_stats).length > 0 && (
               <div>
-                <p className="font-medium">Z Values</p>
-                <p>Min: {dataStats.z_stats.min?.toFixed(6)}</p>
-                <p>Max: {dataStats.z_stats.max?.toFixed(6)}</p>
-                <p>Avg: {dataStats.z_stats.avg?.toFixed(6)}</p>
+                <p className="font-medium">Valores Z</p>
+                <p>Mín: {dataStats.z_stats.min?.toFixed(6)}</p>
+                <p>Máx: {dataStats.z_stats.max?.toFixed(6)}</p>
+                <p>Prom: {dataStats.z_stats.avg?.toFixed(6)}</p>
               </div>
             )}
           </div>
           
           {dataStats.available_columns.length > 0 && (
             <div className="mt-4">
-              <p className="font-medium">Available Columns:</p>
+              <p className="font-medium">Columnas Disponibles:</p>
               <p className="text-sm">{dataStats.available_columns.join(', ')}</p>
             </div>
           )}
