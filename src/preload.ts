@@ -1,9 +1,7 @@
-import { exposeAutoGrpcContext } from "./grpc-auto/auto-context";
 import exposeContexts from "./helpers/ipc/context-exposer";
 import { contextBridge, ipcRenderer } from 'electron';
 
 exposeContexts();
-exposeAutoGrpcContext();
 
 // Electron API for file dialogs and system functionality
 const electronAPI = {

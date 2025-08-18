@@ -29,6 +29,10 @@ interface ElectronAPI {
   showOpenDialog: (options: Electron.OpenDialogOptions) => Promise<Electron.OpenDialogReturnValue>;
   showSaveDialog: (options: Electron.SaveDialogOptions) => Promise<Electron.SaveDialogReturnValue>;
   readCsvPreview: (filePath: string, numRows?: number) => Promise<{ headers: string[]; rows: string[][]; delimiter: string }>;
+  // IPC communication methods for worker thread processing
+  send: (channel: string, data: any) => void;
+  on: (channel: string, listener: (event: any, data: any) => void) => void;
+  off: (channel: string, listener: (event: any, data: any) => void) => void;
 }
 
 declare interface Window {
