@@ -4,6 +4,7 @@ package geospatial;
 
 import "geospatial.proto";
 import "files.proto";
+import "projects.proto";
 
 // Aggregated service combining all RPC methods from different domains
 service GeospatialService {
@@ -25,4 +26,21 @@ service GeospatialService {
   rpc SendFile(SendFileRequest) returns (SendFileResponse);
   rpc GetLoadedDataStats(GetLoadedDataStatsRequest) returns (GetLoadedDataStatsResponse);
   rpc GetLoadedDataChunk(GetLoadedDataChunkRequest) returns (GetLoadedDataChunkResponse);
+  
+  // Project management methods (from projects.proto)
+  rpc CreateProject(CreateProjectRequest) returns (CreateProjectResponse);
+  rpc GetProjects(GetProjectsRequest) returns (GetProjectsResponse);
+  rpc GetProject(GetProjectRequest) returns (GetProjectResponse);
+  rpc UpdateProject(UpdateProjectRequest) returns (UpdateProjectResponse);
+  rpc DeleteProject(DeleteProjectRequest) returns (DeleteProjectResponse);
+  
+  // File management methods (from projects.proto)
+  rpc CreateFile(CreateFileRequest) returns (CreateFileResponse);
+  rpc GetProjectFiles(GetProjectFilesRequest) returns (GetProjectFilesResponse);
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+  
+  // Enhanced CSV processing for projects (from projects.proto)
+  rpc AnalyzeCsvForProject(AnalyzeCsvForProjectRequest) returns (AnalyzeCsvForProjectResponse);
+  rpc ProcessDataset(ProcessDatasetRequest) returns (ProcessDatasetResponse);
+  rpc GetDatasetData(GetDatasetDataRequest) returns (GetDatasetDataResponse);
 }

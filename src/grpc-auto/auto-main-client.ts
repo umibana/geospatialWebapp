@@ -217,6 +217,149 @@ class AutoMainGrpcClient {
       });
     });
   }
+
+  async createProject(request: Types.CreateProjectRequest): Promise<Types.CreateProjectResponse> {
+    return new Promise((resolve, reject) => {
+      const client = this.ensureClient();
+      client.CreateProject(request, (error: any, response: any) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+
+  async getProjects(request: Types.GetProjectsRequest): Promise<Types.GetProjectsResponse> {
+    return new Promise((resolve, reject) => {
+      const client = this.ensureClient();
+      client.GetProjects(request, (error: any, response: any) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+
+  async getProject(request: Types.GetProjectRequest): Promise<Types.GetProjectResponse> {
+    return new Promise((resolve, reject) => {
+      const client = this.ensureClient();
+      client.GetProject(request, (error: any, response: any) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+
+  async updateProject(request: Types.UpdateProjectRequest): Promise<Types.UpdateProjectResponse> {
+    return new Promise((resolve, reject) => {
+      const client = this.ensureClient();
+      client.UpdateProject(request, (error: any, response: any) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+
+  async deleteProject(request: Types.DeleteProjectRequest): Promise<Types.DeleteProjectResponse> {
+    return new Promise((resolve, reject) => {
+      const client = this.ensureClient();
+      client.DeleteProject(request, (error: any, response: any) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+
+  async createFile(request: Types.CreateFileRequest): Promise<Types.CreateFileResponse> {
+    return new Promise((resolve, reject) => {
+      const client = this.ensureClient();
+      client.CreateFile(request, (error: any, response: any) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+
+  async getProjectFiles(request: Types.GetProjectFilesRequest): Promise<Types.GetProjectFilesResponse> {
+    return new Promise((resolve, reject) => {
+      const client = this.ensureClient();
+      client.GetProjectFiles(request, (error: any, response: any) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+
+  async deleteFile(request: Types.DeleteFileRequest): Promise<Types.DeleteFileResponse> {
+    return new Promise((resolve, reject) => {
+      const client = this.ensureClient();
+      client.DeleteFile(request, (error: any, response: any) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+
+  async analyzeCsvForProject(request: Types.AnalyzeCsvForProjectRequest): Promise<Types.AnalyzeCsvForProjectResponse> {
+    return new Promise((resolve, reject) => {
+      const client = this.ensureClient();
+      client.AnalyzeCsvForProject(request, (error: any, response: any) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+
+  async processDataset(request: Types.ProcessDatasetRequest): Promise<Types.ProcessDatasetResponse> {
+    return new Promise((resolve, reject) => {
+      const client = this.ensureClient();
+      client.ProcessDataset(request, (error: any, response: any) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+
+  async getDatasetData(request: Types.GetDatasetDataRequest): Promise<Types.GetDatasetDataResponse> {
+    return new Promise((resolve, reject) => {
+      const client = this.ensureClient();
+      client.GetDatasetData(request, (error: any, response: any) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
 }
 
 export const autoMainGrpcClient = new AutoMainGrpcClient();

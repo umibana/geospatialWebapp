@@ -23,10 +23,12 @@ import grpc
 # Import the generated protobuf files
 import geospatial_pb2
 import files_pb2
+import projects_pb2
 import main_service_pb2_grpc
 
-# Import the data generator
+# Import the data generator and database manager
 from data_generator import data_generator
+from database import DatabaseManager
 
 
 class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
@@ -34,7 +36,8 @@ class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
     
     def __init__(self):
         self.version = "1.0.0"
-        print("🌍 GeospatialService initialized")
+        self.db = DatabaseManager()
+        print("🌍 GeospatialService initialized with database")
     
     def GetFeatures(self, request, context):
         """Get geospatial features within specified bounds"""
@@ -980,6 +983,459 @@ class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(f"Columnar streamed data error: {str(e)}")
 
+    # ========== Project Management Methods ==========
+    
+    def CreateProject(self, request, context):
+        """Create a new project"""
+        try:
+            print(f"📁 Creating project: {request.name}")
+            
+            project_data = self.db.create_project(request.name, request.description)
+            
+            response = projects_pb2.CreateProjectResponse()
+            response.success = True
+            
+            # Populate project data
+            project = response.project
+            project.id = project_data['id']
+            project.name = project_data['name']
+            project.description = project_data['description']
+            project.created_at = project_data['created_at']
+            project.updated_at = project_data['updated_at']
+            
+            print(f"✅ Project created: {project.id}")
+            return response
+            
+        except Exception as e:
+            print(f"❌ Error creating project: {e}")
+            response = projects_pb2.CreateProjectResponse()
+            response.success = False
+            response.error_message = str(e)
+            return response
+    
+    def GetProjects(self, request, context):
+        """Get projects with pagination"""
+        try:
+            print(f"📁 Getting projects: limit={request.limit}, offset={request.offset}")
+            
+            projects_data, total_count = self.db.get_projects(request.limit or 100, request.offset)
+            
+            response = projects_pb2.GetProjectsResponse()
+            response.total_count = total_count
+            
+            for project_data in projects_data:
+                project = response.projects.add()
+                project.id = project_data['id']
+                project.name = project_data['name']
+                project.description = project_data['description']
+                project.created_at = project_data['created_at']
+                project.updated_at = project_data['updated_at']
+            
+            print(f"✅ Retrieved {len(projects_data)} projects")
+            return response
+            
+        except Exception as e:
+            print(f"❌ Error getting projects: {e}")
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
+            return projects_pb2.GetProjectsResponse()
+    
+    def GetProject(self, request, context):
+        """Get a single project"""
+        try:
+            print(f"📁 Getting project: {request.project_id}")
+            
+            project_data = self.db.get_project(request.project_id)
+            
+            response = projects_pb2.GetProjectResponse()
+            if project_data:
+                response.success = True
+                project = response.project
+                project.id = project_data['id']
+                project.name = project_data['name']
+                project.description = project_data['description']
+                project.created_at = project_data['created_at']
+                project.updated_at = project_data['updated_at']
+            else:
+                response.success = False
+                response.error_message = "Project not found"
+            
+            return response
+            
+        except Exception as e:
+            print(f"❌ Error getting project: {e}")
+            response = projects_pb2.GetProjectResponse()
+            response.success = False
+            response.error_message = str(e)
+            return response
+    
+    def UpdateProject(self, request, context):
+        """Update a project"""
+        try:
+            print(f"📁 Updating project: {request.project_id}")
+            
+            success = self.db.update_project(request.project_id, request.name, request.description)
+            
+            response = projects_pb2.UpdateProjectResponse()
+            if success:
+                # Get updated project data
+                project_data = self.db.get_project(request.project_id)
+                if project_data:
+                    response.success = True
+                    project = response.project
+                    project.id = project_data['id']
+                    project.name = project_data['name']
+                    project.description = project_data['description']
+                    project.created_at = project_data['created_at']
+                    project.updated_at = project_data['updated_at']
+                else:
+                    response.success = False
+                    response.error_message = "Project not found after update"
+            else:
+                response.success = False
+                response.error_message = "Project not found"
+            
+            return response
+            
+        except Exception as e:
+            print(f"❌ Error updating project: {e}")
+            response = projects_pb2.UpdateProjectResponse()
+            response.success = False
+            response.error_message = str(e)
+            return response
+    
+    def DeleteProject(self, request, context):
+        """Delete a project"""
+        try:
+            print(f"📁 Deleting project: {request.project_id}")
+            
+            success = self.db.delete_project(request.project_id)
+            
+            response = projects_pb2.DeleteProjectResponse()
+            response.success = success
+            if not success:
+                response.error_message = "Project not found"
+            
+            return response
+            
+        except Exception as e:
+            print(f"❌ Error deleting project: {e}")
+            response = projects_pb2.DeleteProjectResponse()
+            response.success = False
+            response.error_message = str(e)
+            return response
+    
+    # ========== File Management Methods ==========
+    
+    def CreateFile(self, request, context):
+        """Create a new file"""
+        try:
+            print(f"📄 Creating file: {request.name} for project {request.project_id}")
+            
+            file_data = self.db.create_file(
+                request.project_id,
+                request.name,
+                int(request.dataset_type),
+                request.original_filename,
+                request.file_content
+            )
+            
+            response = projects_pb2.CreateFileResponse()
+            response.success = True
+            
+            # Populate file data
+            file = response.file
+            file.id = file_data['id']
+            file.project_id = file_data['project_id']
+            file.name = file_data['name']
+            file.dataset_type = file_data['dataset_type']
+            file.original_filename = file_data['original_filename']
+            file.file_size = file_data['file_size']
+            file.created_at = file_data['created_at']
+            
+            print(f"✅ File created: {file.id}")
+            return response
+            
+        except Exception as e:
+            print(f"❌ Error creating file: {e}")
+            response = projects_pb2.CreateFileResponse()
+            response.success = False
+            response.error_message = str(e)
+            return response
+    
+    def GetProjectFiles(self, request, context):
+        """Get all files for a project"""
+        try:
+            print(f"📄 Getting files for project: {request.project_id}")
+            
+            files_data = self.db.get_project_files(request.project_id)
+            
+            response = projects_pb2.GetProjectFilesResponse()
+            
+            for file_data in files_data:
+                file = response.files.add()
+                file.id = file_data['id']
+                file.project_id = file_data['project_id']
+                file.name = file_data['name']
+                file.dataset_type = file_data['dataset_type']
+                file.original_filename = file_data['original_filename']
+                file.file_size = file_data['file_size']
+                file.created_at = file_data['created_at']
+            
+            print(f"✅ Retrieved {len(files_data)} files")
+            return response
+            
+        except Exception as e:
+            print(f"❌ Error getting project files: {e}")
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
+            return projects_pb2.GetProjectFilesResponse()
+    
+    def DeleteFile(self, request, context):
+        """Delete a file"""
+        try:
+            print(f"📄 Deleting file: {request.file_id}")
+            
+            success = self.db.delete_file(request.file_id)
+            
+            response = projects_pb2.DeleteFileResponse()
+            response.success = success
+            if not success:
+                response.error_message = "File not found"
+            
+            return response
+            
+        except Exception as e:
+            print(f"❌ Error deleting file: {e}")
+            response = projects_pb2.DeleteFileResponse()
+            response.success = False
+            response.error_message = str(e)
+            return response
+    
+    # ========== Enhanced CSV Processing Methods ==========
+    
+    def AnalyzeCsvForProject(self, request, context):
+        """Analyze CSV file for project with enhanced column type detection"""
+        try:
+            print(f"📊 Analyzing CSV for project file: {request.file_id}")
+            
+            # Get file content
+            file_content = self.db.get_file_content(request.file_id)
+            if not file_content:
+                response = projects_pb2.AnalyzeCsvForProjectResponse()
+                response.success = False
+                response.error_message = "File not found"
+                return response
+            
+            # Analyze CSV content (reusing existing CSV logic)
+            import csv
+            import io
+            
+            csv_text = file_content.decode('utf-8')
+            csv_reader = csv.reader(io.StringIO(csv_text))
+            
+            headers = next(csv_reader)
+            preview_rows = []
+            row_count = 0
+            
+            for i, row in enumerate(csv_reader):
+                if i < 5:  # Preview first 5 rows
+                    preview_row = projects_pb2.PreviewRow()
+                    preview_row.values.extend(row)
+                    preview_rows.append(preview_row)
+                row_count += 1
+            
+            # Simple type detection
+            suggested_types = []
+            suggested_mappings = {}
+            
+            for header in headers:
+                # Try to detect numeric vs categorical
+                is_numeric = False
+                # Simple heuristics for column type detection
+                if any(keyword in header.lower() for keyword in ['x', 'east', 'longitude', 'lon']):
+                    suggested_types.append(projects_pb2.COLUMN_TYPE_NUMERIC)
+                    suggested_mappings[header] = "x"
+                elif any(keyword in header.lower() for keyword in ['y', 'north', 'latitude', 'lat']):
+                    suggested_types.append(projects_pb2.COLUMN_TYPE_NUMERIC)
+                    suggested_mappings[header] = "y"
+                elif any(keyword in header.lower() for keyword in ['z', 'elevation', 'height', 'depth']):
+                    suggested_types.append(projects_pb2.COLUMN_TYPE_NUMERIC)
+                    suggested_mappings[header] = "z"
+                elif any(keyword in header.lower() for keyword in ['id', 'name', 'type', 'category']):
+                    suggested_types.append(projects_pb2.COLUMN_TYPE_CATEGORICAL)
+                    suggested_mappings[header] = ""
+                else:
+                    suggested_types.append(projects_pb2.COLUMN_TYPE_NUMERIC)  # Default to numeric
+                    suggested_mappings[header] = ""
+            
+            response = projects_pb2.AnalyzeCsvForProjectResponse()
+            response.success = True
+            response.headers.extend(headers)
+            response.preview_rows.extend(preview_rows)
+            response.suggested_types.extend(suggested_types)
+            response.suggested_mappings.update(suggested_mappings)
+            response.total_rows = row_count
+            
+            print(f"✅ CSV analyzed: {len(headers)} columns, {row_count} rows")
+            return response
+            
+        except Exception as e:
+            print(f"❌ Error analyzing CSV: {e}")
+            response = projects_pb2.AnalyzeCsvForProjectResponse()
+            response.success = False
+            response.error_message = str(e)
+            return response
+    
+    def ProcessDataset(self, request, context):
+        """Process dataset with column mappings"""
+        try:
+            print(f"📊 Processing dataset for file: {request.file_id}")
+            
+            # Get file content
+            file_content = self.db.get_file_content(request.file_id)
+            if not file_content:
+                response = projects_pb2.ProcessDatasetResponse()
+                response.success = False
+                response.error_message = "File not found"
+                return response
+            
+            # Process CSV with column mappings
+            import csv
+            import io
+            
+            csv_text = file_content.decode('utf-8')
+            csv_reader = csv.reader(io.StringIO(csv_text))
+            
+            headers = next(csv_reader)
+            
+            # Create mapping dict
+            column_map = {}
+            for mapping in request.column_mappings:
+                if mapping.column_type != projects_pb2.COLUMN_TYPE_UNUSED:
+                    column_map[mapping.column_name] = {
+                        'type': mapping.column_type,
+                        'field': mapping.mapped_field,
+                        'is_coordinate': mapping.is_coordinate
+                    }
+            
+            # Process data rows
+            processed_rows = []
+            row_count = 0
+            
+            for row in csv_reader:
+                if len(row) != len(headers):
+                    continue  # Skip malformed rows
+                
+                processed_row = {}
+                
+                for i, (header, value) in enumerate(zip(headers, row)):
+                    if header in column_map:
+                        mapping = column_map[header]
+                        field_name = mapping['field'] if mapping['field'] else header
+                        
+                        # Type conversion
+                        if mapping['type'] == projects_pb2.COLUMN_TYPE_NUMERIC:
+                            try:
+                                processed_row[field_name] = str(float(value))
+                            except ValueError:
+                                processed_row[field_name] = "0.0"
+                        else:  # CATEGORICAL
+                            processed_row[field_name] = str(value)
+                
+                processed_rows.append(processed_row)
+                row_count += 1
+            
+            # Create dataset record
+            column_mappings_list = []
+            for mapping in request.column_mappings:
+                mapping_dict = {
+                    'column_name': mapping.column_name,
+                    'column_type': int(mapping.column_type),
+                    'mapped_field': mapping.mapped_field,
+                    'is_coordinate': mapping.is_coordinate
+                }
+                column_mappings_list.append(mapping_dict)
+            
+            dataset_data = self.db.create_dataset(request.file_id, row_count, column_mappings_list)
+            
+            # Store processed data
+            self.db.store_dataset_data(dataset_data['id'], processed_rows)
+            
+            response = projects_pb2.ProcessDatasetResponse()
+            response.success = True
+            response.processed_rows = row_count
+            
+            # Populate dataset data
+            dataset = response.dataset
+            dataset.id = dataset_data['id']
+            dataset.file_id = dataset_data['file_id']
+            dataset.total_rows = dataset_data['total_rows']
+            dataset.current_page = dataset_data['current_page']
+            dataset.created_at = dataset_data['created_at']
+            
+            # Add column mappings
+            for mapping_dict in dataset_data['column_mappings']:
+                mapping = dataset.column_mappings.add()
+                mapping.column_name = mapping_dict['column_name']
+                mapping.column_type = mapping_dict['column_type']
+                mapping.mapped_field = mapping_dict['mapped_field']
+                mapping.is_coordinate = mapping_dict['is_coordinate']
+            
+            print(f"✅ Dataset processed: {row_count} rows")
+            return response
+            
+        except Exception as e:
+            print(f"❌ Error processing dataset: {e}")
+            response = projects_pb2.ProcessDatasetResponse()
+            response.success = False
+            response.error_message = str(e)
+            return response
+    
+    def GetDatasetData(self, request, context):
+        """Get dataset data with pagination"""
+        try:
+            print(f"📊 Getting dataset data: {request.dataset_id}, page {request.page}")
+            
+            # Get dataset info first
+            dataset = self.db.get_dataset_by_id(request.dataset_id)
+            if not dataset:
+                response = projects_pb2.GetDatasetDataResponse()
+                return response
+            
+            # Get paginated data
+            rows, total_rows, total_pages = self.db.get_dataset_data(
+                request.dataset_id, 
+                request.page or 1, 
+                request.page_size or 100
+            )
+            
+            response = projects_pb2.GetDatasetDataResponse()
+            response.total_rows = total_rows
+            response.current_page = request.page or 1
+            response.total_pages = total_pages
+            
+            # Add rows
+            for row_data in rows:
+                row = response.rows.add()
+                row.fields.update(row_data)
+            
+            # Add column mappings
+            for mapping_dict in dataset['column_mappings']:
+                mapping = response.column_mappings.add()
+                mapping.column_name = mapping_dict['column_name']
+                mapping.column_type = mapping_dict['column_type']
+                mapping.mapped_field = mapping_dict['mapped_field']
+                mapping.is_coordinate = mapping_dict['is_coordinate']
+            
+            print(f"✅ Retrieved {len(rows)} dataset rows")
+            return response
+            
+        except Exception as e:
+            print(f"❌ Error getting dataset data: {e}")
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
+            return projects_pb2.GetDatasetDataResponse()
 
 
 def find_free_port(start_port=50051):

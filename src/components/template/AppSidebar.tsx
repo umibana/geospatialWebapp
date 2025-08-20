@@ -1,4 +1,4 @@
-import {  Home, TestTube, TestTube2, TestTubeDiagonal, Wifi } from "lucide-react"
+import {  Home, TestTube, TestTube2, TestTubeDiagonal, Wifi, FolderOpen } from "lucide-react"
 
 import {
   Sidebar,
@@ -26,6 +26,11 @@ const navigationItems = [
     title: "Home",
     url: "/",
     icon: Home,
+  },
+  {
+    title: "Projects",
+    url: "/projects",
+    icon: FolderOpen,
   },
   {
     title: t("titleSecondPage"),

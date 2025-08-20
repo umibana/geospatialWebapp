@@ -16,6 +16,17 @@ export interface AutoGrpcContext {
   sendFile: (request: SendFileRequest) => Promise<SendFileResponse>;
   getLoadedDataStats: (request: GetLoadedDataStatsRequest) => Promise<GetLoadedDataStatsResponse>;
   getLoadedDataChunk: (request: GetLoadedDataChunkRequest) => Promise<GetLoadedDataChunkResponse>;
+  createProject: (request: CreateProjectRequest) => Promise<CreateProjectResponse>;
+  getProjects: (request: GetProjectsRequest) => Promise<GetProjectsResponse>;
+  getProject: (request: GetProjectRequest) => Promise<GetProjectResponse>;
+  updateProject: (request: UpdateProjectRequest) => Promise<UpdateProjectResponse>;
+  deleteProject: (request: DeleteProjectRequest) => Promise<DeleteProjectResponse>;
+  createFile: (request: CreateFileRequest) => Promise<CreateFileResponse>;
+  getProjectFiles: (request: GetProjectFilesRequest) => Promise<GetProjectFilesResponse>;
+  deleteFile: (request: DeleteFileRequest) => Promise<DeleteFileResponse>;
+  analyzeCsvForProject: (request: AnalyzeCsvForProjectRequest) => Promise<AnalyzeCsvForProjectResponse>;
+  processDataset: (request: ProcessDatasetRequest) => Promise<ProcessDatasetResponse>;
+  getDatasetData: (request: GetDatasetDataRequest) => Promise<GetDatasetDataResponse>;
 }
 
 const autoGrpcContext: AutoGrpcContext = {
@@ -30,6 +41,17 @@ const autoGrpcContext: AutoGrpcContext = {
   sendFile: autoGrpcClient.sendFile.bind(autoGrpcClient),
   getLoadedDataStats: autoGrpcClient.getLoadedDataStats.bind(autoGrpcClient),
   getLoadedDataChunk: autoGrpcClient.getLoadedDataChunk.bind(autoGrpcClient),
+  createProject: autoGrpcClient.createProject.bind(autoGrpcClient),
+  getProjects: autoGrpcClient.getProjects.bind(autoGrpcClient),
+  getProject: autoGrpcClient.getProject.bind(autoGrpcClient),
+  updateProject: autoGrpcClient.updateProject.bind(autoGrpcClient),
+  deleteProject: autoGrpcClient.deleteProject.bind(autoGrpcClient),
+  createFile: autoGrpcClient.createFile.bind(autoGrpcClient),
+  getProjectFiles: autoGrpcClient.getProjectFiles.bind(autoGrpcClient),
+  deleteFile: autoGrpcClient.deleteFile.bind(autoGrpcClient),
+  analyzeCsvForProject: autoGrpcClient.analyzeCsvForProject.bind(autoGrpcClient),
+  processDataset: autoGrpcClient.processDataset.bind(autoGrpcClient),
+  getDatasetData: autoGrpcClient.getDatasetData.bind(autoGrpcClient),
 };
 
 export function exposeAutoGrpcContext() {

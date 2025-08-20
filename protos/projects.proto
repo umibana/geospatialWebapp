@@ -1,0 +1,198 @@
+syntax = "proto3";
+
+package geospatial;
+
+// ========== Project Management Messages ==========
+
+// Helper messages for complex data structures
+message PreviewRow {
+  repeated string values = 1;
+}
+
+message DataRow {
+  map<string, string> fields = 1;
+}
+
+// Project data structure
+message Project {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  int64 created_at = 4;  // Unix timestamp
+  int64 updated_at = 5;  // Unix timestamp
+}
+
+// File data structure with dataset type
+message File {
+  string id = 1;
+  string project_id = 2;
+  string name = 3;
+  DatasetType dataset_type = 4;
+  string original_filename = 5;
+  int64 file_size = 6;
+  int64 created_at = 7;  // Unix timestamp
+}
+
+// Dataset type enumeration
+enum DatasetType {
+  DATASET_TYPE_UNSPECIFIED = 0;
+  DATASET_TYPE_SAMPLE = 1;
+  DATASET_TYPE_DRILL_HOLES = 2;
+  DATASET_TYPE_BLOCK = 3;
+}
+
+// Column type enumeration for CSV processing
+enum ColumnType {
+  COLUMN_TYPE_UNSPECIFIED = 0;
+  COLUMN_TYPE_NUMERIC = 1;
+  COLUMN_TYPE_CATEGORICAL = 2;
+  COLUMN_TYPE_UNUSED = 3;
+}
+
+// Column mapping for CSV processing
+message ColumnMapping {
+  string column_name = 1;
+  ColumnType column_type = 2;
+  string mapped_field = 3;  // "x", "y", "z", or custom field name
+  bool is_coordinate = 4;   // true for X, Y, Z coordinates
+}
+
+// Dataset data structure
+message Dataset {
+  string id = 1;
+  string file_id = 2;
+  int32 total_rows = 3;
+  int32 current_page = 4;
+  repeated ColumnMapping column_mappings = 5;
+  int64 created_at = 6;  // Unix timestamp
+}
+
+// ========== Request/Response Messages ==========
+
+// Project CRUD operations
+message CreateProjectRequest {
+  string name = 1;
+  string description = 2;
+}
+
+message CreateProjectResponse {
+  Project project = 1;
+  bool success = 2;
+  string error_message = 3;
+}
+
+message GetProjectsRequest {
+  int32 limit = 1;
+  int32 offset = 2;
+}
+
+message GetProjectsResponse {
+  repeated Project projects = 1;
+  int32 total_count = 2;
+}
+
+message GetProjectRequest {
+  string project_id = 1;
+}
+
+message GetProjectResponse {
+  Project project = 1;
+  bool success = 2;
+  string error_message = 3;
+}
+
+message UpdateProjectRequest {
+  string project_id = 1;
+  string name = 2;
+  string description = 3;
+}
+
+message UpdateProjectResponse {
+  Project project = 1;
+  bool success = 2;
+  string error_message = 3;
+}
+
+message DeleteProjectRequest {
+  string project_id = 1;
+}
+
+message DeleteProjectResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// File operations
+message CreateFileRequest {
+  string project_id = 1;
+  string name = 2;
+  DatasetType dataset_type = 3;
+  string original_filename = 4;
+  bytes file_content = 5;
+}
+
+message CreateFileResponse {
+  File file = 1;
+  bool success = 2;
+  string error_message = 3;
+}
+
+message GetProjectFilesRequest {
+  string project_id = 1;
+}
+
+message GetProjectFilesResponse {
+  repeated File files = 1;
+}
+
+message DeleteFileRequest {
+  string file_id = 1;
+}
+
+message DeleteFileResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// Enhanced CSV analysis with column type detection
+message AnalyzeCsvForProjectRequest {
+  string file_id = 1;
+}
+
+message AnalyzeCsvForProjectResponse {
+  repeated string headers = 1;
+  repeated PreviewRow preview_rows = 2;
+  repeated ColumnType suggested_types = 3;  // AI-suggested column types
+  map<string, string> suggested_mappings = 4;  // column_name -> suggested field (x/y/z)
+  int32 total_rows = 5;
+  bool success = 6;
+  string error_message = 7;
+}
+
+// Dataset processing with column mappings
+message ProcessDatasetRequest {
+  string file_id = 1;
+  repeated ColumnMapping column_mappings = 2;
+}
+
+message ProcessDatasetResponse {
+  Dataset dataset = 1;
+  bool success = 2;
+  string error_message = 3;
+  int32 processed_rows = 4;
+}
+
+// Get dataset data with pagination
+message GetDatasetDataRequest {
+  string dataset_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message GetDatasetDataResponse {
+  repeated DataRow rows = 1;  // Dynamic row data
+  int32 total_rows = 2;
+  int32 current_page = 3;
+  int32 total_pages = 4;
+  repeated ColumnMapping column_mappings = 5;
+}

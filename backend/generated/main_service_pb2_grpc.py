@@ -5,6 +5,7 @@ import warnings
 
 import files_pb2 as files__pb2
 import geospatial_pb2 as geospatial__pb2
+import projects_pb2 as projects__pb2
 
 GRPC_GENERATED_VERSION = '1.74.0'
 GRPC_VERSION = grpc.__version__
@@ -91,6 +92,61 @@ class GeospatialServiceStub(object):
                 request_serializer=files__pb2.GetLoadedDataChunkRequest.SerializeToString,
                 response_deserializer=files__pb2.GetLoadedDataChunkResponse.FromString,
                 _registered_method=True)
+        self.CreateProject = channel.unary_unary(
+                '/geospatial.GeospatialService/CreateProject',
+                request_serializer=projects__pb2.CreateProjectRequest.SerializeToString,
+                response_deserializer=projects__pb2.CreateProjectResponse.FromString,
+                _registered_method=True)
+        self.GetProjects = channel.unary_unary(
+                '/geospatial.GeospatialService/GetProjects',
+                request_serializer=projects__pb2.GetProjectsRequest.SerializeToString,
+                response_deserializer=projects__pb2.GetProjectsResponse.FromString,
+                _registered_method=True)
+        self.GetProject = channel.unary_unary(
+                '/geospatial.GeospatialService/GetProject',
+                request_serializer=projects__pb2.GetProjectRequest.SerializeToString,
+                response_deserializer=projects__pb2.GetProjectResponse.FromString,
+                _registered_method=True)
+        self.UpdateProject = channel.unary_unary(
+                '/geospatial.GeospatialService/UpdateProject',
+                request_serializer=projects__pb2.UpdateProjectRequest.SerializeToString,
+                response_deserializer=projects__pb2.UpdateProjectResponse.FromString,
+                _registered_method=True)
+        self.DeleteProject = channel.unary_unary(
+                '/geospatial.GeospatialService/DeleteProject',
+                request_serializer=projects__pb2.DeleteProjectRequest.SerializeToString,
+                response_deserializer=projects__pb2.DeleteProjectResponse.FromString,
+                _registered_method=True)
+        self.CreateFile = channel.unary_unary(
+                '/geospatial.GeospatialService/CreateFile',
+                request_serializer=projects__pb2.CreateFileRequest.SerializeToString,
+                response_deserializer=projects__pb2.CreateFileResponse.FromString,
+                _registered_method=True)
+        self.GetProjectFiles = channel.unary_unary(
+                '/geospatial.GeospatialService/GetProjectFiles',
+                request_serializer=projects__pb2.GetProjectFilesRequest.SerializeToString,
+                response_deserializer=projects__pb2.GetProjectFilesResponse.FromString,
+                _registered_method=True)
+        self.DeleteFile = channel.unary_unary(
+                '/geospatial.GeospatialService/DeleteFile',
+                request_serializer=projects__pb2.DeleteFileRequest.SerializeToString,
+                response_deserializer=projects__pb2.DeleteFileResponse.FromString,
+                _registered_method=True)
+        self.AnalyzeCsvForProject = channel.unary_unary(
+                '/geospatial.GeospatialService/AnalyzeCsvForProject',
+                request_serializer=projects__pb2.AnalyzeCsvForProjectRequest.SerializeToString,
+                response_deserializer=projects__pb2.AnalyzeCsvForProjectResponse.FromString,
+                _registered_method=True)
+        self.ProcessDataset = channel.unary_unary(
+                '/geospatial.GeospatialService/ProcessDataset',
+                request_serializer=projects__pb2.ProcessDatasetRequest.SerializeToString,
+                response_deserializer=projects__pb2.ProcessDatasetResponse.FromString,
+                _registered_method=True)
+        self.GetDatasetData = channel.unary_unary(
+                '/geospatial.GeospatialService/GetDatasetData',
+                request_serializer=projects__pb2.GetDatasetDataRequest.SerializeToString,
+                response_deserializer=projects__pb2.GetDatasetDataResponse.FromString,
+                _registered_method=True)
 
 
 class GeospatialServiceServicer(object):
@@ -167,6 +223,75 @@ class GeospatialServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def CreateProject(self, request, context):
+        """Project management methods (from projects.proto)
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetProjects(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetProject(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UpdateProject(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DeleteProject(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CreateFile(self, request, context):
+        """File management methods (from projects.proto)
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetProjectFiles(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DeleteFile(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AnalyzeCsvForProject(self, request, context):
+        """Enhanced CSV processing for projects (from projects.proto)
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ProcessDataset(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetDatasetData(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_GeospatialServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -224,6 +349,61 @@ def add_GeospatialServiceServicer_to_server(servicer, server):
                     servicer.GetLoadedDataChunk,
                     request_deserializer=files__pb2.GetLoadedDataChunkRequest.FromString,
                     response_serializer=files__pb2.GetLoadedDataChunkResponse.SerializeToString,
+            ),
+            'CreateProject': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateProject,
+                    request_deserializer=projects__pb2.CreateProjectRequest.FromString,
+                    response_serializer=projects__pb2.CreateProjectResponse.SerializeToString,
+            ),
+            'GetProjects': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetProjects,
+                    request_deserializer=projects__pb2.GetProjectsRequest.FromString,
+                    response_serializer=projects__pb2.GetProjectsResponse.SerializeToString,
+            ),
+            'GetProject': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetProject,
+                    request_deserializer=projects__pb2.GetProjectRequest.FromString,
+                    response_serializer=projects__pb2.GetProjectResponse.SerializeToString,
+            ),
+            'UpdateProject': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateProject,
+                    request_deserializer=projects__pb2.UpdateProjectRequest.FromString,
+                    response_serializer=projects__pb2.UpdateProjectResponse.SerializeToString,
+            ),
+            'DeleteProject': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteProject,
+                    request_deserializer=projects__pb2.DeleteProjectRequest.FromString,
+                    response_serializer=projects__pb2.DeleteProjectResponse.SerializeToString,
+            ),
+            'CreateFile': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateFile,
+                    request_deserializer=projects__pb2.CreateFileRequest.FromString,
+                    response_serializer=projects__pb2.CreateFileResponse.SerializeToString,
+            ),
+            'GetProjectFiles': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetProjectFiles,
+                    request_deserializer=projects__pb2.GetProjectFilesRequest.FromString,
+                    response_serializer=projects__pb2.GetProjectFilesResponse.SerializeToString,
+            ),
+            'DeleteFile': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteFile,
+                    request_deserializer=projects__pb2.DeleteFileRequest.FromString,
+                    response_serializer=projects__pb2.DeleteFileResponse.SerializeToString,
+            ),
+            'AnalyzeCsvForProject': grpc.unary_unary_rpc_method_handler(
+                    servicer.AnalyzeCsvForProject,
+                    request_deserializer=projects__pb2.AnalyzeCsvForProjectRequest.FromString,
+                    response_serializer=projects__pb2.AnalyzeCsvForProjectResponse.SerializeToString,
+            ),
+            'ProcessDataset': grpc.unary_unary_rpc_method_handler(
+                    servicer.ProcessDataset,
+                    request_deserializer=projects__pb2.ProcessDatasetRequest.FromString,
+                    response_serializer=projects__pb2.ProcessDatasetResponse.SerializeToString,
+            ),
+            'GetDatasetData': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetDatasetData,
+                    request_deserializer=projects__pb2.GetDatasetDataRequest.FromString,
+                    response_serializer=projects__pb2.GetDatasetDataResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -524,6 +704,303 @@ class GeospatialService(object):
             '/geospatial.GeospatialService/GetLoadedDataChunk',
             files__pb2.GetLoadedDataChunkRequest.SerializeToString,
             files__pb2.GetLoadedDataChunkResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CreateProject(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/geospatial.GeospatialService/CreateProject',
+            projects__pb2.CreateProjectRequest.SerializeToString,
+            projects__pb2.CreateProjectResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetProjects(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/geospatial.GeospatialService/GetProjects',
+            projects__pb2.GetProjectsRequest.SerializeToString,
+            projects__pb2.GetProjectsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetProject(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/geospatial.GeospatialService/GetProject',
+            projects__pb2.GetProjectRequest.SerializeToString,
+            projects__pb2.GetProjectResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UpdateProject(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/geospatial.GeospatialService/UpdateProject',
+            projects__pb2.UpdateProjectRequest.SerializeToString,
+            projects__pb2.UpdateProjectResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DeleteProject(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/geospatial.GeospatialService/DeleteProject',
+            projects__pb2.DeleteProjectRequest.SerializeToString,
+            projects__pb2.DeleteProjectResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CreateFile(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/geospatial.GeospatialService/CreateFile',
+            projects__pb2.CreateFileRequest.SerializeToString,
+            projects__pb2.CreateFileResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetProjectFiles(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/geospatial.GeospatialService/GetProjectFiles',
+            projects__pb2.GetProjectFilesRequest.SerializeToString,
+            projects__pb2.GetProjectFilesResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DeleteFile(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/geospatial.GeospatialService/DeleteFile',
+            projects__pb2.DeleteFileRequest.SerializeToString,
+            projects__pb2.DeleteFileResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def AnalyzeCsvForProject(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/geospatial.GeospatialService/AnalyzeCsvForProject',
+            projects__pb2.AnalyzeCsvForProjectRequest.SerializeToString,
+            projects__pb2.AnalyzeCsvForProjectResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ProcessDataset(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/geospatial.GeospatialService/ProcessDataset',
+            projects__pb2.ProcessDatasetRequest.SerializeToString,
+            projects__pb2.ProcessDatasetResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetDatasetData(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/geospatial.GeospatialService/GetDatasetData',
+            projects__pb2.GetDatasetDataRequest.SerializeToString,
+            projects__pb2.GetDatasetDataResponse.FromString,
             options,
             channel_credentials,
             insecure,

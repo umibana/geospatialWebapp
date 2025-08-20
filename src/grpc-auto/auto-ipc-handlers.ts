@@ -143,5 +143,115 @@ export function registerAutoGrpcHandlers() {
     }
   });
 
+  // Unary method: CreateProject
+  ipcMain.handle('grpc-createproject', async (event, request) => {
+    try {
+      return await autoMainGrpcClient.createProject(request);
+    } catch (error) {
+      console.error('gRPC createProject failed:', error);
+      throw error;
+    }
+  });
+
+  // Unary method: GetProjects
+  ipcMain.handle('grpc-getprojects', async (event, request) => {
+    try {
+      return await autoMainGrpcClient.getProjects(request);
+    } catch (error) {
+      console.error('gRPC getProjects failed:', error);
+      throw error;
+    }
+  });
+
+  // Unary method: GetProject
+  ipcMain.handle('grpc-getproject', async (event, request) => {
+    try {
+      return await autoMainGrpcClient.getProject(request);
+    } catch (error) {
+      console.error('gRPC getProject failed:', error);
+      throw error;
+    }
+  });
+
+  // Unary method: UpdateProject
+  ipcMain.handle('grpc-updateproject', async (event, request) => {
+    try {
+      return await autoMainGrpcClient.updateProject(request);
+    } catch (error) {
+      console.error('gRPC updateProject failed:', error);
+      throw error;
+    }
+  });
+
+  // Unary method: DeleteProject
+  ipcMain.handle('grpc-deleteproject', async (event, request) => {
+    try {
+      return await autoMainGrpcClient.deleteProject(request);
+    } catch (error) {
+      console.error('gRPC deleteProject failed:', error);
+      throw error;
+    }
+  });
+
+  // Unary method: CreateFile
+  ipcMain.handle('grpc-createfile', async (event, request) => {
+    try {
+      return await autoMainGrpcClient.createFile(request);
+    } catch (error) {
+      console.error('gRPC createFile failed:', error);
+      throw error;
+    }
+  });
+
+  // Unary method: GetProjectFiles
+  ipcMain.handle('grpc-getprojectfiles', async (event, request) => {
+    try {
+      return await autoMainGrpcClient.getProjectFiles(request);
+    } catch (error) {
+      console.error('gRPC getProjectFiles failed:', error);
+      throw error;
+    }
+  });
+
+  // Unary method: DeleteFile
+  ipcMain.handle('grpc-deletefile', async (event, request) => {
+    try {
+      return await autoMainGrpcClient.deleteFile(request);
+    } catch (error) {
+      console.error('gRPC deleteFile failed:', error);
+      throw error;
+    }
+  });
+
+  // Unary method: AnalyzeCsvForProject
+  ipcMain.handle('grpc-analyzecsvforproject', async (event, request) => {
+    try {
+      return await autoMainGrpcClient.analyzeCsvForProject(request);
+    } catch (error) {
+      console.error('gRPC analyzeCsvForProject failed:', error);
+      throw error;
+    }
+  });
+
+  // Unary method: ProcessDataset
+  ipcMain.handle('grpc-processdataset', async (event, request) => {
+    try {
+      return await autoMainGrpcClient.processDataset(request);
+    } catch (error) {
+      console.error('gRPC processDataset failed:', error);
+      throw error;
+    }
+  });
+
+  // Unary method: GetDatasetData
+  ipcMain.handle('grpc-getdatasetdata', async (event, request) => {
+    try {
+      return await autoMainGrpcClient.getDatasetData(request);
+    } catch (error) {
+      console.error('gRPC getDatasetData failed:', error);
+      throw error;
+    }
+  });
+
   console.log('✅ Auto-generated gRPC IPC handlers registered successfully');
 }

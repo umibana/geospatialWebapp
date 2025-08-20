@@ -90,6 +90,50 @@ export class AutoGrpcClient {
   async getLoadedDataChunk(request: GetLoadedDataChunkRequest): Promise<GetLoadedDataChunkResponse> {
     return this.callMethod('GetLoadedDataChunk', request);
   }
+
+  async createProject(request: CreateProjectRequest): Promise<CreateProjectResponse> {
+    return this.callMethod('CreateProject', request);
+  }
+
+  async getProjects(request: GetProjectsRequest): Promise<GetProjectsResponse> {
+    return this.callMethod('GetProjects', request);
+  }
+
+  async getProject(request: GetProjectRequest): Promise<GetProjectResponse> {
+    return this.callMethod('GetProject', request);
+  }
+
+  async updateProject(request: UpdateProjectRequest): Promise<UpdateProjectResponse> {
+    return this.callMethod('UpdateProject', request);
+  }
+
+  async deleteProject(request: DeleteProjectRequest): Promise<DeleteProjectResponse> {
+    return this.callMethod('DeleteProject', request);
+  }
+
+  async createFile(request: CreateFileRequest): Promise<CreateFileResponse> {
+    return this.callMethod('CreateFile', request);
+  }
+
+  async getProjectFiles(request: GetProjectFilesRequest): Promise<GetProjectFilesResponse> {
+    return this.callMethod('GetProjectFiles', request);
+  }
+
+  async deleteFile(request: DeleteFileRequest): Promise<DeleteFileResponse> {
+    return this.callMethod('DeleteFile', request);
+  }
+
+  async analyzeCsvForProject(request: AnalyzeCsvForProjectRequest): Promise<AnalyzeCsvForProjectResponse> {
+    return this.callMethod('AnalyzeCsvForProject', request);
+  }
+
+  async processDataset(request: ProcessDatasetRequest): Promise<ProcessDatasetResponse> {
+    return this.callMethod('ProcessDataset', request);
+  }
+
+  async getDatasetData(request: GetDatasetDataRequest): Promise<GetDatasetDataResponse> {
+    return this.callMethod('GetDatasetData', request);
+  }
 }
 
 export const autoGrpcClient = new AutoGrpcClient();
