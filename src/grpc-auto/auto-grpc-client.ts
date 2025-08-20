@@ -5,8 +5,9 @@ import { ipcRenderer } from 'electron';
 import * as FilesTypes from '../generated/files_pb';
 import * as GeospatialTypes from '../generated/geospatial_pb';
 import * as MainserviceTypes from '../generated/main_service_pb';
+import * as ProjectsTypes from '../generated/projects_pb';
 
-type Types = typeof FilesTypes & typeof GeospatialTypes & typeof MainserviceTypes;
+type Types = typeof FilesTypes & typeof GeospatialTypes & typeof MainserviceTypes & typeof ProjectsTypes;
 
 export class AutoGrpcClient {
   private async callMethod<T, R>(methodName: string, request: T): Promise<R> {
@@ -121,6 +122,10 @@ export class AutoGrpcClient {
 
   async deleteFile(request: DeleteFileRequest): Promise<DeleteFileResponse> {
     return this.callMethod('DeleteFile', request);
+  }
+
+  async getProjectDatasets(request: GetProjectDatasetsRequest): Promise<GetProjectDatasetsResponse> {
+    return this.callMethod('GetProjectDatasets', request);
   }
 
   async analyzeCsvForProject(request: AnalyzeCsvForProjectRequest): Promise<AnalyzeCsvForProjectResponse> {

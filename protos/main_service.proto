@@ -39,6 +39,9 @@ service GeospatialService {
   rpc GetProjectFiles(GetProjectFilesRequest) returns (GetProjectFilesResponse);
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
   
+  // Dataset management methods (from projects.proto)
+  rpc GetProjectDatasets(GetProjectDatasetsRequest) returns (GetProjectDatasetsResponse);
+  
   // Enhanced CSV processing for projects (from projects.proto)
   rpc AnalyzeCsvForProject(AnalyzeCsvForProjectRequest) returns (AnalyzeCsvForProjectResponse);
   rpc ProcessDataset(ProcessDatasetRequest) returns (ProcessDatasetResponse);

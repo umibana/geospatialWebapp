@@ -7,8 +7,9 @@ import { join } from 'path';
 import * as FilesTypes from '../generated/files_pb';
 import * as GeospatialTypes from '../generated/geospatial_pb';
 import * as MainserviceTypes from '../generated/main_service_pb';
+import * as ProjectsTypes from '../generated/projects_pb';
 
-type Types = typeof FilesTypes & typeof GeospatialTypes & typeof MainserviceTypes;
+type Types = typeof FilesTypes & typeof GeospatialTypes & typeof MainserviceTypes & typeof ProjectsTypes;
 
 class AutoMainGrpcClient {
   private client: any = null;
@@ -313,6 +314,19 @@ class AutoMainGrpcClient {
     return new Promise((resolve, reject) => {
       const client = this.ensureClient();
       client.DeleteFile(request, (error: any, response: any) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+
+  async getProjectDatasets(request: Types.GetProjectDatasetsRequest): Promise<Types.GetProjectDatasetsResponse> {
+    return new Promise((resolve, reject) => {
+      const client = this.ensureClient();
+      client.GetProjectDatasets(request, (error: any, response: any) => {
         if (error) {
           reject(error);
         } else {

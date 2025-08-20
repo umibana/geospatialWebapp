@@ -1,6 +1,13 @@
-Error: name 'geospatial_pb2_grpc' is not defined
+Error: module 'projects_pb2' has no attribute 'GetDatasetBoundariesRequest'
 Traceback (most recent call last):
-  File "/Users/hans/Projects/Usach/geospatialWebapp/backend/grpc_server.py", line 817, in serve
-    geospatial_pb2_grpc.add_GeospatialServiceServicer_to_server(
-    ^^^^^^^^^^^^^^^^^^^
-NameError: name 'geospatial_pb2_grpc' is not defined. Did you mean: 'geospatial_pb2'?
+  File "/Users/hans/Projects/Usach/geospatialWebapp/backend/grpc_server.py", line 1545, in serve
+    main_service_pb2_grpc.add_GeospatialServiceServicer_to_server(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        GeospatialServicer(), server
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/hans/Projects/Usach/geospatialWebapp/backend/generated/main_service_pb2_grpc.py", line 439, in add_GeospatialServiceServicer_to_server
+    request_deserializer=projects__pb2.GetDatasetBoundariesRequest.FromString,
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'projects_pb2' has no attribute 'GetDatasetBoundariesRequest'. Did you mean: 'GetDatasetDataRequest'?

@@ -7,7 +7,8 @@ import uuid
 import time
 import json
 import os
-from typing import List, Dict, Any, Optional, Tuple
+import math
+from typing import List, Dict, Any, Optional, Tuple, Union
 from contextlib import contextmanager
 
 class DatabaseManager:
@@ -212,6 +213,29 @@ class DatabaseManager:
             cursor.execute('SELECT file_content FROM files WHERE id = ?', (file_id,))
             row = cursor.fetchone()
             return row[0] if row else None
+
+    def get_datasets_by_project(self, project_id: str) -> List[Dict[str, Any]]:
+        """Get all datasets for a project (via files)."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT d.id, d.file_id, d.total_rows, d.current_page, 
+                       d.column_mappings, d.created_at, f.name as file_name,
+                       f.dataset_type, f.original_filename
+                FROM datasets d
+                JOIN files f ON d.file_id = f.id
+                WHERE f.project_id = ?
+                ORDER BY d.created_at DESC
+            ''', (project_id,))
+            
+            datasets = []
+            for row in cursor.fetchall():
+                dataset = dict(row)
+                # Parse JSON column mappings
+                dataset['column_mappings'] = json.loads(dataset['column_mappings']) if dataset['column_mappings'] else []
+                datasets.append(dataset)
+            
+            return datasets
     
     def delete_file(self, file_id: str) -> bool:
         """Delete a file and all associated datasets."""
@@ -316,3 +340,108 @@ class DatabaseManager:
             total_pages = (total_rows + page_size - 1) // page_size
             
             return rows, total_rows, total_pages
+    
+    def get_dataset_boundaries(self, dataset_id: str, column_names: List[str] = None) -> Dict[str, Dict[str, Union[float, int]]]:
+        """
+        Calculate min/max boundaries for numeric columns in a dataset.
+        
+        Args:
+            dataset_id: The dataset ID
+            column_names: Specific columns to analyze (None = all numeric columns)
+            
+        Returns:
+            Dict mapping column names to {min_value, max_value, valid_count}
+        """
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Get column mappings to know which columns are numeric
+                cursor.execute('SELECT column_mappings FROM datasets WHERE id = ?', (dataset_id,))
+                dataset_row = cursor.fetchone()
+                
+                if not dataset_row:
+                    return {}
+                
+                column_mappings = json.loads(dataset_row[0])
+                
+                # Determine which columns to analyze
+                target_columns = []
+                if column_names:
+                    # Use specified columns
+                    target_columns = column_names
+                else:
+                    # Use all numeric/coordinate columns
+                    target_columns = [
+                        mapping['column_name'] 
+                        for mapping in column_mappings 
+                        if mapping['column_type'] in [1, 2] or mapping['is_coordinate']  # NUMERIC or CATEGORICAL or coordinates
+                    ]
+                
+                print(f"📐 Database boundaries calculation:")
+                print(f"   Dataset: {dataset_id}")
+                print(f"   Column mappings: {len(column_mappings)}")
+                print(f"   Target columns: {target_columns}")
+                
+                if not target_columns:
+                    print(f"   ❌ No target columns found for boundaries calculation")
+                    return {}
+                
+                # Get all dataset data for boundary calculation
+                cursor.execute('SELECT data FROM dataset_data WHERE dataset_id = ?', (dataset_id,))
+                
+                # Initialize boundary tracking
+                boundaries = {}
+                for col in target_columns:
+                    boundaries[col] = {
+                        'values': [],
+                        'min_value': float('inf'),
+                        'max_value': float('-inf'),
+                        'valid_count': 0
+                    }
+                
+                # Process all rows to calculate boundaries
+                for row in cursor.fetchall():
+                    data = json.loads(row[0])
+                    
+                    for col in target_columns:
+                        if col in data:
+                            try:
+                                # Try to convert to float
+                                value = float(data[col])
+                                if not (math.isnan(value) or math.isinf(value)):
+                                    boundaries[col]['min_value'] = min(boundaries[col]['min_value'], value)
+                                    boundaries[col]['max_value'] = max(boundaries[col]['max_value'], value)
+                                    boundaries[col]['valid_count'] += 1
+                            except (ValueError, TypeError):
+                                # Skip non-numeric values
+                                pass
+                
+                # Clean up results and handle edge cases
+                result = {}
+                for col, boundary in boundaries.items():
+                    if boundary['valid_count'] > 0:
+                        # Handle single value case
+                        if boundary['min_value'] == boundary['max_value']:
+                            # Add small padding for single values
+                            padding = abs(boundary['min_value']) * 0.1 if boundary['min_value'] != 0 else 1.0
+                            result[col] = {
+                                'min_value': boundary['min_value'] - padding,
+                                'max_value': boundary['max_value'] + padding,
+                                'valid_count': boundary['valid_count']
+                            }
+                        else:
+                            # Add 5% padding to the range for better visualization
+                            value_range = boundary['max_value'] - boundary['min_value']
+                            padding = value_range * 0.05
+                            result[col] = {
+                                'min_value': boundary['min_value'] - padding,
+                                'max_value': boundary['max_value'] + padding,
+                                'valid_count': boundary['valid_count']
+                            }
+                
+                return result
+                
+        except Exception as e:
+            print(f"Error calculating dataset boundaries: {e}")
+            return {}

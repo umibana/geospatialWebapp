@@ -1190,6 +1190,42 @@ class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return projects_pb2.GetProjectFilesResponse()
+
+    def GetProjectDatasets(self, request, context):
+        """Get all datasets for a project"""
+        try:
+            print(f"📊 Getting datasets for project: {request.project_id}")
+            
+            datasets = self.db.get_datasets_by_project(request.project_id)
+            
+            response = projects_pb2.GetProjectDatasetsResponse()
+            
+            for dataset_data in datasets:
+                dataset = response.datasets.add()
+                dataset.id = dataset_data['id']
+                dataset.file_id = dataset_data['file_id']
+                dataset.file_name = dataset_data['file_name']
+                dataset.dataset_type = dataset_data['dataset_type']
+                dataset.original_filename = dataset_data['original_filename']
+                dataset.total_rows = dataset_data['total_rows']
+                dataset.created_at = dataset_data['created_at']
+                
+                # Add column mappings
+                for mapping in dataset_data['column_mappings']:
+                    col_mapping = dataset.column_mappings.add()
+                    col_mapping.column_name = mapping['column_name']
+                    col_mapping.column_type = mapping['column_type']
+                    col_mapping.mapped_field = mapping['mapped_field']
+                    col_mapping.is_coordinate = mapping['is_coordinate']
+            
+            print(f"✅ Found {len(datasets)} datasets")
+            return response
+            
+        except Exception as e:
+            print(f"❌ Error getting project datasets: {e}")
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
+            return projects_pb2.GetProjectDatasetsResponse()
     
     def DeleteFile(self, request, context):
         """Delete a file"""
@@ -1428,6 +1464,23 @@ class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
                 mapping.mapped_field = mapping_dict['mapped_field']
                 mapping.is_coordinate = mapping_dict['is_coordinate']
             
+            # Calculate and add data boundaries for efficient chart scaling
+            # Always calculate for chart visualization (page_size <= 15000)
+            if request.page_size <= 15000:  
+                print(f"📐 Calculating boundaries for dataset {request.dataset_id}")
+                boundaries = self.db.get_dataset_boundaries(request.dataset_id)
+                print(f"📐 Found {len(boundaries)} column boundaries: {list(boundaries.keys())}")
+                
+                for col_name, boundary_data in boundaries.items():
+                    boundary = response.data_boundaries.add()
+                    boundary.column_name = col_name
+                    boundary.min_value = boundary_data['min_value']
+                    boundary.max_value = boundary_data['max_value']
+                    boundary.valid_count = boundary_data['valid_count']
+                    print(f"   📐 {col_name}: {boundary_data['min_value']:.2f} to {boundary_data['max_value']:.2f} ({boundary_data['valid_count']} values)")
+            else:
+                print(f"📐 Skipping boundaries calculation for large request (page_size={request.page_size})")
+            
             print(f"✅ Retrieved {len(rows)} dataset rows")
             return response
             
@@ -1436,6 +1489,9 @@ class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return projects_pb2.GetDatasetDataResponse()
+
+    # Note: Data boundaries are now calculated directly in GetDatasetData method above
+    # No separate boundaries method needed - simpler and more efficient!
 
 
 def find_free_port(start_port=50051):

@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Edit, Plus, FolderOpen, Upload } from 'lucide-react';
+import { Trash2, Edit, Plus, FolderOpen, Upload, BarChart3, Database, Eye } from 'lucide-react';
+import DatasetViewer from './DatasetViewer';
 
 // Import generated types
 import { DatasetType } from '@/generated/projects_pb';
@@ -35,6 +36,16 @@ interface FileData {
   created_at: number;
 }
 
+interface DatasetData {
+  id: string;
+  file_id: string;
+  file_name: string;
+  dataset_type: number;
+  original_filename: string;
+  total_rows: number;
+  created_at: number;
+}
+
 const datasetTypeLabels = {
   [DatasetType.SAMPLE]: 'Sample',
   [DatasetType.DRILL_HOLES]: 'Drill Holes',
@@ -53,8 +64,13 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [selectedProject, setSelectedProject] = useState<ProjectData | null>(null);
   const [projectFiles, setProjectFiles] = useState<FileData[]>([]);
+  const [projectDatasets, setProjectDatasets] = useState<DatasetData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // View states
+  const [currentView, setCurrentView] = useState<'projects' | 'datasets' | 'dataset-viewer'>('projects');
+  const [selectedDataset, setSelectedDataset] = useState<DatasetData | null>(null);
 
   // Dialog states
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -103,6 +119,33 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
     } catch (err) {
       console.error('Error loading project files:', err);
       setError('Failed to load project files');
+    }
+  };
+
+  const loadProjectDatasets = async (projectId: string) => {
+    try {
+      const response = await window.autoGrpc.getProjectDatasets({ project_id: projectId });
+      setProjectDatasets(response.datasets || []);
+    } catch (err) {
+      console.error('Error loading project datasets:', err);
+      setError('Failed to load project datasets');
+    }
+  };
+
+  const handleDatasetClick = (dataset: DatasetData) => {
+    setSelectedDataset(dataset);
+    setCurrentView('dataset-viewer');
+  };
+
+  const handleBackToProjects = () => {
+    setCurrentView('projects');
+    setSelectedDataset(null);
+  };
+
+  const handleViewDatasets = () => {
+    if (selectedProject) {
+      loadProjectDatasets(selectedProject.id);
+      setCurrentView('datasets');
     }
   };
 
@@ -269,6 +312,120 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  // Conditional rendering based on current view
+  if (currentView === 'dataset-viewer' && selectedDataset) {
+    return (
+      <DatasetViewer
+        datasetId={selectedDataset.id}
+        datasetName={selectedDataset.file_name}
+        onBack={handleBackToProjects}
+      />
+    );
+  }
+
+  if (currentView === 'datasets' && selectedProject) {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Button variant="outline" onClick={() => setCurrentView('projects')}>
+              <FolderOpen className="mr-2 h-4 w-4" />
+              Back to Projects
+            </Button>
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">
+                {selectedProject.name} - Datasets
+              </h2>
+              <p className="text-muted-foreground">
+                {projectDatasets.length} dataset(s) processed
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-4">
+            <p className="text-red-800">{error}</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setError(null)}
+              className="mt-2"
+            >
+              Dismiss
+            </Button>
+          </div>
+        )}
+
+        {/* Datasets List */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Database className="mr-2 h-5 w-5" />
+              Processed Datasets
+            </CardTitle>
+            <CardDescription>
+              Click on a dataset to visualize the data
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <p className="text-muted-foreground">Loading datasets...</p>
+            ) : projectDatasets.length === 0 ? (
+              <div className="text-center py-8">
+                <Database className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No datasets found</p>
+                <p className="text-sm text-muted-foreground mt-1">Process some CSV files to create datasets</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {projectDatasets.map((dataset) => (
+                  <div
+                    key={dataset.id}
+                    className="p-4 border rounded-lg cursor-pointer transition-colors hover:border-blue-300 hover:bg-blue-50"
+                    onClick={() => handleDatasetClick(dataset)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2">
+                          <h4 className="font-semibold">{dataset.file_name}</h4>
+                          <Badge className={datasetTypeBadgeColors[dataset.dataset_type as DatasetType]}>
+                            {datasetTypeLabels[dataset.dataset_type as DatasetType]}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {dataset.original_filename} • {dataset.total_rows.toLocaleString()} rows
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Processed: {formatDate(dataset.created_at)}
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDatasetClick(dataset);
+                          }}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View
+                        </Button>
+                        <BarChart3 className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -413,13 +570,22 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
             <CardTitle className="flex items-center justify-between">
               <span>{selectedProject ? `${selectedProject.name} Files` : 'Select a Project'}</span>
               {selectedProject && (
-                <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm">
-                      <Upload className="mr-2 h-4 w-4" />
-                      Upload File
-                    </Button>
-                  </DialogTrigger>
+                <div className="flex items-center space-x-2">
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={handleViewDatasets}
+                  >
+                    <Database className="mr-2 h-4 w-4" />
+                    View Datasets
+                  </Button>
+                  <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm">
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload File
+                      </Button>
+                    </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Upload File</DialogTitle>
@@ -479,6 +645,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
+                </div>
               )}
             </CardTitle>
             <CardDescription>

@@ -24,6 +24,7 @@ export interface AutoGrpcContext {
   createFile: (request: CreateFileRequest) => Promise<CreateFileResponse>;
   getProjectFiles: (request: GetProjectFilesRequest) => Promise<GetProjectFilesResponse>;
   deleteFile: (request: DeleteFileRequest) => Promise<DeleteFileResponse>;
+  getProjectDatasets: (request: GetProjectDatasetsRequest) => Promise<GetProjectDatasetsResponse>;
   analyzeCsvForProject: (request: AnalyzeCsvForProjectRequest) => Promise<AnalyzeCsvForProjectResponse>;
   processDataset: (request: ProcessDatasetRequest) => Promise<ProcessDatasetResponse>;
   getDatasetData: (request: GetDatasetDataRequest) => Promise<GetDatasetDataResponse>;
@@ -49,6 +50,7 @@ const autoGrpcContext: AutoGrpcContext = {
   createFile: autoGrpcClient.createFile.bind(autoGrpcClient),
   getProjectFiles: autoGrpcClient.getProjectFiles.bind(autoGrpcClient),
   deleteFile: autoGrpcClient.deleteFile.bind(autoGrpcClient),
+  getProjectDatasets: autoGrpcClient.getProjectDatasets.bind(autoGrpcClient),
   analyzeCsvForProject: autoGrpcClient.analyzeCsvForProject.bind(autoGrpcClient),
   processDataset: autoGrpcClient.processDataset.bind(autoGrpcClient),
   getDatasetData: autoGrpcClient.getDatasetData.bind(autoGrpcClient),

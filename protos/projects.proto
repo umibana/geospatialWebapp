@@ -182,6 +182,14 @@ message ProcessDatasetResponse {
   int32 processed_rows = 4;
 }
 
+// Data boundaries for visualization scaling
+message DataBoundaries {
+  string column_name = 1;
+  double min_value = 2;
+  double max_value = 3;
+  int32 valid_count = 4;  // Number of valid (non-null, numeric) values
+}
+
 // Get dataset data with pagination
 message GetDatasetDataRequest {
   string dataset_id = 1;
@@ -195,4 +203,28 @@ message GetDatasetDataResponse {
   int32 current_page = 3;
   int32 total_pages = 4;
   repeated ColumnMapping column_mappings = 5;
+  repeated DataBoundaries data_boundaries = 6;  // Min/max values for each numeric column
+}
+
+// Note: DataBoundaries are now included directly in GetDatasetDataResponse
+// No separate boundaries method needed
+
+// Get datasets for a project
+message GetProjectDatasetsRequest {
+  string project_id = 1;
+}
+
+message DatasetInfo {
+  string id = 1;
+  string file_id = 2;
+  string file_name = 3;
+  int32 dataset_type = 4;
+  string original_filename = 5;
+  int32 total_rows = 6;
+  int64 created_at = 7;
+  repeated ColumnMapping column_mappings = 8;
+}
+
+message GetProjectDatasetsResponse {
+  repeated DatasetInfo datasets = 1;
 }

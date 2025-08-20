@@ -223,6 +223,16 @@ export function registerAutoGrpcHandlers() {
     }
   });
 
+  // Unary method: GetProjectDatasets
+  ipcMain.handle('grpc-getprojectdatasets', async (event, request) => {
+    try {
+      return await autoMainGrpcClient.getProjectDatasets(request);
+    } catch (error) {
+      console.error('gRPC getProjectDatasets failed:', error);
+      throw error;
+    }
+  });
+
   // Unary method: AnalyzeCsvForProject
   ipcMain.handle('grpc-analyzecsvforproject', async (event, request) => {
     try {

@@ -132,6 +132,11 @@ class GeospatialServiceStub(object):
                 request_serializer=projects__pb2.DeleteFileRequest.SerializeToString,
                 response_deserializer=projects__pb2.DeleteFileResponse.FromString,
                 _registered_method=True)
+        self.GetProjectDatasets = channel.unary_unary(
+                '/geospatial.GeospatialService/GetProjectDatasets',
+                request_serializer=projects__pb2.GetProjectDatasetsRequest.SerializeToString,
+                response_deserializer=projects__pb2.GetProjectDatasetsResponse.FromString,
+                _registered_method=True)
         self.AnalyzeCsvForProject = channel.unary_unary(
                 '/geospatial.GeospatialService/AnalyzeCsvForProject',
                 request_serializer=projects__pb2.AnalyzeCsvForProjectRequest.SerializeToString,
@@ -273,6 +278,13 @@ class GeospatialServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetProjectDatasets(self, request, context):
+        """Dataset management methods (from projects.proto)
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def AnalyzeCsvForProject(self, request, context):
         """Enhanced CSV processing for projects (from projects.proto)
         """
@@ -389,6 +401,11 @@ def add_GeospatialServiceServicer_to_server(servicer, server):
                     servicer.DeleteFile,
                     request_deserializer=projects__pb2.DeleteFileRequest.FromString,
                     response_serializer=projects__pb2.DeleteFileResponse.SerializeToString,
+            ),
+            'GetProjectDatasets': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetProjectDatasets,
+                    request_deserializer=projects__pb2.GetProjectDatasetsRequest.FromString,
+                    response_serializer=projects__pb2.GetProjectDatasetsResponse.SerializeToString,
             ),
             'AnalyzeCsvForProject': grpc.unary_unary_rpc_method_handler(
                     servicer.AnalyzeCsvForProject,
@@ -920,6 +937,33 @@ class GeospatialService(object):
             '/geospatial.GeospatialService/DeleteFile',
             projects__pb2.DeleteFileRequest.SerializeToString,
             projects__pb2.DeleteFileResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetProjectDatasets(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/geospatial.GeospatialService/GetProjectDatasets',
+            projects__pb2.GetProjectDatasetsRequest.SerializeToString,
+            projects__pb2.GetProjectDatasetsResponse.FromString,
             options,
             channel_credentials,
             insecure,
