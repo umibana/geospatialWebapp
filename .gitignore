@@ -109,3 +109,5 @@ backend/__pycache__/
 src/generated/
 src/grpc-auto/
 *.db
+backend/__pycache__/**
+backend/__pycache__/**/**

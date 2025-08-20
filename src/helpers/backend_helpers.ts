@@ -1,30 +1,49 @@
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 
+/**
+ * Configuración del backend gRPC
+ * Mantiene el estado del proceso del servidor gRPC
+ */
 interface BackendConfig {
-  process: ChildProcess | null;
-  isRunning: boolean;
+  process: ChildProcess | null;  // Proceso hijo del servidor gRPC
+  isRunning: boolean;           // Estado de ejecución del backend
 }
 
+/**
+ * Gestor del backend gRPC
+ * Maneja el ciclo de vida del servidor gRPC Python incluyendo inicio,
+ * parada, verificación de salud y manejo de procesos
+ */
 class BackendManager {
   private config: BackendConfig = {
     process: null,
     isRunning: false,
   };
 
+  /**
+   * Obtiene la ruta del ejecutable del backend
+   * En desarrollo: usa el script Python directamente
+   * En producción: usa el ejecutable empaquetado con PyInstaller
+   */
   private getBackendPath(): string {
     const isDev = process.env.NODE_ENV === 'development';
     
     if (isDev) {
-      // In development, use Python directly
+      // En desarrollo: usar Python directamente
       return path.join(process.cwd(), 'backend', 'grpc_server.py');
     } else {
-      // In production, use the bundled executable
+      // En producción: usar el ejecutable empaquetado
       const resourcesPath = process.resourcesPath;
       return path.join(resourcesPath, 'grpc-server', 'grpc-server');
     }
   }
 
+  /**
+   * Espera a que el servidor gRPC esté listo para recibir conexiones
+   * Utiliza backoff exponencial para verificar la conectividad
+   * @param timeoutMs Tiempo límite en milisegundos (por defecto 15 segundos)
+   */
   private async waitForGrpcServer(timeoutMs = 15000): Promise<void> {
     const start = Date.now();
     let delay = 150;
@@ -49,35 +68,40 @@ class BackendManager {
       }
       delay = Math.min(maxDelay, Math.floor(delay * 1.7));
     }
-    throw new Error(`Timeout waiting for gRPC server on ${address}`);
+    throw new Error(`Tiempo agotado esperando al servidor gRPC en ${address}`);
   }
 
+  /**
+   * Inicia el backend gRPC
+   * Maneja tanto el modo desarrollo (Python) como producción (ejecutable)
+   * Incluye verificación de salud y manejo de errores
+   */
   async startBackend(): Promise<void> {
     if (this.config.isRunning) {
       return;
     }
 
     try {
-      // Clean up any existing process first
+      // Limpiar cualquier proceso existente primero
       await this.stopBackend();
 
       const isDev = process.env.NODE_ENV === 'development';
       const backendPath = this.getBackendPath();
 
-      console.log('Starting gRPC backend...', { isDev, backendPath });
+      console.log('Iniciando backend gRPC...', { isDev, backendPath });
 
-      // Ensure we're in the right directory
+      // Asegurar que estamos en el directorio correcto
       const cwd = isDev ? path.join(process.cwd(), 'backend') : path.dirname(backendPath);
       
       if (isDev) {
-        // In development, run the gRPC server directly
+        // En desarrollo: ejecutar el servidor gRPC directamente
         this.config.process = spawn('python', ['grpc_server.py'], {
           stdio: ['pipe', 'pipe', 'pipe'],
           cwd: cwd,
           env: { ...process.env, PYTHONUNBUFFERED: '1' },
         });
       } else {
-        // In production, run the executable
+        // En producción: ejecutar el ejecutable
         this.config.process = spawn(backendPath, [], {
           stdio: ['pipe', 'pipe', 'pipe'],
           cwd: cwd,
@@ -86,7 +110,7 @@ class BackendManager {
 
       let errorOutput = '';
 
-      // Handle process events
+      // Manejar eventos del proceso
       this.config.process.stdout?.on('data', (data) => {
         const output = data.toString();
         console.log(`gRPC stdout: ${output}`);
@@ -114,36 +138,41 @@ class BackendManager {
         throw error;
       });
 
-      // Wait for the gRPC server to start
-      console.log('Waiting for gRPC server to start...');
+      // Esperar a que inicie el servidor gRPC
+      console.log('Esperando a que inicie el servidor gRPC...');
       await this.waitForGrpcServer(15000); // 15 seconds timeout
       
-      // Give the server a moment to fully initialize
+      // Dar un momento al servidor para inicializar completamente
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       this.config.isRunning = true;
-      console.log(`gRPC backend started successfully on port 50077`);
+      console.log(`Backend gRPC iniciado exitosamente en puerto 50077`);
 
     } catch (error) {
-      console.error('Error starting gRPC backend:', error);
+      console.error('Error iniciando backend gRPC:', error);
       this.config.isRunning = false;
       this.config.process = null;
       throw error;
     }
   }
 
+  /**
+   * Detiene el backend gRPC de forma elegante
+   * Envía SIGTERM primero, luego SIGKILL si es necesario
+   * Incluye tiempo de gracia para cierre elegante
+   */
   async stopBackend(): Promise<void> {
     const proc = this.config.process;
     if (!proc || !this.config.isRunning) {
       return;
     }
-    console.log('Stopping gRPC backend...');
+    console.log('Deteniendo backend gRPC...');
     try {
       proc.kill('SIGTERM');
     } catch (err) {
       console.warn('SIGTERM send failed (ignored):', err);
     }
-    // Wait for graceful exit up to 5s
+    // Esperar salida elegante hasta 5 segundos
     const start = Date.now();
     while (Date.now() - start < 5000) {
       if (proc.killed) break;
@@ -156,39 +185,67 @@ class BackendManager {
     this.config.process = null;
   }
 
+  /**
+   * Verifica la salud del backend
+   * @returns true si el backend está funcionando
+   */
   async healthCheck(): Promise<boolean> {
     return this.config.isRunning;
   }
 
+  /**
+   * Obtiene la URL del backend
+   * gRPC no tiene una URL como REST API, pero devolvemos la dirección del servidor como referencia
+   * @returns Dirección del servidor gRPC o null si no está funcionando
+   */
   getBackendUrl(): string | null {
-    // gRPC doesn't have a URL like REST API, but we can return the server address for reference
     if (this.config.isRunning) {
       return 'grpc://127.0.0.1:50077';
     }
     return null;
   }
 
+  /**
+   * Verifica si el backend está ejecutándose
+   * @returns true si el backend está activo
+   */
   isBackendRunning(): boolean {
     return this.config.isRunning;
   }
 }
 
-// Export singleton instance
+// Exportar instancia singleton
 export const backendManager = new BackendManager();
 
-// Convenience functions
+// Funciones de conveniencia para uso externo
+/**
+ * Inicia el backend gRPC
+ * Función de conveniencia que utiliza la instancia singleton
+ */
 export async function startGrpcBackend() {
   return await backendManager.startBackend();
 }
 
+/**
+ * Detiene el backend gRPC
+ * Función de conveniencia que utiliza la instancia singleton
+ */
 export async function stopGrpcBackend() {
   return await backendManager.stopBackend();
 }
 
+/**
+ * Obtiene la URL del backend gRPC
+ * Función de conveniencia que utiliza la instancia singleton
+ */
 export async function getBackendUrl() {
   return backendManager.getBackendUrl();
 }
 
+/**
+ * Verifica si el backend está saludable
+ * Función de conveniencia que utiliza la instancia singleton
+ */
 export async function isBackendHealthy() {
   return await backendManager.healthCheck();
 }

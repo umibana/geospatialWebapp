@@ -1,41 +1,53 @@
 /**
- * Main Process Worker - Heavy Processing in Electron Main Process
- * Uses Worker Threads for true parallel processing without external dependencies
- * No JSON files, no external Node.js requirement
+ * Worker del Proceso Principal - Procesamiento Pesado en el Proceso Principal de Electron
+ * Utiliza Worker Threads para procesamiento paralelo real sin dependencias externas
+ * Sin archivos JSON, sin requerimiento de Node.js externo
  */
 
 import { Worker } from 'worker_threads';
 
+/**
+ * Resultado del procesamiento de datos
+ * Contiene estadísticas y configuración del gráfico para visualización
+ */
 export interface ProcessingResult {
   stats: {
-    totalProcessed: number;
-    avgValue: number;
-    minValue: number;
-    maxValue: number;
-    dataTypes: string[];
-    processingTime: number;
-    pointsPerSecond: number;
+    totalProcessed: number;    // Total de puntos procesados
+    avgValue: number;          // Valor promedio
+    minValue: number;          // Valor mínimo
+    maxValue: number;          // Valor máximo
+    dataTypes: string[];       // Tipos de datos procesados
+    processingTime: number;    // Tiempo de procesamiento en segundos
+    pointsPerSecond: number;   // Puntos procesados por segundo
   };
   chartConfig: {
-    type: string;
-    data: Array<[number, number, number]>;
+    type: string;                           // Tipo de gráfico
+    data: Array<[number, number, number]>;  // Datos del gráfico [lng, lat, value]
     metadata: {
-      totalPoints: number;
-      chartPoints: number;
-      samplingRatio: number;
+      totalPoints: number;                  // Total de puntos procesados
+      chartPoints: number;                  // Puntos mostrados en el gráfico
+      samplingRatio: number;                // Ratio de muestreo aplicado
       bounds: {
-        lng: [number, number];
-        lat: [number, number];
-        value: [number, number];
+        lng: [number, number];              // Límites de longitud [min, max]
+        lat: [number, number];              // Límites de latitud [min, max]
+        value: [number, number];            // Límites de valores [min, max]
       };
     };
   };
 }
 
-// Main thread functions
+/**
+ * Clase principal del Worker del Proceso Principal
+ * Implementa patrón singleton para manejar procesamiento pesado
+ * Utiliza Worker Threads de Node.js para aislamiento completo
+ */
 export class MainProcessWorker {
   private static instance: MainProcessWorker | null = null;
   
+  /**
+   * Obtiene la instancia singleton del worker
+   * @returns Instancia única del MainProcessWorker
+   */
   public static getInstance(): MainProcessWorker {
     if (!MainProcessWorker.instance) {
       MainProcessWorker.instance = new MainProcessWorker();
@@ -43,6 +55,14 @@ export class MainProcessWorker {
     return MainProcessWorker.instance;
   }
   
+  /**
+   * Procesa datasets grandes usando Worker Threads
+   * Implementa muestreo reservoir para datasets ultra-grandes
+   * @param chunks Fragmentos de datos columnares del backend
+   * @param requestId ID único de la solicitud
+   * @param onProgress Callback para actualizaciones de progreso
+   * @returns Resultado del procesamiento con estadísticas y datos del gráfico
+   */
   public async processLargeDataset(
     chunks: Array<{ 
       columnar_data: { id: string[]; x: number[]; y: number[]; z: number[]; id_value: string[]; additional_data: Record<string, number[]> };
@@ -104,53 +124,61 @@ export class MainProcessWorker {
             await new Promise(r => setImmediate(r));
           }
 
+          // Calcular métricas finales de rendimiento
           const endTime = globalThis.performance ? performance.now() : Date.now();
-          const processingTime = ((endTime - startTime) / 1000);
+          const processingTime = ((endTime - startTime) / 1000);  // Tiempo total en segundos
           const avgValue = stats.totalProcessed > 0 ? stats.sum / stats.totalProcessed : 0;
+          // Convertir a formato esperado por ECharts: [lng, lat, value]
           const chartData = processedPoints.map(p => [p.lng, p.lat, p.value]);
+          // Construir resultado final con estadísticas completas
           const result = {
             stats: {
-              totalProcessed: stats.totalProcessed,
-              avgValue: Number(avgValue.toFixed(2)),
-              minValue: Number(stats.minValue.toFixed(2)),
-              maxValue: Number(stats.maxValue.toFixed(2)),
-              dataTypes: Array.from(stats.dataTypes),
-              processingTime: Number(processingTime.toFixed(3)),
-              pointsPerSecond: Math.round(stats.totalProcessed / processingTime)
+              totalProcessed: stats.totalProcessed,                        // Total de puntos procesados
+              avgValue: Number(avgValue.toFixed(2)),                       // Valor promedio calculado
+              minValue: Number(stats.minValue.toFixed(2)),                 // Valor mínimo encontrado
+              maxValue: Number(stats.maxValue.toFixed(2)),                 // Valor máximo encontrado
+              dataTypes: Array.from(stats.dataTypes),                      // Tipos de datos procesados
+              processingTime: Number(processingTime.toFixed(3)),           // Tiempo total en segundos
+              pointsPerSecond: Math.round(stats.totalProcessed / processingTime)  // Throughput
             },
             chartConfig: {
-              type: 'scatter',
-              data: chartData,
+              type: 'scatter',                                              // Tipo de gráfico para ECharts
+              data: chartData,                                              // Datos formateados para visualización
               metadata: {
-                totalPoints: stats.totalProcessed,
-                chartPoints: chartData.length,
-                samplingRatio: chartData.length / (processedPoints.length || 1),
-                bounds: {
-                  lng: [Math.min(...chartData.map(p => p[0])), Math.max(...chartData.map(p => p[0]))],
-                  lat: [Math.min(...chartData.map(p => p[1])), Math.max(...chartData.map(p => p[1]))],
-                  value: [Math.min(...chartData.map(p => p[2])), Math.max(...chartData.map(p => p[2]))]
+                totalPoints: stats.totalProcessed,                        // Total procesado
+                chartPoints: chartData.length,                           // Puntos en gráfico
+                samplingRatio: chartData.length / (processedPoints.length || 1),  // Ratio de muestreo
+                bounds: {                                                 // Límites para escalado automático
+                  lng: [Math.min(...chartData.map(p => p[0])), Math.max(...chartData.map(p => p[0]))],  // Longitud min/max
+                  lat: [Math.min(...chartData.map(p => p[1])), Math.max(...chartData.map(p => p[1]))],  // Latitud min/max
+                  value: [Math.min(...chartData.map(p => p[2])), Math.max(...chartData.map(p => p[2]))]  // Valor min/max
                 }
               }
             }
           };
+          // Enviar resultado final al proceso principal
           parentPort.postMessage({ type: 'complete', requestId, result });
         })().catch(err => {
+          // Manejo de errores del Worker Thread
           parentPort.postMessage({ type: 'error', requestId, error: err && err.message ? err.message : String(err) });
         });
       `;
 
+      // Crear Worker Thread con código inline y datos de trabajo
       const worker = new Worker(workerCode, { eval: true, workerData: { chunks, requestId } });
 
+      // Manejar mensajes del Worker Thread
       worker.on('message', (message) => {
         if (message.requestId === requestId) {
           if (message.type === 'progress') {
+            // Propagar actualizaciones de progreso al UI
             onProgress({ processed: message.processed, total: message.total, percentage: message.percentage, phase: message.phase });
           } else if (message.type === 'complete') {
-            worker.terminate();
-            resolve(message.result);
+            worker.terminate();  // Limpiar Worker Thread
+            resolve(message.result);  // Resolver con resultado final
           } else if (message.type === 'error') {
-            worker.terminate();
-            reject(new Error(message.error || 'Worker error'));
+            worker.terminate();  // Limpiar Worker Thread en caso de error
+            reject(new Error(message.error || 'Worker error'));  // Rechazar promesa
           }
         }
       });

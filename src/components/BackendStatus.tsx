@@ -218,7 +218,7 @@ export function BackendStatus({ className = '' }: BackendStatusProps) {
               variant="outline"
               disabled={loading}
             >
-              Test gRPC
+              Probar gRPC
             </Button>
           )}
         </div>

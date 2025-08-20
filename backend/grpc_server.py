@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """
-gRPC Geospatial Service Server
-Replaces ConnectRPC implementation with native gRPC
+Servidor de Servicio Geoespacial gRPC
+Reemplaza la implementación ConnectRPC con gRPC nativo
+Provee servicios para datos geoespaciales, proyectos y archivos
 """
 import os
 import sys
@@ -13,38 +14,49 @@ import threading
 from pathlib import Path
 from concurrent import futures
 
-# Add the current directory to Python path to find generated files
+# Añadir el directorio actual al path de Python para encontrar archivos generados
 script_dir = Path(__file__).parent.absolute()
 sys.path.insert(0, str(script_dir))
 sys.path.insert(0, str(script_dir / 'generated'))
 
 import grpc
 
-# Import the generated protobuf files
+# Importar los archivos protobuf generados
 import geospatial_pb2
 import files_pb2
 import projects_pb2
 import main_service_pb2_grpc
 
-# Import the data generator and database manager
+# Importar el generador de datos y el gestor de base de datos
 from data_generator import data_generator
 from database import DatabaseManager
 
 
 class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
-    """Implementation of the GeospatialService"""
+    """Implementación del servicio GeospatialService
+    Maneja todas las operaciones relacionadas con datos geoespaciales,
+    proyectos y archivos a través de gRPC
+    """
     
     def __init__(self):
         self.version = "1.0.0"
         self.db = DatabaseManager()
-        print("🌍 GeospatialService initialized with database")
+        print("🌍 GeospatialService inicializado con base de datos")
     
     def GetFeatures(self, request, context):
-        """Get geospatial features within specified bounds"""
+        """Obtiene características geoespaciales dentro de límites especificados
+        
+        Args:
+            request: Solicitud con límites geográficos y filtros
+            context: Contexto de la llamada gRPC
+            
+        Returns:
+            Lista de características geoespaciales encontradas
+        """
         try:
             print(f"📍 GetFeatures request: bounds={request.bounds.northeast.latitude},{request.bounds.northeast.longitude} to {request.bounds.southwest.latitude},{request.bounds.southwest.longitude}, limit={request.limit}")
             
-            # Generate sample features for demo
+            # Generar características de muestra para demostración
             features = []
             feature_count = min(request.limit or 10, 50)  # Cap at 50 for demo
             
@@ -91,7 +103,18 @@ class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
             return geospatial_pb2.GetFeaturesResponse()
     
     def StreamData(self, request, context):
-        """Stream real-time geospatial data points using numpy data generator"""
+        """Transmite puntos de datos geoespaciales en tiempo real usando generador numpy
+        
+        Proporciona un stream continuo de datos geoespaciales generados dinámicamente.
+        Ideal para demostrar capacidades de streaming y actualizaciones en vivo.
+        
+        Args:
+            request: Solicitud con límites geográficos y configuración de streaming
+            context: Contexto de la llamada gRPC para manejo de conexión
+            
+        Yields:
+            Puntos de datos individuales como DataPoint protobuf messages
+        """
         try:
             print(f"🔄 StreamData request: bounds={request.bounds.northeast.latitude},{request.bounds.northeast.longitude} to {request.bounds.southwest.latitude},{request.bounds.southwest.longitude}")
             print(f"🔄 Data types: {list(request.data_types)}, Max points/sec: {request.max_points_per_second}")
@@ -107,13 +130,13 @@ class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
             data_types = list(request.data_types) if request.data_types else ['elevation']
             max_points_per_second = request.max_points_per_second or 5
             
-            print(f"🎯 Generating streaming {data_types[0]} data using numpy...")
+            print(f"🎯 Generando datos de streaming {data_types[0]} usando numpy...")
             
-            # Use data generator for streaming
+            # Usar generador de datos para streaming
             point_count = 0
             for data_point_dict in data_generator.generate_streaming_data(bounds, data_types, max_points_per_second):
                 if context.is_active():
-                    # Convert dict to protobuf DataPoint
+                    # Convertir diccionario a DataPoint protobuf
                     data_point = geospatial_pb2.DataPoint(
                         id=data_point_dict['id'],
                         location=geospatial_pb2.Coordinate(
@@ -130,10 +153,10 @@ class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
                     yield data_point
                     point_count += 1
                 else:
-                    print("🛑 Client disconnected from stream")
+                    print("🛑 Cliente desconectado del stream")
                     break
             
-            print(f"✅ StreamData finished, sent {point_count} data points using numpy {data_types[0]} generator")
+            print(f"✅ StreamData terminado, enviados {point_count} puntos de datos usando generador numpy {data_types[0]}")
             
         except Exception as e:
             print(f"❌ Error in StreamData: {e}")
@@ -141,7 +164,18 @@ class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
             context.set_details(f"Streaming error: {str(e)}")
     
     def GetBatchData(self, request, context):
-        """Get batch geospatial data points using numpy data generator"""
+        """Obtiene puntos de datos geoespaciales en lotes usando generador numpy
+        
+        Genera grandes cantidades de datos geoespaciales de forma eficiente.
+        Optimizado para datasets grandes con control de resolución y tipos de datos.
+        
+        Args:
+            request: Solicitud con límites, tipos de datos, puntos máximos y resolución
+            context: Contexto de la llamada gRPC
+            
+        Returns:
+            GetBatchDataResponse con lista de puntos de datos y metadatos
+        """
         try:
             grpc_start_time = time.time()
             
@@ -160,16 +194,16 @@ class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
             max_points = request.max_points or 1000
             resolution = request.resolution or 20
             
-            print(f"🎯 Generating batch {data_types[0]} data using numpy (resolution: {resolution})...")
+            print(f"🎯 Generando datos en lotes {data_types[0]} usando numpy (resolución: {resolution})...")
             
-            # Use data generator for batch data
+            # Usar generador de datos para datos en lotes
             data_generation_start = time.time()
             data_points_list, generation_method = data_generator.generate_batch_data(
                 bounds, data_types, max_points, resolution
             )
             data_generation_time = time.time() - data_generation_start
             
-            # Convert to protobuf DataPoints
+            # Convertir a DataPoints protobuf
             protobuf_conversion_start = time.time()
             protobuf_data_points = []
             for data_point_dict in data_points_list:

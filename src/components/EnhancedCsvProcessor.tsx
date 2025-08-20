@@ -8,26 +8,38 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CheckCircle2, XCircle, AlertCircle, FileText, Settings, Database } from 'lucide-react';
 
-// Import generated types
+// Importar tipos generados
 import { ColumnType } from '@/generated/projects_pb';
 
+/**
+ * Propiedades del procesador mejorado de CSV
+ * Define los callbacks y datos necesarios para procesar archivos CSV
+ */
 interface EnhancedCsvProcessorProps {
-  fileId: string;
-  fileName: string;
-  onProcessingComplete?: (datasetId: string) => void;
-  onCancel?: () => void;
+  fileId: string;                                          // ID del archivo a procesar
+  fileName: string;                                        // Nombre del archivo
+  onProcessingComplete?: (datasetId: string) => void;      // Callback al completar procesamiento
+  onCancel?: () => void;                                   // Callback para cancelar
 }
 
+/**
+ * Mapeo de columnas CSV a campos geoespaciales
+ * Define cómo interpretar cada columna del archivo CSV
+ */
 interface ColumnMapping {
-  column_name: string;
-  column_type: ColumnType;
-  mapped_field: string;
-  is_coordinate: boolean;
+  column_name: string;     // Nombre de la columna en el CSV
+  column_type: ColumnType; // Tipo de datos (numérico, categórico, etc.)
+  mapped_field: string;    // Campo mapeado (x, y, z, etc.)
+  is_coordinate: boolean;  // Si es una coordenada espacial
 }
 
+/**
+ * Respuesta del análisis de CSV
+ * Contiene información sobre la estructura del archivo
+ */
 interface AnalyzeCsvResponse {
-  success: boolean;
-  error_message?: string;
+  success: boolean;        // Si el análisis fue exitoso
+  error_message?: string;  // Mensaje de error si ocurrió alguno
   headers: string[];
   preview_rows: Array<{ values: string[] }>;
   suggested_types: ColumnType[];
@@ -63,17 +75,24 @@ const columnTypeBadgeColors = {
   [ColumnType.UNSPECIFIED]: 'bg-yellow-100 text-yellow-800'
 };
 
+// Campos de coordenadas disponibles para mapeo
 const coordinateFields = ['x', 'y', 'z'];
 
+/**
+ * Componente mejorado para procesamiento de archivos CSV
+ * Analiza la estructura del CSV, permite configurar mapeo de columnas
+ * y procesa el archivo para crear un dataset geoespacial
+ */
 const EnhancedCsvProcessor: React.FC<EnhancedCsvProcessorProps> = ({
   fileId,
   fileName,
   onProcessingComplete,
   onCancel
 }) => {
+  // Estados del procesamiento
   const [currentStep, setCurrentStep] = useState<'analyzing' | 'configuring' | 'processing' | 'complete'>('analyzing');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);               // Estado de carga
+  const [error, setError] = useState<string | null>(null);     // Mensajes de error
   
   // Analysis results
   const [headers, setHeaders] = useState<string[]>([]);
@@ -264,7 +283,7 @@ const EnhancedCsvProcessor: React.FC<EnhancedCsvProcessorProps> = ({
             onClick={() => setError(null)}
             className="mt-2"
           >
-            Dismiss
+            Descartar
           </Button>
         </div>
       )}

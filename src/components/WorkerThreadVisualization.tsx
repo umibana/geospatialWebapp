@@ -3,14 +3,18 @@ import * as echarts from 'echarts';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 
+/**
+ * Estadísticas del Worker Thread
+ * Contiene métricas de rendimiento para procesamiento en Worker Threads
+ */
 type WorkerThreadStats = {
-  totalProcessed: number;
-  avgValue: number;
-  minValue: number;
-  maxValue: number;
-  dataTypes: string[];
-  processingTime: number;
-  pointsPerSecond: number;
+  totalProcessed: number;    // Total de puntos procesados
+  avgValue: number;          // Valor promedio
+  minValue: number;          // Valor mínimo
+  maxValue: number;          // Valor máximo
+  dataTypes: string[];       // Tipos de datos procesados
+  processingTime: number;    // Tiempo de procesamiento en segundos
+  pointsPerSecond: number;   // Puntos procesados por segundo
 };
 
 type ChartConfig = {
@@ -28,14 +32,23 @@ type ChartConfig = {
   };
 };
 
+/**
+ * Propiedades del componente de visualización con Worker Threads
+ * Define configuración para procesamiento ultra-grande (3M-5M+ puntos)
+ */
 interface WorkerThreadVisualizationProps {
-  title?: string;
-  maxPoints?: number;
-  autoResize?: boolean;
+  title?: string;        // Título del componente
+  maxPoints?: number;    // Máximo número de puntos a procesar
+  autoResize?: boolean;  // Si se redimensiona automáticamente
 }
 
+/**
+ * Componente de visualización usando Worker Threads
+ * Maneja datasets ultra-grandes (3M-5M+ puntos) con aislamiento completo de threads
+ * Utiliza caché de datos del gráfico y transferencia IPC fragmentada
+ */
 export function WorkerThreadVisualization({ 
-  title = "🚀 True Node.js Worker Threads", 
+  title = "🚀 Verdaderos Worker Threads de Node.js", 
   maxPoints = 3000000,
   autoResize = true 
 }: WorkerThreadVisualizationProps) {
@@ -79,13 +92,13 @@ export function WorkerThreadVisualization({
           if (Array.isArray(params.data)) {
             const [lng, lat, value] = params.data;
             return `
-              <strong>Worker Thread Point</strong><br/>
-              Longitude: ${lng.toFixed(6)}<br/>
-              Latitude: ${lat.toFixed(6)}<br/>
-              Value: ${value.toFixed(2)}
+              <strong>Punto de Worker Thread</strong><br/>
+              Longitud: ${lng.toFixed(6)}<br/>
+              Latitud: ${lat.toFixed(6)}<br/>
+              Valor: ${value.toFixed(2)}
             `;
           }
-          return 'Loading...';
+          return 'Cargando...';
         }
       },
       grid: {
@@ -96,13 +109,13 @@ export function WorkerThreadVisualization({
       },
       xAxis: {
         type: 'value',
-        name: 'Longitude',
+        name: 'Longitud',
         nameLocation: 'middle',
         nameGap: 30
       },
       yAxis: {
         type: 'value',
-        name: 'Latitude',
+        name: 'Latitud',
         nameLocation: 'middle',
         nameGap: 30
       },
@@ -163,7 +176,7 @@ export function WorkerThreadVisualization({
     chart.setOption({
       title: {
         text: `${title} (${(metadata.chartPoints || 0).toLocaleString()}/${(metadata.totalPoints || 0).toLocaleString()} points)`,
-        subtext: `Worker Thread Sampling: ${((metadata.samplingRatio || 0) * 100).toFixed(1)}%`
+        subtext: `Muestreo de Worker Thread: ${((metadata.samplingRatio || 0) * 100).toFixed(1)}%`
       },
       xAxis: {
         min: bounds.lng[0],
@@ -180,8 +193,8 @@ export function WorkerThreadVisualization({
       }]
     }, true);
 
-    toast.success('Worker Thread Chart Updated!', {
-      description: `Visualizing ${(metadata.chartPoints || 0).toLocaleString()} points from ${(metadata.totalPoints || 0).toLocaleString()} total`
+    toast.success('¡Gráfico de Worker Thread Actualizado!', {
+      description: `Visualizando ${(metadata.chartPoints || 0).toLocaleString()} puntos de ${(metadata.totalPoints || 0).toLocaleString()} total`
     });
   }, [title]);
 

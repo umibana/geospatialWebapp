@@ -10,32 +10,48 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Trash2, Edit, Plus, FolderOpen, Upload, BarChart3, Database, Eye } from 'lucide-react';
 import DatasetViewer from './DatasetViewer';
 
-// Import generated types
+// Importar tipos generados
 import { DatasetType } from '@/generated/projects_pb';
 
+/**
+ * Propiedades del gestor de proyectos
+ * Define callbacks opcionales para selección de proyectos y carga de archivos
+ */
 interface ProjectManagerProps {
-  onSelectProject?: (projectId: string) => void;
-  onFileUploadComplete?: (fileId: string, fileName: string) => void;
+  onSelectProject?: (projectId: string) => void;          // Callback al seleccionar un proyecto
+  onFileUploadComplete?: (fileId: string, fileName: string) => void;  // Callback al completar carga de archivo
 }
 
+/**
+ * Estructura de datos de un proyecto
+ * Representa la información básica de un proyecto geoespacial
+ */
 interface ProjectData {
-  id: string;
-  name: string;
-  description: string;
-  created_at: number;
-  updated_at: number;
+  id: string;           // ID único del proyecto
+  name: string;         // Nombre del proyecto
+  description: string;  // Descripción del proyecto
+  created_at: number;   // Timestamp de creación
+  updated_at: number;   // Timestamp de última actualización
 }
 
+/**
+ * Estructura de datos de un archivo
+ * Representa un archivo CSV cargado en un proyecto
+ */
 interface FileData {
-  id: string;
-  project_id: string;
-  name: string;
-  dataset_type: DatasetType;
-  original_filename: string;
-  file_size: number;
-  created_at: number;
+  id: string;                    // ID único del archivo
+  project_id: string;            // ID del proyecto al que pertenece
+  name: string;                  // Nombre del archivo
+  dataset_type: DatasetType;     // Tipo de dataset (SAMPLE, DRILL_HOLES, BLOCK)
+  original_filename: string;     // Nombre original del archivo
+  file_size: number;             // Tamaño del archivo en bytes
+  created_at: number;            // Timestamp de creación
 }
 
+/**
+ * Estructura de datos de un dataset procesado
+ * Representa un dataset que ha sido procesado y está listo para visualización
+ */
 interface DatasetData {
   id: string;
   file_id: string;
@@ -60,17 +76,23 @@ const datasetTypeBadgeColors = {
   [DatasetType.UNSPECIFIED]: 'bg-gray-100 text-gray-800'
 };
 
+/**
+ * Componente principal para gestión de proyectos geoespaciales
+ * Maneja la creación, edición y visualización de proyectos, archivos y datasets
+ * Incluye funcionalidades de carga de CSV y visualización de datos
+ */
 const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete }) => {
-  const [projects, setProjects] = useState<ProjectData[]>([]);
-  const [selectedProject, setSelectedProject] = useState<ProjectData | null>(null);
-  const [projectFiles, setProjectFiles] = useState<FileData[]>([]);
-  const [projectDatasets, setProjectDatasets] = useState<DatasetData[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Estados principales del componente
+  const [projects, setProjects] = useState<ProjectData[]>([]);               // Lista de proyectos
+  const [selectedProject, setSelectedProject] = useState<ProjectData | null>(null);  // Proyecto seleccionado
+  const [projectFiles, setProjectFiles] = useState<FileData[]>([]);         // Archivos del proyecto
+  const [projectDatasets, setProjectDatasets] = useState<DatasetData[]>([]);  // Datasets del proyecto
+  const [loading, setLoading] = useState(false);                            // Estado de carga
+  const [error, setError] = useState<string | null>(null);                  // Mensajes de error
   
-  // View states
+  // Estados de navegación entre vistas
   const [currentView, setCurrentView] = useState<'projects' | 'datasets' | 'dataset-viewer'>('projects');
-  const [selectedDataset, setSelectedDataset] = useState<DatasetData | null>(null);
+  const [selectedDataset, setSelectedDataset] = useState<DatasetData | null>(null);  // Dataset para visualizar
 
   // Dialog states
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -331,14 +353,14 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
           <div className="flex items-center space-x-4">
             <Button variant="outline" onClick={() => setCurrentView('projects')}>
               <FolderOpen className="mr-2 h-4 w-4" />
-              Back to Projects
+              Volver a Proyectos
             </Button>
             <div>
               <h2 className="text-2xl font-bold tracking-tight">
-                {selectedProject.name} - Datasets
+                {selectedProject.name} - Datasets Procesados
               </h2>
               <p className="text-muted-foreground">
-                {projectDatasets.length} dataset(s) processed
+                {projectDatasets.length} dataset(s) procesados
               </p>
             </div>
           </div>
@@ -353,7 +375,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
               onClick={() => setError(null)}
               className="mt-2"
             >
-              Dismiss
+              Descartar
             </Button>
           </div>
         )}
@@ -363,20 +385,20 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
           <CardHeader>
             <CardTitle className="flex items-center">
               <Database className="mr-2 h-5 w-5" />
-              Processed Datasets
+              Datasets Procesados
             </CardTitle>
             <CardDescription>
-              Click on a dataset to visualize the data
+              Haz click en un dataset para visualizar los datos
             </CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
-              <p className="text-muted-foreground">Loading datasets...</p>
+              <p className="text-muted-foreground">Cargando datasets...</p>
             ) : projectDatasets.length === 0 ? (
               <div className="text-center py-8">
                 <Database className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No datasets found</p>
-                <p className="text-sm text-muted-foreground mt-1">Process some CSV files to create datasets</p>
+                <p className="text-muted-foreground">No se encontraron datasets</p>
+                <p className="text-sm text-muted-foreground mt-1">Procesa algunos archivos CSV para crear datasets</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -398,7 +420,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
                           {dataset.original_filename} • {dataset.total_rows.toLocaleString()} rows
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Processed: {formatDate(dataset.created_at)}
+                          Procesado: {formatDate(dataset.created_at)}
                         </p>
                       </div>
                       <div className="flex items-center space-x-2">
@@ -411,7 +433,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
                           }}
                         >
                           <Eye className="h-4 w-4 mr-2" />
-                          View
+                          Ver
                         </Button>
                         <BarChart3 className="h-5 w-5 text-muted-foreground" />
                       </div>
@@ -431,42 +453,42 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Project Manager</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Administrador de Proyectos</h2>
           <p className="text-muted-foreground">
-            Manage your geospatial projects and datasets
+            Administra tus proyectos geoespaciales y datasets
           </p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              New Project
+              Nuevo Proyecto
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New Project</DialogTitle>
+              <DialogTitle>Crear Nuevo Proyecto</DialogTitle>
               <DialogDescription>
-                Create a new project to organize your geospatial datasets.
+                Crea un nuevo proyecto para organizar tus datasets geoespaciales.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="name">Project Name</Label>
+                <Label htmlFor="name">Nombre del Proyecto</Label>
                 <Input
                   id="name"
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
-                  placeholder="Enter project name"
+                  placeholder="Ingresa el nombre del proyecto"
                 />
               </div>
               <div>
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">Descripción</Label>
                 <Textarea
                   id="description"
                   value={projectDescription}
                   onChange={(e) => setProjectDescription(e.target.value)}
-                  placeholder="Enter project description (optional)"
+                  placeholder="Ingresa una descripción para el proyecto (opcional)"
                 />
               </div>
             </div>
@@ -475,7 +497,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
                 onClick={createProject}
                 disabled={loading || !projectName.trim()}
               >
-                Create Project
+                Crear Proyecto
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -491,7 +513,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
             onClick={() => setError(null)}
             className="mt-2"
           >
-            Dismiss
+            Descartar
           </Button>
         </div>
       )}
@@ -500,16 +522,16 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
         {/* Projects List */}
         <Card>
           <CardHeader>
-            <CardTitle>Projects</CardTitle>
+            <CardTitle>Proyectos</CardTitle>
             <CardDescription>
-              {projects.length} project(s)
+              {projects.length} proyecto(s)
             </CardDescription>
           </CardHeader>
           <CardContent>
             {loading && projects.length === 0 ? (
-              <p className="text-muted-foreground">Loading projects...</p>
+              <p className="text-muted-foreground">Cargando proyectos...</p>
             ) : projects.length === 0 ? (
-              <p className="text-muted-foreground">No projects found. Create your first project to get started.</p>
+              <p className="text-muted-foreground">No se encontraron proyectos. Crea tu primer proyecto para comenzar</p>
             ) : (
               <div className="space-y-3">
                 {projects.map((project) => (
@@ -531,7 +553,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
                           </p>
                         )}
                         <p className="text-xs text-muted-foreground mt-2">
-                          Created: {formatDate(project.created_at)}
+                          Creado: {formatDate(project.created_at)}
                         </p>
                       </div>
                       <div className="flex items-center space-x-1">
@@ -568,7 +590,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span>{selectedProject ? `${selectedProject.name} Files` : 'Select a Project'}</span>
+              <span>{selectedProject ? `${selectedProject.name} Archivos` : 'Selecciona un Proyecto'}</span>
               {selectedProject && (
                 <div className="flex items-center space-x-2">
                   <Button 
@@ -577,20 +599,20 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
                     onClick={handleViewDatasets}
                   >
                     <Database className="mr-2 h-4 w-4" />
-                    View Datasets
+                    Ver Datasets
                   </Button>
                   <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
                     <DialogTrigger asChild>
                       <Button size="sm">
                         <Upload className="mr-2 h-4 w-4" />
-                        Upload File
+                        Cargar Archivo
                       </Button>
                     </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Upload File</DialogTitle>
+                      <DialogTitle>Cargar Archivo</DialogTitle>
                       <DialogDescription>
-                        Upload a dataset file to {selectedProject.name}
+                        Carga un archivo de dataset a {selectedProject.name}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
@@ -609,11 +631,11 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
                           id="file-name"
                           value={uploadName}
                           onChange={(e) => setUploadName(e.target.value)}
-                          placeholder="Enter display name for this file"
+                          placeholder="Ingresa un nombre para este archivo"
                         />
                       </div>
                       <div>
-                        <Label htmlFor="dataset-type">Dataset Type</Label>
+                        <Label htmlFor="dataset-type">Tipo de Dataset </Label>
                         <Select
                           value={uploadDatasetType.toString()}
                           onValueChange={(value) => setUploadDatasetType(parseInt(value) as DatasetType)}
@@ -649,20 +671,20 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
               )}
             </CardTitle>
             <CardDescription>
-              {selectedProject ? `${projectFiles.length} file(s)` : 'Select a project to view files'}
+              {selectedProject ? `${projectFiles.length} archivo(s)` : 'Selecciona un proyecto para ver sus archivos'}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {!selectedProject ? (
               <div className="text-center py-8">
                 <FolderOpen className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Select a project from the left to view its files</p>
+                <p className="text-muted-foreground">Selecciona un proyecto desde la izquierda para ver sus archivos</p>
               </div>
             ) : projectFiles.length === 0 ? (
               <div className="text-center py-8">
                 <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No files uploaded yet</p>
-                <p className="text-sm text-muted-foreground mt-1">Upload your first dataset to get started</p>
+                <p className="text-muted-foreground">No hay archivos cargados aún</p>
+                <p className="text-sm text-muted-foreground mt-1">Carga tu primer dataset para comenzar</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -683,7 +705,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onFileUploadComplete })
                           {file.original_filename} • {formatFileSize(file.file_size)}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Uploaded: {formatDate(file.created_at)}
+                          Cargado: {formatDate(file.created_at)}
                         </p>
                       </div>
                       <Button

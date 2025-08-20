@@ -4,23 +4,36 @@ import { toast } from 'sonner';
 import { ChildProcessVisualization } from './ChildProcessVisualization';
 import { WorkerThreadVisualization } from './WorkerThreadVisualization';
 
+/**
+ * Característica geoespacial
+ * Representa un punto de interés o elemento geográfico con ubicación y propiedades
+ */
 interface GeospatialFeature {
-  id: string;
-  name: string;
-  location: { latitude: number; longitude: number; altitude?: number };
-  properties: Record<string, string>;
-  timestamp: number;
+  id: string;                                                          // ID único de la característica
+  name: string;                                                        // Nombre descriptivo
+  location: { latitude: number; longitude: number; altitude?: number }; // Ubicación geográfica
+  properties: Record<string, string>;                                  // Propiedades adicionales
+  timestamp: number;                                                   // Marca de tiempo
 }
 
+/**
+ * Punto de datos geoespaciales
+ * Representa una medición o valor en una ubicación específica
+ */
 interface DataPoint {
-  id: string;
-  location: { latitude: number; longitude: number; altitude?: number };
-  value: number;
-  unit: string;
-  timestamp: number;
-  metadata: Record<string, string>;
+  id: string;                                                          // ID único del punto
+  location: { latitude: number; longitude: number; altitude?: number }; // Ubicación del punto
+  value: number;                                                       // Valor medido
+  unit: string;                                                        // Unidad de medida
+  timestamp: number;                                                   // Marca de tiempo
+  metadata: Record<string, string>;                                    // Metadatos adicionales
 }
 
+/**
+ * Componente de demostración de gRPC
+ * Muestra las capacidades del backend gRPC con ejemplos interactivos
+ * Incluye carga de datos, streaming, procesamiento optimizado y visualizaciones
+ */
 export function GrpcDemo() {
   const [isConnected, setIsConnected] = useState(false);
   const [features, setFeatures] = useState<GeospatialFeature[]>([]);
@@ -61,11 +74,15 @@ export function GrpcDemo() {
     initializeGrpc();
   }, []);
 
+  /**
+   * Inicializa la conexión gRPC
+   * Verifica la conectividad con el backend usando verificación de salud
+   */
   const initializeGrpc = async () => {
     try {
       setLoading(true);
       
-      // Test connection via IPC using auto-generated client
+      // Probar conexión vía IPC usando cliente auto-generado
       const health = await window.autoGrpc.healthCheck({});
       setIsConnected(health.healthy);
       
@@ -352,7 +369,7 @@ export function GrpcDemo() {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
         <h2 className="text-2xl font-bold mb-4 text-gray-800">
-          gRPC Geospatial Demo
+          Demo Geoespacial gRPC
         </h2>
         
         {/* Connection Status */}
@@ -364,7 +381,7 @@ export function GrpcDemo() {
               }`}
             />
             <span className="font-semibold">
-              gRPC Status: {isConnected ? 'Connected' : 'Disconnected'}
+              Estado gRPC: {isConnected ? 'Conectado' : 'Desconectado'}
             </span>
           </div>
           
@@ -374,26 +391,26 @@ export function GrpcDemo() {
               disabled={loading}
               className="mt-2"
             >
-              {loading ? 'Connecting...' : 'Reconnect'}
+              {loading ? 'Conectando...' : 'Reconectar'}
             </Button>
           )}
         </div>
 
         {/* Feature Loading */}
         <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-3">Load Geospatial Features</h3>
+          <h3 className="text-lg font-semibold mb-3">Cargar Características Geoespaciales</h3>
           <Button 
             onClick={handleLoadFeatures}
             disabled={!isConnected || loading}
             className="mb-4"
           >
-            {loading ? 'Loading...' : 'Load Features'}
+            {loading ? 'Cargando...' : 'Cargar Características'}
           </Button>
           
           {features.length > 0 && (
             <div className="bg-blue-50 p-4 rounded-lg">
               <h4 className="font-semibold mb-2">
-                Loaded {features.length} features via gRPC:
+                Cargadas {features.length} características vía gRPC:
               </h4>
               <div className="max-h-40 overflow-y-auto">
                 {features.slice(0, 5).map((feature) => (
@@ -408,7 +425,7 @@ export function GrpcDemo() {
                 ))}
                 {features.length > 5 && (
                   <div className="text-sm text-gray-600">
-                    ... and {features.length - 5} more
+                    ... y {features.length - 5} más
                   </div>
                 )}
               </div>
@@ -418,19 +435,19 @@ export function GrpcDemo() {
 
         {/* Batch Data Loading */}
         <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-3">Batch Data Loading (Numpy Generated)</h3>
+          <h3 className="text-lg font-semibold mb-3">Carga de Datos por Lotes (Generado con Numpy)</h3>
           <Button 
             onClick={handleLoadBatchData}
             disabled={!isConnected || batchLoading}
             className="mb-4"
           >
-            {batchLoading ? 'Loading Batch Data...' : 'Load Batch Data (Elevation)'}
+            {batchLoading ? 'Cargando Datos por Lotes...' : 'Cargar Datos por Lotes (Elevación)'}
           </Button>
           
           {batchData.length > 0 && (
             <div className="bg-purple-50 p-4 rounded-lg">
               <h4 className="font-semibold mb-2">
-                Loaded {batchData.length} data points via gRPC batch method:
+                Cargados {batchData.length} puntos de datos vía método por lotes gRPC:
               </h4>
               <div className="max-h-40 overflow-y-auto">
                 {batchData.slice(0, 8).map((point) => (
@@ -446,7 +463,7 @@ export function GrpcDemo() {
                 ))}
                 {batchData.length > 8 && (
                   <div className="text-sm text-gray-600">
-                    ... and {batchData.length - 8} more data points
+                    ... y {batchData.length - 8} puntos de datos más
                   </div>
                 )}
               </div>
@@ -456,29 +473,29 @@ export function GrpcDemo() {
 
         {/* Parameter Testing */}
         <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-3">Data Generator Parameter Testing</h3>
+          <h3 className="text-lg font-semibold mb-3">Pruebas de Parámetros del Generador de Datos</h3>
           <div className="bg-gray-50 p-4 rounded-lg mb-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Max Points
+                  Máx. Puntos
                 </label>
                 <select 
                   value={testParams.maxPoints}
                   onChange={(e) => setTestParams(prev => ({ ...prev, maxPoints: parseInt(e.target.value) }))}
                   className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value={1000}>1,000 points</option>
-                  <option value={10000}>10,000 points</option>
-                  <option value={100000}>100,000 points</option>
-                  <option value={1000000}>1,000,000 points</option>
-                  <option value={2000000}>2,000,000 points</option>
+                  <option value={1000}>1.000 puntos</option>
+                  <option value={10000}>10.000 puntos</option>
+                  <option value={100000}>100.000 puntos</option>
+                  <option value={1000000}>1.000.000 puntos</option>
+                  <option value={2000000}>2.000.000 puntos</option>
                 </select>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Resolution
+                  Resolución
                 </label>
                 <input 
                   type="number"
@@ -492,18 +509,18 @@ export function GrpcDemo() {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Data Type
+                  Tipo de Datos
                 </label>
                 <select 
                   value={testParams.dataType}
                   onChange={(e) => setTestParams(prev => ({ ...prev, dataType: e.target.value }))}
                   className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="elevation">Elevation</option>
-                  <option value="temperature">Temperature</option>
-                  <option value="pressure">Pressure</option>
-                  <option value="noise">Noise</option>
-                  <option value="sine_wave">Sine Wave</option>
+                  <option value="elevation">Elevación</option>
+                  <option value="temperature">Temperatura</option>
+                  <option value="pressure">Presión</option>
+                  <option value="noise">Ruido</option>
+                  <option value="sine_wave">Onda Senoidal</option>
                 </select>
               </div>
             </div>
@@ -513,19 +530,19 @@ export function GrpcDemo() {
               disabled={!isConnected || paramTestLoading}
               className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700"
             >
-              {paramTestLoading ? 'Generating Data...' : `Generate ${testParams.maxPoints.toLocaleString()} Points`}
+              {paramTestLoading ? 'Generando Datos...' : `Generar ${testParams.maxPoints.toLocaleString()} Puntos`}
             </Button>
           </div>
           
           {paramTestData.length > 0 && (
             <div className="bg-indigo-50 p-4 rounded-lg">
               <h4 className="font-semibold mb-2">
-                Generated {paramTestData.length.toLocaleString()} data points:
+                Generados {paramTestData.length.toLocaleString()} puntos de datos:
               </h4>
               <div className="text-sm text-gray-600 mb-3">
-                <strong>Type:</strong> {testParams.dataType} | 
-                <strong> Resolution:</strong> {testParams.resolution} | 
-                <strong> Method:</strong> numpy_{testParams.dataType}_batch
+                <strong>Tipo:</strong> {testParams.dataType} | 
+                <strong> Resolución:</strong> {testParams.resolution} | 
+                <strong> Método:</strong> numpy_{testParams.dataType}_batch
               </div>
               <div className="max-h-40 overflow-y-auto">
                 {paramTestData.slice(0, 10).map((point) => (
@@ -541,7 +558,7 @@ export function GrpcDemo() {
                 ))}
                 {paramTestData.length > 10 && (
                   <div className="text-sm text-gray-600 mt-2">
-                    ... and {(paramTestData.length - 10).toLocaleString()} more data points
+                    ... y {(paramTestData.length - 10).toLocaleString()} puntos de datos más
                   </div>
                 )}
               </div>
@@ -551,7 +568,7 @@ export function GrpcDemo() {
 
         {/* Simple gRPC Examples */}
         <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-3">🎯 Simple gRPC Examples</h3>
+          <h3 className="text-lg font-semibold mb-3">🎯 Ejemplos Simples de gRPC</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div className="p-4 border rounded-lg">
               <h4 className="font-medium mb-2">👋 Hola Mundo</h4>
@@ -623,21 +640,21 @@ export function GrpcDemo() {
 
         {/* ⚡ Optimized Data Processing */}
         <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-3">⚡ Optimized Data Processing</h3>
+          <h3 className="text-lg font-semibold mb-3">⚡ Procesamiento Optimizado de Datos</h3>
           
           <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-6 mb-6">
             <h4 className="font-semibold text-green-800 mb-3">
-              🎯 Smart Processing Selection
+              🎯 Selección Inteligente de Procesamiento
             </h4>
             <p className="text-sm text-gray-700 mb-4">
-              Automatically uses the best processing strategy for {testParams.maxPoints.toLocaleString()} {testParams.dataType} points:
+              Usa automáticamente la mejor estrategia de procesamiento para {testParams.maxPoints.toLocaleString()} puntos de {testParams.dataType}:
               {testParams.maxPoints >= 50000 ? (
                 <span className="ml-2 px-3 py-1 bg-green-100 text-green-700 rounded font-semibold">
-                  ⚡ Child Process (50K+ points)
+                  ⚡ Proceso Hijo (50K+ puntos)
                 </span>
               ) : (
                 <span className="ml-2 px-3 py-1 bg-blue-100 text-blue-700 rounded font-semibold">
-                  🌐 Direct Processing (&lt;50K points)
+                  🌐 Procesamiento Directo (&lt;50K puntos)
                 </span>
               )}
             </p>
@@ -648,7 +665,7 @@ export function GrpcDemo() {
                 disabled={!isConnected || isProcessing}
                 className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-semibold py-4 text-lg"
               >
-                {isProcessing ? 'Processing...' : `⚡ Process ${testParams.maxPoints.toLocaleString()} ${testParams.dataType} Points`}
+                {isProcessing ? 'Procesando...' : `⚡ Procesar ${testParams.maxPoints.toLocaleString()} Puntos de ${testParams.dataType}`}
               </Button>
               
               {isProcessing && (
@@ -660,7 +677,7 @@ export function GrpcDemo() {
                     ></div>
                   </div>
                   <div className="text-sm text-green-600 mt-2 font-medium">
-                    {processingProgress.toFixed(1)}% Complete - UI remains responsive!
+                    {processingProgress.toFixed(1)}% Completado - ¡La UI permanece responsiva!
                   </div>
                 </div>
               )}
@@ -670,26 +687,26 @@ export function GrpcDemo() {
           {/* Processing Results */}
           {processingResult && processingResult.status === 'success' && (
             <div className="bg-white border border-green-200 rounded-lg p-6 mt-6">
-              <h5 className="font-semibold text-green-800 mb-4">⚡ Processing Results</h5>
+              <h5 className="font-semibold text-green-800 mb-4">⚡ Resultados del Procesamiento</h5>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-green-600">
                     {processingResult.duration.toFixed(2)}s
                   </div>
-                  <div className="text-sm text-gray-600">Duration</div>
+                  <div className="text-sm text-gray-600">Duración</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">
                     {processingResult.pointsPerSecond.toLocaleString()}
                   </div>
-                  <div className="text-sm text-gray-600">Points/Second</div>
+                  <div className="text-sm text-gray-600">Puntos/Segundo</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-gray-600">
                     {processingResult.memoryUsage}
                   </div>
-                  <div className="text-sm text-gray-600">Memory Usage</div>
+                  <div className="text-sm text-gray-600">Uso de Memoria</div>
                 </div>
               </div>
               
@@ -697,10 +714,10 @@ export function GrpcDemo() {
                 <div className="flex items-center gap-2">
                   <span className="text-2xl">🎉</span>
                   <div>
-                    <div className="font-bold text-green-800">Processing Complete!</div>
+                    <div className="font-bold text-green-800">¡Procesamiento Completado!</div>
                     <div className="text-sm text-green-700">
-                      Successfully processed {testParams.maxPoints.toLocaleString()} 
-                      data points with optimized processing strategy {testParams.maxPoints >= 50000 ? '(Child Process)' : '(Direct Processing)'}.
+                      Procesados exitosamente {testParams.maxPoints.toLocaleString()} 
+                      puntos de datos con estrategia de procesamiento optimizada {testParams.maxPoints >= 50000 ? '(Proceso Hijo)' : '(Procesamiento Directo)'}.
                     </div>
                   </div>
                 </div>
@@ -711,14 +728,14 @@ export function GrpcDemo() {
 
         {/* Real-time Streaming */}
         <div>
-          <h3 className="text-lg font-semibold mb-3">Real-time gRPC Data Stream (Numpy Generated)</h3>
+          <h3 className="text-lg font-semibold mb-3">Transmisión de Datos gRPC en Tiempo Real (Generado con Numpy)</h3>
           <div className="flex gap-2 mb-4">
             <Button 
               onClick={handleStartStreaming}
               disabled={!isConnected || streaming}
               className="bg-green-600 hover:bg-green-700"
             >
-              {streaming ? 'Streaming...' : 'Start gRPC Stream'}
+              {streaming ? 'Transmitiendo...' : 'Iniciar Transmisión gRPC'}
             </Button>
             
             {streaming && (
@@ -726,7 +743,7 @@ export function GrpcDemo() {
                 onClick={handleStopStreaming}
                 className="bg-red-600 hover:bg-red-700"
               >
-                Stop Stream
+                Detener Transmisión
               </Button>
             )}
           </div>
@@ -734,7 +751,7 @@ export function GrpcDemo() {
           {streamData.length > 0 && (
             <div className="bg-green-50 p-4 rounded-lg">
               <h4 className="font-semibold mb-2">
-                Real-time gRPC Data ({streamData.length} points):
+                Datos gRPC en Tiempo Real ({streamData.length} puntos):
               </h4>
               <div className="max-h-40 overflow-y-auto">
                 {streamData.slice().reverse().map((point) => (
@@ -759,7 +776,7 @@ export function GrpcDemo() {
       {/* 🚀 Columnar Data Streaming Visualization */}
       <div className="mt-8 border-t pt-6">
         <ChildProcessVisualization 
-          title="🚀 Columnar Data Streaming - Optimized Performance"
+          title="🚀 Transmisión de Datos Columnar - Rendimiento Optimizado"
           maxPoints={2000000}
         />
       </div>
@@ -767,7 +784,7 @@ export function GrpcDemo() {
       {/* 🚀 TRUE: Worker Thread Visualization for Ultra-Large Datasets */}
       <div className="mt-8 border-t pt-6">
         <WorkerThreadVisualization 
-          title="🚀 True Node.js Worker Threads - Ultra Large Datasets"
+          title="🚀 Verdaderos Worker Threads de Node.js - Datasets Ultra Grandes"
           maxPoints={5000000}
         />
       </div>

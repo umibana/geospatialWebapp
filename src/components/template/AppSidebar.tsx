@@ -18,7 +18,6 @@ import {
   Prueba3D,
   GrpcDemo
 } from "@/components/WindowComponents"
-import { t } from "i18next"
 
 // Navigation items
 const navigationItems = [
@@ -31,11 +30,6 @@ const navigationItems = [
     title: "Projects",
     url: "/projects",
     icon: FolderOpen,
-  },
-  {
-    title: t("titleSecondPage"),
-    url: "/second-page",
-    icon: TestTube,
   },
 ]
 

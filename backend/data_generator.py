@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """
-Data generation module for creating synthetic geospatial data using numpy.
-Generates X,Y,Z coordinate data for various geospatial scenarios.
+Módulo de generación de datos para crear datos geoespaciales sintéticos usando numpy.
+Genera datos de coordenadas X,Y,Z para varios escenarios geoespaciales.
+Soporta generación en lotes y formato columnar para eficiencia.
 """
 import numpy as np
 import time
@@ -10,7 +11,15 @@ from typing import Iterator, List, Tuple, Dict, Any
 
 
 class GeospatialDataGenerator:
-    """Generates synthetic geospatial data using numpy for various scenarios."""
+    """Genera datos geoespaciales sintéticos usando numpy para varios escenarios.
+    
+    Soporta diferentes tipos de datos:
+    - elevation: Datos de elevación del terreno
+    - temperature: Datos de temperatura con gradientes
+    - pressure: Datos de presión atmosférica
+    - noise: Datos de ruido para pruebas
+    - sine_wave: Ondas senoidales para patrones
+    """
     
     def __init__(self):
         self.generation_methods = {
@@ -28,50 +37,49 @@ class GeospatialDataGenerator:
         max_points: int = 1000, 
         resolution: int = 20
     ) -> Tuple[List[Dict[str, Any]], str]:
-        """
-        Generate a batch of geospatial data points within specified bounds.
+        """Genera datos geoespaciales en lotes
         
         Args:
-            bounds: Dictionary with 'lat_min', 'lat_max', 'lng_min', 'lng_max'
-            data_types: List of data types to generate
-            max_points: Maximum number of points to generate
-            resolution: Grid resolution for data generation
+            bounds: Límites geográficos (northeast/southwest con lat/lng)
+            data_types: Lista de tipos de datos a generar
+            max_points: Máximo número de puntos a generar
+            resolution: Resolución de la cuadrícula (mayor = más detalle)
             
         Returns:
-            Tuple of (data_points_list, generation_method)
+            Tupla con (lista de puntos de datos, método de generación usado)
         """
         lat_min, lat_max = bounds['lat_min'], bounds['lat_max']
         lng_min, lng_max = bounds['lng_min'], bounds['lng_max']
         
-        # Choose the first available data type
+        # Elegir el primer tipo de dato disponible
         data_type = data_types[0] if data_types else 'elevation'
         method = self.generation_methods.get(data_type, self._generate_elevation_data)
         
-        # Generate grid coordinates - calculate resolution to achieve desired point count
+        # Generar coordenadas de cuadrícula - calcular resolución para lograr el conteo deseado
         if max_points <= resolution * resolution:
-            # If requested points fit in the resolution grid, use the resolution
+            # Si los puntos solicitados caben en la cuadrícula de resolución, usar la resolución
             actual_resolution = resolution
         else:
-            # If we need more points than the resolution grid can provide,
-            # calculate the minimum resolution needed
+            # Si necesitamos más puntos de los que la cuadrícula puede proveer,
+            # calcular la resolución mínima necesaria
             actual_resolution = max(resolution, int(math.sqrt(max_points)) + 1)
         
         lat_grid = np.linspace(lat_min, lat_max, actual_resolution, dtype=np.float32)
         lng_grid = np.linspace(lng_min, lng_max, actual_resolution, dtype=np.float32)
         lat_mesh, lng_mesh = np.meshgrid(lat_grid, lng_grid)
         
-        print(f"🔢 Data generation: requested={max_points}, resolution={resolution}, actual_resolution={actual_resolution}, max_possible={actual_resolution*actual_resolution}")
+        print(f"🔢 Generación de datos: solicitados={max_points}, resolución={resolution}, resolución_real={actual_resolution}, max_posible={actual_resolution*actual_resolution}")
         
-        # Start timing data generation
+        # Iniciar cronometraje de generación de datos
         generation_start = time.time()
         
-        # Generate Z values using the selected method (convert to float32 for memory efficiency)
+        # Generar valores Z usando el método seleccionado (convertir a float32 para eficiencia de memoria)
         z_values = method(lat_mesh, lng_mesh, lat_min, lat_max, lng_min, lng_max).astype(np.float32)
         
         z_generation_time = time.time() - generation_start
-        print(f"⏱️  Z-values generation took: {z_generation_time:.3f}s")
+        print(f"⏱️  Generación de valores Z tomó: {z_generation_time:.3f}s")
         
-        # Convert to data points
+        # Convertir a puntos de datos
         data_points = []
         point_id = 0
         data_point_start = time.time()
@@ -81,7 +89,7 @@ class GeospatialDataGenerator:
                 if len(data_points) >= max_points:
                     break
                     
-                # Use shorter ID for large datasets to reduce message size
+                # Usar ID más corto para datasets grandes para reducir tamaño de mensaje
                 if max_points > 50000:
                     point_id_str = str(point_id)
                 else:
@@ -212,16 +220,18 @@ class GeospatialDataGenerator:
         data_types: List[str], 
         max_points_per_second: int = 5
     ) -> Iterator[Dict[str, Any]]:
-        """
-        Generate streaming geospatial data points.
+        """Genera puntos de datos geoespaciales en streaming
+        
+        Produce puntos de datos de forma continua para simular datos en tiempo real.
+        Útil para demostrar capacidades de streaming y actualizaciones en vivo.
         
         Args:
-            bounds: Dictionary with 'lat_min', 'lat_max', 'lng_min', 'lng_max'
-            data_types: List of data types to generate
-            max_points_per_second: Rate of data generation
+            bounds: Diccionario con 'lat_min', 'lat_max', 'lng_min', 'lng_max'
+            data_types: Lista de tipos de datos a generar
+            max_points_per_second: Velocidad de generación de datos (puntos por segundo)
             
         Yields:
-            Individual data points
+            Puntos de datos individuales para procesamiento en tiempo real
         """
         lat_min, lat_max = bounds['lat_min'], bounds['lat_max']
         lng_min, lng_max = bounds['lng_min'], bounds['lng_max']
@@ -232,10 +242,10 @@ class GeospatialDataGenerator:
         interval = 1.0 / max_points_per_second
         point_count = 0
         
-        # Generate streaming data for 30 seconds
+        # Generar datos de streaming por 30 segundos
         start_time = time.time()
         while time.time() - start_time < 30:
-            # Generate random coordinates within bounds
+            # Generar coordenadas aleatorias dentro de los límites
             lat = np.random.uniform(lat_min, lat_max)
             lng = np.random.uniform(lng_min, lng_max)
             
@@ -264,80 +274,116 @@ class GeospatialDataGenerator:
             time.sleep(interval)
     
     def _generate_elevation_data(self, lat_mesh, lng_mesh, lat_min, lat_max, lng_min, lng_max):
-        """Generate synthetic elevation data."""
-        # Create a mountainous terrain using sine waves and noise
+        """Genera datos sintéticos de elevación del terreno
+        
+        Crea un terreno montañoso usando ondas senoidales múltiples y ruido aleatorio.
+        Simula variaciones realistas de altura del terreno con picos y valles.
+        
+        Returns:
+            Array numpy con valores de elevación en metros sobre el nivel del mar
+        """
+        # Crear terreno montañoso usando ondas senoidales y ruido
         lat_range = lat_max - lat_min
         lng_range = lng_max - lng_min
         
-        # Normalize coordinates to [0, 1]
+        # Normalizar coordenadas a [0, 1]
         lat_norm = (lat_mesh - lat_min) / lat_range
         lng_norm = (lng_mesh - lng_min) / lng_range
         
-        # Generate elevation using multiple sine waves + noise
+        # Generar elevación usando múltiples ondas senoidales + ruido
         elevation = (
-            500 * np.sin(lat_norm * 2 * np.pi) * np.cos(lng_norm * 2 * np.pi) +
-            200 * np.sin(lat_norm * 4 * np.pi) +
-            150 * np.cos(lng_norm * 3 * np.pi) +
-            np.random.normal(0, 50, lat_mesh.shape)  # Add noise
+            500 * np.sin(lat_norm * 2 * np.pi) * np.cos(lng_norm * 2 * np.pi) +  # Ondas principales
+            200 * np.sin(lat_norm * 4 * np.pi) +                                 # Variación latitudinal
+            150 * np.cos(lng_norm * 3 * np.pi) +                                # Variación longitudinal
+            np.random.normal(0, 50, lat_mesh.shape)                            # Añadir ruido realista
         )
         
-        # Ensure elevation is positive (above sea level)
-        elevation = np.maximum(elevation, 0) + 100
+        # Asegurar que la elevación sea positiva (sobre el nivel del mar)
+        elevation = np.maximum(elevation, 0) + 100  # Mínimo 100m sobre el nivel del mar
         
         return elevation
     
     def _generate_temperature_data(self, lat_mesh, lng_mesh, lat_min, lat_max, lng_min, lng_max):
-        """Generate synthetic temperature data."""
-        # Temperature varies with latitude (cooler at higher latitudes)
+        """Genera datos sintéticos de temperatura
+        
+        Simula variaciones de temperatura basadas en latitud, variación diaria
+        y fluctuaciones climáticas. Temperaturas más frías en latitudes altas.
+        
+        Returns:
+            Array numpy con temperaturas en grados Celsius
+        """
+        # La temperatura varía con la latitud (más frío en latitudes altas)
         lat_range = lat_max - lat_min
         lat_norm = (lat_mesh - lat_min) / lat_range
         
-        # Base temperature with latitude gradient + daily variation + noise
+        # Temperatura base con gradiente latitudinal + variación diaria + ruido
         temperature = (
-            25 - (lat_norm * 30) +  # Latitude effect
-            5 * np.sin((time.time() % 86400) / 86400 * 2 * np.pi) +  # Daily variation
-            np.random.normal(0, 3, lat_mesh.shape)  # Weather noise
+            25 - (lat_norm * 30) +                                             # Efecto de latitud
+            5 * np.sin((time.time() % 86400) / 86400 * 2 * np.pi) +           # Variación diaria
+            np.random.normal(0, 3, lat_mesh.shape)                            # Ruido climático
         )
         
         return temperature
     
     def _generate_pressure_data(self, lat_mesh, lng_mesh, lat_min, lat_max, lng_min, lng_max):
-        """Generate synthetic atmospheric pressure data."""
-        # Pressure varies with weather patterns
+        """Genera datos sintéticos de presión atmosférica
+        
+        Simula patrones de presión atmosférica con sistemas de alta y baja presión.
+        Incluye variaciones climáticas y patrones meteorológicos.
+        
+        Returns:
+            Array numpy con presión atmosférica en hPa (hectopascales)
+        """
+        # La presión varía con patrones meteorológicos
         lat_range = lat_max - lat_min
         lng_range = lng_max - lng_min
         
         lat_norm = (lat_mesh - lat_min) / lat_range
         lng_norm = (lng_mesh - lng_min) / lng_range
         
-        # Generate pressure patterns
+        # Generar patrones de presión
         pressure = (
-            1013.25 +  # Standard atmospheric pressure
-            10 * np.sin(lat_norm * 3 * np.pi) * np.cos(lng_norm * 2 * np.pi) +
-            np.random.normal(0, 5, lat_mesh.shape)  # Weather variations
+            1013.25 +                                                          # Presión atmosférica estándar
+            10 * np.sin(lat_norm * 3 * np.pi) * np.cos(lng_norm * 2 * np.pi) +  # Patrones de alta/baja presión
+            np.random.normal(0, 5, lat_mesh.shape)                            # Variaciones meteorológicas
         )
         
         return pressure
     
     def _generate_noise_data(self, lat_mesh, lng_mesh, lat_min, lat_max, lng_min, lng_max):
-        """Generate random noise data for testing."""
+        """Genera datos de ruido aleatorio para pruebas
+        
+        Crea valores completamente aleatorios para probar el rendimiento
+        del sistema con datos sin patrones específicos.
+        
+        Returns:
+            Array numpy con valores aleatorios entre 0 y 100
+        """
         return np.random.uniform(0, 100, lat_mesh.shape)
     
     def _generate_sine_wave_data(self, lat_mesh, lng_mesh, lat_min, lat_max, lng_min, lng_max):
-        """Generate sine wave pattern data."""
+        """Genera datos con patrón de onda senoidal
+        
+        Crea un patrón de interferencia de ondas senoidales que produce
+        patrones geométricos regulares. Útil para visualizar patrones matemáticos.
+        
+        Returns:
+            Array numpy con patrón de ondas senoidales
+        """
         lat_range = lat_max - lat_min
         lng_range = lng_max - lng_min
         
         lat_norm = (lat_mesh - lat_min) / lat_range
         lng_norm = (lng_mesh - lng_min) / lng_range
         
-        # Create sine wave pattern
+        # Crear patrón de onda senoidal
         wave_data = (
-            50 + 30 * np.sin(lat_norm * 4 * np.pi) * np.sin(lng_norm * 4 * np.pi)
+            50 + 30 * np.sin(lat_norm * 4 * np.pi) * np.sin(lng_norm * 4 * np.pi)  # Interferencia de ondas
         )
         
         return wave_data
 
 
-# Global instance
+# Instancia global del generador de datos
+# Se utiliza como singleton para mantener consistencia en la generación
 data_generator = GeospatialDataGenerator()

@@ -431,15 +431,15 @@ export function ChildProcessVisualization({
 
       {/* Performance Info */}
       <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <h4 className="font-semibold text-yellow-800 mb-2">🚀 True Subprocess Advantages</h4>
+        <h4 className="font-semibold text-yellow-800 mb-2">🚀 Ventajas del Verdadero Subproceso</h4>
         <ul className="text-sm text-yellow-700 space-y-1">
-          <li>• ✅ Completely isolated Node.js processes</li>
-          <li>• ✅ ZERO main process blocking - guaranteed UI responsiveness</li>
-          <li>• ✅ Can process 2M+ points without any freezing</li>
-          <li>• ✅ Uses temporary files for secure data exchange</li>
-          <li>• ✅ Real-time progress updates via file polling</li>
-          <li>• ✅ Automatic cleanup of temporary resources</li>
-          <li>• ✅ Handles crashes gracefully with process isolation</li>
+          <li>• ✅ Procesos de Node.js completamente aislados</li>
+          <li>• ✅ CERO bloqueo del proceso principal - capacidad de respuesta garantizada de la UI</li>
+          <li>• ✅ Puede procesar 2M+ puntos sin congelamiento</li>
+          <li>• ✅ Usa archivos temporales para intercambio seguro de datos</li>
+          <li>• ✅ Actualizaciones de progreso en tiempo real vía sondeo de archivos</li>
+          <li>• ✅ Limpieza automática de recursos temporales</li>
+          <li>• ✅ Maneja fallos elegantemente con aislamiento de procesos</li>
         </ul>
       </div>
     </div>

@@ -8,38 +8,63 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, BarChart3, Activity } from 'lucide-react';
 
+/**
+ * Propiedades del componente DatasetViewer
+ * Define los parámetros necesarios para visualizar un dataset
+ */
 interface DatasetViewerProps {
-  datasetId: string;
-  datasetName: string;
-  onBack: () => void;
+  datasetId: string;      // ID único del dataset a visualizar
+  datasetName: string;    // Nombre del dataset para mostrar en la UI
+  onBack: () => void;     // Función callback para regresar a la vista anterior
 }
 
+/**
+ * Límites de datos para escalado automático de gráficos
+ * Contiene valores mínimos y máximos calculados en el backend
+ */
 interface DataBoundaries {
-  column_name: string;
-  min_value: number;
-  max_value: number;
-  valid_count: number;
+  column_name: string;    // Nombre de la columna
+  min_value: number;      // Valor mínimo encontrado
+  max_value: number;      // Valor máximo encontrado
+  valid_count: number;    // Cantidad de valores válidos
 }
 
+/**
+ * Estructura de datos del dataset completo
+ * Incluye filas, mappings de columnas y límites calculados
+ */
 interface DatasetData {
-  id: string;
-  totalRows: number;
-  columnMappings: ColumnMapping[];
-  rows: DataRow[];
-  dataBoundaries: DataBoundaries[];
+  id: string;                           // ID único del dataset
+  totalRows: number;                    // Total de filas en el dataset
+  columnMappings: ColumnMapping[];      // Configuración de columnas
+  rows: DataRow[];                      // Datos de las filas
+  dataBoundaries: DataBoundaries[];     // Límites calculados para gráficos
 }
 
+/**
+ * Mapeo de columnas CSV a campos geoespaciales
+ * Define cómo interpretar cada columna del CSV
+ */
 interface ColumnMapping {
-  column_name: string;
-  column_type: number;
-  mapped_field: string;
-  is_coordinate: boolean;
+  column_name: string;     // Nombre original de la columna
+  column_type: number;     // Tipo de dato (numérico, categórico, etc.)
+  mapped_field: string;    // Campo mapeado (x, y, z, etc.)
+  is_coordinate: boolean;  // Indica si es una coordenada espacial
 }
 
+/**
+ * Estructura de una fila de datos
+ * Permite valores dinámicos por nombre de columna
+ */
 interface DataRow {
   [key: string]: string | number;
 }
 
+/**
+ * Componente principal para visualizar datasets geoespaciales
+ * Permite seleccionar ejes X/Y/Valor y muestra gráfico de dispersión 2D
+ * con escalado automático basado en límites calculados en el backend
+ */
 const DatasetViewer: React.FC<DatasetViewerProps> = ({ datasetId, datasetName, onBack }) => {
   const [dataset, setDataset] = useState<DatasetData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -217,22 +242,25 @@ const DatasetViewer: React.FC<DatasetViewerProps> = ({ datasetId, datasetName, o
       }
     } catch (err) {
       console.error('Error loading dataset:', err);
-      setError('Failed to load dataset');
+      setError('Error al cargar el dataset');
     } finally {
       setLoading(false);
     }
   };
 
-  // Helper function to safely extract values from Protocol Buffer data
+  /**
+   * Extrae valores de forma segura desde datos de Protocol Buffer
+   * Maneja la estructura {fields: {...}} y convierte a números
+   */
   const extractValue = (row: any, columnName: string, defaultValue: number = 0): number => {
-    // Handle Protocol Buffer structure: {fields: {...}}
+    // Maneja estructura de Protocol Buffer: {fields: {...}}
     const data = row.fields || row;
     
     if (!data || !columnName) return defaultValue;
     
     const rawValue = data[columnName];
     
-    // Handle various data types
+    // Maneja varios tipos de datos
     if (typeof rawValue === 'number') return rawValue;
     if (typeof rawValue === 'string') {
       const parsed = parseFloat(rawValue);
@@ -391,7 +419,7 @@ const DatasetViewer: React.FC<DatasetViewerProps> = ({ datasetId, datasetName, o
     // 2D Scatter plot with user-selected axes and automatic scaling
     const option = {
       title: {
-        text: `${datasetName} - 2D Visualization`,
+        text: `${datasetName} - Visualización 2D`,
         left: 'center',
         textStyle: {
           fontSize: 16,
@@ -501,7 +529,7 @@ const DatasetViewer: React.FC<DatasetViewerProps> = ({ datasetId, datasetName, o
       <Card>
         <CardContent className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-3">Loading dataset...</span>
+          <span className="ml-3">Cargando dataset...</span>
         </CardContent>
       </Card>
     );
@@ -515,7 +543,7 @@ const DatasetViewer: React.FC<DatasetViewerProps> = ({ datasetId, datasetName, o
             <p className="text-red-600 mb-4">{error}</p>
             <Button variant="outline" onClick={onBack}>
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Projects
+              Volver a Proyectos
             </Button>
           </div>
         </CardContent>
@@ -530,18 +558,18 @@ const DatasetViewer: React.FC<DatasetViewerProps> = ({ datasetId, datasetName, o
         <div className="flex items-center space-x-4">
           <Button variant="outline" onClick={onBack}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+            Volver
           </Button>
           <div>
             <h2 className="text-2xl font-bold tracking-tight">{datasetName}</h2>
             <p className="text-muted-foreground">
-              {dataset?.totalRows.toLocaleString()} data points
+              {dataset?.totalRows.toLocaleString()} puntos de datos
             </p>
           </div>
         </div>
         <Badge variant="outline" className="px-3 py-1">
           <Activity className="mr-2 h-4 w-4" />
-          Dataset Visualization
+          Visualización de Dataset
         </Badge>
       </div>
 
@@ -550,31 +578,31 @@ const DatasetViewer: React.FC<DatasetViewerProps> = ({ datasetId, datasetName, o
         <CardHeader>
           <CardTitle className="flex items-center">
             <BarChart3 className="mr-2 h-5 w-5" />
-            Visualization Controls
+            Controles de Visualización
           </CardTitle>
           <CardDescription>
-            Configure which data to display on the chart
+            Configura qué datos mostrar en el gráfico
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* X Axis Selection */}
             <div>
-              <Label className="text-sm font-medium">X Axis</Label>
+              <Label className="text-sm font-medium">Eje X</Label>
               <Select
                 value={selectedXAxis}
                 onValueChange={setSelectedXAxis}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select X axis" />
+                  <SelectValue placeholder="Seleccionar eje X" />
                 </SelectTrigger>
                 <SelectContent>
                   {allColumns.map((column) => (
                     <SelectItem key={column} value={column}>
                       {column}
-                      {coordinateColumns.x === column && ' (X coordinate)'}
-                      {coordinateColumns.y === column && ' (Y coordinate)'}
-                      {coordinateColumns.z === column && ' (Z coordinate)'}
+                      {coordinateColumns.x === column && ' (Coordenada X)'}
+                      {coordinateColumns.y === column && ' (Coordenada Y)'}
+                      {coordinateColumns.z === column && ' (Coordenada Z)'}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -583,21 +611,21 @@ const DatasetViewer: React.FC<DatasetViewerProps> = ({ datasetId, datasetName, o
             
             {/* Y Axis Selection */}
             <div>
-              <Label className="text-sm font-medium">Y Axis</Label>
+              <Label className="text-sm font-medium">Eje Y</Label>
               <Select
                 value={selectedYAxis}
                 onValueChange={setSelectedYAxis}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select Y axis" />
+                  <SelectValue placeholder="Seleccionar eje Y" />
                 </SelectTrigger>
                 <SelectContent>
                   {allColumns.map((column) => (
                     <SelectItem key={column} value={column}>
                       {column}
-                      {coordinateColumns.x === column && ' (X coordinate)'}
-                      {coordinateColumns.y === column && ' (Y coordinate)'}
-                      {coordinateColumns.z === column && ' (Z coordinate)'}
+                      {coordinateColumns.x === column && ' (Coordenada X)'}
+                      {coordinateColumns.y === column && ' (Coordenada Y)'}
+                      {coordinateColumns.z === column && ' (Coordenada Z)'}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -606,21 +634,21 @@ const DatasetViewer: React.FC<DatasetViewerProps> = ({ datasetId, datasetName, o
             
             {/* Value Column Selection */}
             <div>
-              <Label className="text-sm font-medium">Value Column</Label>
+              <Label className="text-sm font-medium">Columna de Valores</Label>
               <Select
                 value={selectedValueColumn}
                 onValueChange={setSelectedValueColumn}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select value column" />
+                  <SelectValue placeholder="Seleccionar columna de valores" />
                 </SelectTrigger>
                 <SelectContent>
                   {allColumns.map((column) => (
                     <SelectItem key={column} value={column}>
                       {column}
-                      {coordinateColumns.x === column && ' (X coordinate)'}
-                      {coordinateColumns.y === column && ' (Y coordinate)'}
-                      {coordinateColumns.z === column && ' (Z coordinate)'}
+                      {coordinateColumns.x === column && ' (Coordenada X)'}
+                      {coordinateColumns.y === column && ' (Coordenada Y)'}
+                      {coordinateColumns.z === column && ' (Coordenada Z)'}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -629,7 +657,7 @@ const DatasetViewer: React.FC<DatasetViewerProps> = ({ datasetId, datasetName, o
           </div>
           
           <div className="text-sm text-muted-foreground">
-            <p>Select which columns to use for X axis, Y axis, and point values. You can use any column for any axis.</p>
+            <p>Selecciona qué columnas usar para el eje X, eje Y y valores de los puntos. Puedes usar cualquier columna para cualquier eje.</p>
           </div>
         </CardContent>
       </Card>
@@ -637,9 +665,9 @@ const DatasetViewer: React.FC<DatasetViewerProps> = ({ datasetId, datasetName, o
       {/* Chart Visualization */}
       <Card>
         <CardHeader>
-          <CardTitle>2D Scatter Plot</CardTitle>
+          <CardTitle>Gráfico de Dispersión 2D</CardTitle>
           <CardDescription>
-            {selectedXAxis} vs {selectedYAxis} • Values: {selectedValueColumn}
+            {selectedXAxis} vs {selectedYAxis} • Valores: {selectedValueColumn}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -663,9 +691,9 @@ const DatasetViewer: React.FC<DatasetViewerProps> = ({ datasetId, datasetName, o
               <div className="h-96 bg-gray-50 rounded-lg flex items-center justify-center">
                 <div className="text-center">
                   <Activity className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <p className="text-gray-600">No chart data available</p>
+                  <p className="text-gray-600">No hay datos del gráfico disponibles</p>
                   <p className="text-sm text-gray-500">
-                    Debug: chartData.length={chartData.length}, xAxis={selectedXAxis}, yAxis={selectedYAxis}, value={selectedValueColumn}
+                    Debug: chartData.length={chartData.length}, ejeX={selectedXAxis}, ejeY={selectedYAxis}, valor={selectedValueColumn}
                   </p>
                 </div>
               </div>
@@ -674,36 +702,35 @@ const DatasetViewer: React.FC<DatasetViewerProps> = ({ datasetId, datasetName, o
         </CardContent>
       </Card>
 
-      {/* Data Summary */}
-      {dataset && (
+      {/* {dataset && (
         <Card>
           <CardHeader>
-            <CardTitle>Data Summary</CardTitle>
+            <CardTitle>Resumen de Datos</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <Label className="text-sm font-medium">Total Rows</Label>
+                <Label className="text-sm font-medium">Total de Filas</Label>
                 <p className="text-2xl font-bold">{dataset.totalRows.toLocaleString()}</p>
               </div>
               <div>
-                <Label className="text-sm font-medium">Available Columns</Label>
+                <Label className="text-sm font-medium">Columnas Disponibles</Label>
                 <p className="text-2xl font-bold">{allColumns.length}</p>
               </div>
               <div>
-                <Label className="text-sm font-medium">Chart Points</Label>
+                <Label className="text-sm font-medium">Puntos en Gráfico</Label>
                 <p className="text-2xl font-bold">{chartData.length.toLocaleString()}</p>
               </div>
               <div>
-                <Label className="text-sm font-medium">Coordinate Mappings</Label>
+                <Label className="text-sm font-medium">Coordenadas Mapeadas</Label>
                 <p className="text-2xl font-bold">
                   {Object.values(coordinateColumns).filter(Boolean).length}
                 </p>
               </div>
             </div>
           </CardContent>
-        </Card>
-      )}
+        </Card> 
+      )} */}
     </div>
   );
 };
