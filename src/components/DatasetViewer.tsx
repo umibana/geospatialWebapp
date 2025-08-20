@@ -161,7 +161,8 @@ const DatasetViewer: React.FC<DatasetViewerProps> = ({ datasetId, datasetName, o
       const response = await window.autoGrpc.getDatasetData({
         dataset_id: datasetId,
         page: 1,
-        page_size: 1000000 // Request all points (increased limit for complete datasets)
+        page_size: 10000 // Pido cierta cantidad de puntos
+        // Es temporal, tengo que ver como pasar del STACK SIZE EXCEEDED
       });
 
       // console.log('Raw response:', response);
