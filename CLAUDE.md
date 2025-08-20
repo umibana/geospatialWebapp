@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Very important notes
+- NEVER, under any circustances, modify a file inside the ~/generated folder. Those files will always be re-generated so modifying them is a waste of time.
+- You WILL always uso Protocol Buffers for communication between backend and frontend. You WILL NEVER use JSON.
+
 ## Architecture Overview
 
 This is a **desktop geospatial application** built with Electron that combines a React frontend with a Python gRPC backend. The application handles geospatial data processing and visualization with **ultra-responsive streaming** capabilities using **auto-generated gRPC communication** and **efficient columnar data format**.
@@ -320,6 +324,12 @@ service GeospatialService {
 
 ## Development Commands
 
+### Setup & Initial Installation
+```bash
+npm install                 # Install frontend dependencies
+npm run setup:backend       # Install Python dependencies in pythonvenv
+```
+
 ### Development (Recommended)
 ```bash
 npm run dev                  # Generate protos + start backend + frontend together (uses pythonvenv)
@@ -329,7 +339,6 @@ npm run dev                  # Generate protos + start backend + frontend togeth
 ```bash
 npm start                    # Start Electron app only (auto-generates protos first)
 npm run dev:backend         # Start gRPC server only (port 50077, uses pythonvenv)
-npm run setup:backend       # Install Python dependencies in pythonvenv
 npm run lint                 # ESLint check
 npm run format              # Prettier check  
 npm run format:write        # Prettier format
@@ -339,21 +348,29 @@ npm run format:write        # Prettier format
 ```bash
 npm run generate:protos     # Generate basic protobuf files from protos/ directory
 npm run generate:full-stack # Generate complete auto-generated gRPC system (RECOMMENDED)
+npm run generate:simple     # Alias for generate:full-stack
 ```
 
 ### Testing
 ```bash
-npm run test                # Unit tests (Vitest)
-npm run test:e2e           # E2E tests (Playwright) - requires built app
-npm run test:all           # All tests
+npm run test                # Unit tests (Vitest) - alias for test:unit
+npm run test:unit          # Unit tests (Vitest)
+npm run test:watch         # Unit tests in watch mode
+npm run test:e2e           # E2E tests (Playwright) - requires built app with npm run make
+npm run test:all           # All tests (unit + e2e)
 ```
 
 ### Building & Distribution
 ```bash
 npm run build:backend      # Build standalone gRPC executable with PyInstaller
 npm run build:full        # Build backend + package Electron app
-npm run package           # Package Electron app only
-npm run make              # Create platform distributables
+npm run package           # Package Electron app only (without backend build)
+npm run make              # Create platform distributables (includes backend build)
+```
+
+### Utility Scripts
+```bash
+npm run test:simplified    # Test the simplified gRPC system
 ```
 
 ## Key Files & Directories
@@ -397,15 +414,25 @@ npm run make              # Create platform distributables
 
 ## Development Workflow
 
-1. **Setup**: Run `npm install` then `npm run setup:backend`
-2. **Development**: Use `npm run dev` to start everything at once (recommended)
+### Initial Setup
+1. **Install Dependencies**: Run `npm install` then `npm run setup:backend`
+2. **First Run**: Use `npm run dev` to start everything at once (recommended)
+
+### Daily Development
+1. **Start Development**: Use `npm run dev` (recommended)
    - Auto-generates protos and gRPC system
-   - Starts gRPC backend (blue output)
+   - Starts gRPC backend (blue output) 
    - Starts Electron frontend (green output)
    - Both run concurrently with labeled, colored output
-3. **Protocol Changes**: Update `.proto` files then run `npm run generate:full-stack`
-4. **Testing**: Unit tests with `npm run test`, E2E requires built app (`npm run package` first)
-5. **Building**: Use `npm run build:full` for complete build including backend executable
+2. **Protocol Changes**: Update `.proto` files then run `npm run generate:full-stack`
+3. **Testing**: 
+   - Unit tests: `npm run test` or `npm run test:watch`
+   - E2E tests: First build with `npm run make`, then `npm run test:e2e`
+4. **Code Quality**: Run `npm run lint` and `npm run format` before committing
+
+### Production Build
+1. **Full Build**: Use `npm run build:full` for complete build including backend executable
+2. **Distribution**: Use `npm run make` to create platform distributables
 
 ## Performance Optimization Features
 
@@ -440,22 +467,38 @@ The application uses an **efficient columnar data format** optimized for large g
 
 ## Important Notes
 
+### Core Architecture
 - **Auto-Generated API**: Use `window.autoGrpc.*` - all methods are type-safe and auto-generated
 - **Columnar Format**: All new development uses efficient columnar data format
 - **gRPC-Only**: All communication uses gRPC on port 50077 - no REST API
 - **IPC Security**: gRPC calls routed through Electron IPC for security (context isolation)
 - **Fixed Port**: gRPC server always uses port 50077 for consistency
+
+### Development Environment
 - **Python Environment**: Uses `pythonvenv/` virtual environment with `source pythonvenv/bin/activate`
-- **Bundled Backend**: Production uses PyInstaller-built executable to avoid Python dependency issues
 - **Protocol Buffers**: Changes to `.proto` files require `npm run generate:full-stack`
-- **Health Checks**: Health monitoring is done via auto-generated gRPC HealthCheck service
 - **Development**: `npm run dev` is the recommended way to start development
-- **E2E Testing**: Playwright tests require the app to be packaged first
+- **Context Isolation**: Enabled for security in Electron configuration
+
+### Testing & Quality
+- **E2E Testing**: Playwright tests require the app to be packaged first with `npm run make`
+- **CI/CD**: GitHub Actions runs unit tests on push/PR, E2E tests on Windows
+- **Code Quality**: ESLint and Prettier configured for consistent code style
+
+### Production & Distribution
+- **Bundled Backend**: Production uses PyInstaller-built executable to avoid Python dependency issues
+- **Health Checks**: Health monitoring is done via auto-generated gRPC HealthCheck service
+- **Electron Forge**: Packaging includes backend executable as extra resource
+
+### UI Framework
 - **shadcn/ui**: Use `npx shadcn@canary add <component>` for React 19 + Tailwind v4 compatibility
 - **React Compiler**: Enabled by default for performance optimization
-- **Context Isolation**: Enabled for security in Electron configuration
 - **Large Datasets**: Can handle 5M+ data points without UI freezing using columnar format
 - **Performance Testing**: Built-in performance comparison tools in visualization components
+
+### Python Dependencies
+- **Core**: grpcio>=1.73.0, grpcio-tools>=1.73.0, protobuf>=6.30.0
+- **Data**: numpy>=1.24.0, pandas>=1.5.0
 
 ---
 

@@ -86,6 +86,11 @@ class GeospatialServiceStub(object):
                 request_serializer=files__pb2.GetLoadedDataStatsRequest.SerializeToString,
                 response_deserializer=files__pb2.GetLoadedDataStatsResponse.FromString,
                 _registered_method=True)
+        self.GetLoadedDataChunk = channel.unary_unary(
+                '/geospatial.GeospatialService/GetLoadedDataChunk',
+                request_serializer=files__pb2.GetLoadedDataChunkRequest.SerializeToString,
+                response_deserializer=files__pb2.GetLoadedDataChunkResponse.FromString,
+                _registered_method=True)
 
 
 class GeospatialServiceServicer(object):
@@ -156,6 +161,12 @@ class GeospatialServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetLoadedDataChunk(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_GeospatialServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -208,6 +219,11 @@ def add_GeospatialServiceServicer_to_server(servicer, server):
                     servicer.GetLoadedDataStats,
                     request_deserializer=files__pb2.GetLoadedDataStatsRequest.FromString,
                     response_serializer=files__pb2.GetLoadedDataStatsResponse.SerializeToString,
+            ),
+            'GetLoadedDataChunk': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetLoadedDataChunk,
+                    request_deserializer=files__pb2.GetLoadedDataChunkRequest.FromString,
+                    response_serializer=files__pb2.GetLoadedDataChunkResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -481,6 +497,33 @@ class GeospatialService(object):
             '/geospatial.GeospatialService/GetLoadedDataStats',
             files__pb2.GetLoadedDataStatsRequest.SerializeToString,
             files__pb2.GetLoadedDataStatsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetLoadedDataChunk(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/geospatial.GeospatialService/GetLoadedDataChunk',
+            files__pb2.GetLoadedDataChunkRequest.SerializeToString,
+            files__pb2.GetLoadedDataChunkResponse.FromString,
             options,
             channel_credentials,
             insecure,

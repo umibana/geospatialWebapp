@@ -44,6 +44,7 @@ export function WorkerThreadVisualization({
   const [isLoading, setIsLoading] = useState(false);
   const [processingStats, setProcessingStats] = useState<WorkerThreadStats | null>(null);
   const [chartConfig, setChartConfig] = useState<ChartConfig | null>(null);
+  const [maxChartPoints, setMaxChartPoints] = useState(50000); // Default 50K chart points
   const [progress, setProgress] = useState({
     processed: 0,
     total: 0,
@@ -188,6 +189,15 @@ export function WorkerThreadVisualization({
   const testWorkerThreads = useCallback(async (testMaxPoints: number) => {
     setIsLoading(true);
     setProgress({ processed: 0, total: 0, percentage: 0, phase: 'starting_worker_threads' });
+    
+    // Clear previous chart data
+    setChartConfig(null);
+    const chart = chartInstanceRef.current;
+    if (chart && !chart.isDisposed()) {
+      chart.setOption({
+        series: [{ type: 'scatter', data: [] }]
+      });
+    }
 
     try {
       const bounds = {
@@ -238,11 +248,21 @@ export function WorkerThreadVisualization({
           bounds,
           dataTypes: ['elevation'],
           maxPoints: testMaxPoints,
-          resolution: 50
+          resolution: 50,
+          maxChartPoints: maxChartPoints
         });
       });
 
       console.log('🎉 Worker thread completed:', result);
+      
+      // Debug logging for worker thread results
+      if (result.stats) {
+        console.log('📊 Worker Stats Debug:', {
+          totalProcessed: result.stats.totalProcessed,
+          pointsPerSecond: result.stats.pointsPerSecond,
+          processingTime: result.stats.processingTime
+        });
+      }
       
       // Set final results with safe access
       if (result.strategy === 'worker_threads' && result.stats) {
@@ -296,6 +316,8 @@ export function WorkerThreadVisualization({
           data: chartData
         };
         
+        console.log(`📈 Chart Update Debug: Selected ${maxChartPoints} points, received ${chartData.length} chart points, request had maxChartPoints: ${maxChartPoints}`);
+        
         setChartConfig(chartConfigWithData as ChartConfig);
         updateChart(chartConfigWithData as ChartConfig);
       }
@@ -323,7 +345,7 @@ export function WorkerThreadVisualization({
     } finally {
       setIsLoading(false);
     }
-  }, [updateChart]);
+  }, [updateChart, maxChartPoints]);
 
   // Test sizes for worker threads (ultra-large datasets)
   const testSizes = [1000000, 2000000, 3000000, 5000000];
@@ -339,19 +361,43 @@ export function WorkerThreadVisualization({
           </p>
         </div>
         
-        <div className="flex flex-wrap gap-2">
-          {testSizes.map(size => (
-            <Button
-              key={size}
-              onClick={() => testWorkerThreads(size)}
-              disabled={isLoading}
-              size="sm"
-              variant={size === maxPoints ? "default" : "outline"}
-              className="bg-purple-600 hover:bg-purple-700 text-white"
-            >
-              {(size / 1000000).toFixed(1)}M
-            </Button>
-          ))}
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="flex flex-wrap gap-2">
+            {testSizes.map(size => (
+              <Button
+                key={size}
+                onClick={() => testWorkerThreads(size)}
+                disabled={isLoading}
+                size="sm"
+                variant={size === maxPoints ? "default" : "outline"}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                {(size / 1000000).toFixed(1)}M
+              </Button>
+            ))}
+          </div>
+          
+          {/* Chart Points Selection */}
+          <div className="flex items-center gap-2 ml-4 pl-4 border-l border-purple-200">
+            <span className="text-sm text-gray-600 font-medium">Chart Points:</span>
+            <div className="flex gap-1">
+              {[1000,10000, 50000, 100000].map(points => (
+                <Button
+                  key={points}
+                  onClick={() => setMaxChartPoints(points)}
+                  disabled={isLoading}
+                  size="sm"
+                  variant={points === maxChartPoints ? "default" : "outline"}
+                  className={points === maxChartPoints 
+                    ? "bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-2 py-1" 
+                    : "text-indigo-600 border-indigo-200 hover:bg-indigo-50 text-xs px-2 py-1"
+                  }
+                >
+                  {points >= 1000 ? `${(points / 1000).toFixed(0)}K` : points}
+                </Button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 

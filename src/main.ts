@@ -260,7 +260,7 @@ ipcMain.handle('grpc-stop-stream', async (_event, payload?: { requestId?: string
 
 // Main Process Worker Threads
 ipcMain.on('grpc-start-child-process-stream', async (event, request) => {
-  const { requestId, bounds, dataTypes, maxPoints, resolution } = request;
+  const { requestId, bounds, dataTypes, maxPoints, resolution, maxChartPoints = 50000 } = request;
   
   try {
     // Stream incremental: nutrir al worker a medida que llegan chunks gRPC
@@ -268,7 +268,7 @@ ipcMain.on('grpc-start-child-process-stream', async (event, request) => {
     const workerManager = MainProcessWorker.getInstance();
     const streamer = workerManager.startStreamingProcessor(requestId, (progress) => {
       sendProgressCoalesced(event, { requestId, type: 'progress', processed: progress.processed, total: totalPoints || progress.total, percentage: progress.percentage, phase: progress.phase });
-    });
+    }, maxChartPoints);
     try {
       const totals = await (async () => {
         // start gRPC stream and register cancel handle
@@ -281,14 +281,27 @@ ipcMain.on('grpc-start-child-process-stream', async (event, request) => {
             resolution
           });
           
-          // Process each chunk through the worker
+          // Process each chunk through the worker with complete chunk data
           for (const chunk of chunks) {
             streamer.postChunk({ 
-              columnar_data: chunk
+              columnar_data: chunk,
+              points_in_chunk: chunk.points_in_chunk,
+              chunk_number: chunk.chunk_number,
+              total_chunks: chunk.total_chunks
             });
           }
           
-          return { totalPoints: chunks.reduce((sum, chunk) => sum + (chunk.points_in_chunk || 0), 0) };
+          // Debug logging to track chunk data
+          console.log(`📊 Chunks received: ${chunks.length}`);
+          chunks.slice(0, 3).forEach((chunk, index) => {
+            console.log(`📊 Chunk ${index}: points_in_chunk=${chunk.points_in_chunk}, x.length=${chunk.x?.length || 0}`);
+          });
+          
+          const totalPoints = chunks.reduce((sum, chunk) => sum + (chunk.points_in_chunk || 0), 0);
+          const totalArrayPoints = chunks.reduce((sum, chunk) => sum + (chunk.x?.length || 0), 0);
+          console.log(`📊 Total calculation: points_in_chunk sum=${totalPoints}, array length sum=${totalArrayPoints}`);
+          
+          return { totalPoints };
         } finally {
           inflightStreams.delete(requestId);
         }

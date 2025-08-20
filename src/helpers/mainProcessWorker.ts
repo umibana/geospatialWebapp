@@ -32,8 +32,6 @@ export interface ProcessingResult {
   };
 }
 
-// Removed unused non-main-thread code; we use eval workers below
-
 // Main thread functions
 export class MainProcessWorker {
   private static instance: MainProcessWorker | null = null;
@@ -73,16 +71,8 @@ export class MainProcessWorker {
               for (let i = 0; i < pointCount; i += pointBatchSize) {
                 const batchEnd = Math.min(i + pointBatchSize, pointCount);
                 for (let j = i; j < batchEnd; j++) {
-                  const MAX_SAMPLE = 50000; // Increased for better representation of large datasets
-                  const currentCount = stats.totalProcessed + 1;
-                  if (processedPoints.length < MAX_SAMPLE) {
-                    processedPoints.push({ lng: data.x[j], lat: data.y[j], value: data.z[j] });
-                  } else {
-                    const replaceIndex = Math.floor(Math.random() * currentCount);
-                    if (replaceIndex < MAX_SAMPLE) {
-                      processedPoints[replaceIndex] = { lng: data.x[j], lat: data.y[j], value: data.z[j] };
-                    }
-                  }
+                  // No sampling - store all points for full dataset visualization
+                  processedPoints.push({ lng: data.x[j], lat: data.y[j], value: data.z[j] });
                   stats.totalProcessed++;
                   stats.sum += data.z[j];
                   stats.minValue = Math.min(stats.minValue, data.z[j]);
@@ -181,10 +171,12 @@ export class MainProcessWorker {
   // Incremental streaming API: create a worker that accepts chunks over time
   public startStreamingProcessor(
     requestId: string,
-    onProgress: (progress: { processed: number; total: number; percentage: number; phase: string }) => void
-  ): { postChunk: (chunk: { columnar_data: { id: string[]; x: number[]; y: number[]; z: number[]; id_value: string[]; additional_data: Record<string, number[]> }; total_chunks?: number }) => void; finalize: () => Promise<ProcessingResult>; terminate: () => void; onWorkerMessage: (handler: (msg: unknown) => void) => void } {
+    onProgress: (progress: { processed: number; total: number; percentage: number; phase: string }) => void,
+    maxChartPoints: number = 50000
+  ): { postChunk: (chunk: { columnar_data: { id: string[]; x: number[]; y: number[]; z: number[]; id_value: string[]; additional_data: Record<string, number[]> }; points_in_chunk?: number; chunk_number?: number; total_chunks?: number }) => void; finalize: () => Promise<ProcessingResult>; terminate: () => void; onWorkerMessage: (handler: (msg: unknown) => void) => void } {
     const workerCode = `
-      const { parentPort } = require('worker_threads');
+      const { parentPort, workerData } = require('worker_threads');
+      const MAX_CHART_POINTS = ${maxChartPoints}; // Use parameter instead of hardcoded value
       let processedPoints = [];
       const stats = { totalProcessed: 0, minValue: Infinity, maxValue: -Infinity, sum: 0, dataTypes: new Set() };
       const startTime = globalThis.performance ? performance.now() : Date.now();
@@ -198,31 +190,51 @@ export class MainProcessWorker {
         const chunkPoints = data.points_in_chunk || pointCount;
         const pointBatchSize = 1000;
         
-        for (let i = 0; i < pointCount; i += pointBatchSize) {
-          const batchEnd = Math.min(i + pointBatchSize, pointCount);
-          for (let j = i; j < batchEnd; j++) {
-            const MAX_SAMPLE = 50000; // Increased for better representation of large datasets
-            const currentCount = stats.totalProcessed + 1;
-            if (processedPoints.length < MAX_SAMPLE) {
+        // Debug logging for worker thread processing
+        if (chunksSeen <= 3) {
+          console.log(\`🔧 Worker processing chunk \${chunksSeen}: pointCount=\${pointCount}, chunkPoints=\${chunkPoints}\`);
+        }
+        
+        // Hybrid approach: different strategies based on point count
+        const useSimpleSampling = MAX_CHART_POINTS <= 10000; // Use simple sampling for small counts
+        
+        for (let j = 0; j < pointCount; j++) {
+          stats.totalProcessed++;
+          stats.sum += data.z[j];
+          stats.minValue = Math.min(stats.minValue, data.z[j]);
+          stats.maxValue = Math.max(stats.maxValue, data.z[j]);
+          
+          if (useSimpleSampling) {
+            // Simple sampling for small counts: collect more than needed, then randomly select
+            processedPoints.push({ lng: data.x[j], lat: data.y[j], value: data.z[j] });
+          } else {
+            // Reservoir sampling for large counts: maintains exactly MAX_CHART_POINTS with uniform distribution
+            if (processedPoints.length < MAX_CHART_POINTS) {
+              // Phase 1: Fill reservoir with first MAX_CHART_POINTS points
               processedPoints.push({ lng: data.x[j], lat: data.y[j], value: data.z[j] });
             } else {
-              const replaceIndex = Math.floor(Math.random() * currentCount);
-              if (replaceIndex < MAX_SAMPLE) {
+              // Phase 2: For each subsequent point, randomly replace an existing point
+              const replaceIndex = Math.floor(Math.random() * stats.totalProcessed);
+              if (replaceIndex < MAX_CHART_POINTS) {
                 processedPoints[replaceIndex] = { lng: data.x[j], lat: data.y[j], value: data.z[j] };
               }
             }
-            stats.totalProcessed++;
-            stats.sum += data.z[j];
-            stats.minValue = Math.min(stats.minValue, data.z[j]);
-            stats.maxValue = Math.max(stats.maxValue, data.z[j]);
           }
-          
-          // Add data types from additional columns
-          Object.keys(data.additional_data || {}).forEach(key => {
-            stats.dataTypes.add(key);
-          });
-          
-          if (batchEnd < pointCount) { await new Promise(r => setImmediate(r)); }
+        }
+        
+        // Add data types from additional columns
+        Object.keys(data.additional_data || {}).forEach(key => {
+          stats.dataTypes.add(key);
+        });
+        
+        // Debug logging for chunk completion
+        if (chunksSeen <= 3) {
+          console.log(\`🔧 Chunk \${chunksSeen}: Processed all \${pointCount} points from this chunk. Total so far: \${stats.totalProcessed}, Chart points: \${processedPoints.length}/\${MAX_CHART_POINTS}\`);
+        }
+        
+        // Debug logging for chunk completion
+        if (chunksSeen <= 3 || chunksSeen % 10 === 0) {
+          console.log(\`🔧 Worker completed chunk \${chunksSeen}: processed \${stats.totalProcessed} total points so far (this chunk had \${pointCount} points)\`);
         }
       }
 
@@ -231,14 +243,31 @@ export class MainProcessWorker {
         if (msg.type === 'chunk') {
           chunksSeen += 1;
           const chunkData = msg.chunk.columnar_data;
-          const chunkPointCount = chunkData.points_in_chunk || (chunkData.x ? chunkData.x.length : 0);
-          if (msg.totalChunks && totalChunksHint == null) totalChunksHint = msg.totalChunks;
+          // Use points_in_chunk from the chunk metadata, fallback to array length
+          const chunkPointCount = msg.chunk.points_in_chunk || (chunkData.x ? chunkData.x.length : 0);
+          if (msg.chunk.total_chunks && totalChunksHint == null) totalChunksHint = msg.chunk.total_chunks;
           totalPointsExpected += chunkPointCount;
           await processChunk(msg.chunk);
           const percentage = totalChunksHint ? (chunksSeen / totalChunksHint) * 100 : 0;
           parentPort.postMessage({ type: 'progress', processed: stats.totalProcessed, total: totalPointsExpected, percentage, phase: 'worker_stream_chunk_' + chunksSeen + (totalChunksHint ? ('_of_' + totalChunksHint) : '') });
           parentPort.postMessage({ type: 'chunk_done' });
         } else if (msg.type === 'end') {
+          // Final selection logic based on sampling strategy
+          const useSimpleSampling = MAX_CHART_POINTS <= 10000;
+          
+          if (useSimpleSampling && processedPoints.length > MAX_CHART_POINTS) {
+            // For simple sampling: randomly shuffle and take exactly MAX_CHART_POINTS
+            for (let i = processedPoints.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [processedPoints[i], processedPoints[j]] = [processedPoints[j], processedPoints[i]];
+            }
+            processedPoints = processedPoints.slice(0, MAX_CHART_POINTS);
+          } else if (processedPoints.length > MAX_CHART_POINTS) {
+            // Failsafe: trim array if it somehow exceeded the limit
+            processedPoints = processedPoints.slice(0, MAX_CHART_POINTS);
+          }
+          
+          console.log(\`🔧 Worker finalization: received \${chunksSeen} chunks, processed \${stats.totalProcessed} total points, final chart points: \${processedPoints.length}/\${MAX_CHART_POINTS} (strategy: \${useSimpleSampling ? 'simple+shuffle' : 'reservoir'})\`);
           const endTime = globalThis.performance ? performance.now() : Date.now();
           const processingTime = ((endTime - startTime) / 1000);
           const avgValue = stats.totalProcessed > 0 ? stats.sum / stats.totalProcessed : 0;
@@ -307,7 +336,7 @@ export class MainProcessWorker {
     worker.on('exit', (code) => { if (code !== 0 && rejectFinal) { rejectFinal(new Error('Worker exited with code ' + String(code))); } });
 
     return {
-      postChunk: (chunk: { columnar_data: { id: string[]; x: number[]; y: number[]; z: number[]; id_value: string[]; additional_data: Record<string, number[]>; points_in_chunk?: number } }) => { worker.postMessage({ type: 'chunk', chunk }); },
+      postChunk: (chunk: { columnar_data: { id: string[]; x: number[]; y: number[]; z: number[]; id_value: string[]; additional_data: Record<string, number[]> }; points_in_chunk?: number; chunk_number?: number; total_chunks?: number }) => { worker.postMessage({ type: 'chunk', chunk }); },
       finalize: () => { worker.postMessage({ type: 'end' }); return finalizePromise; },
       terminate: () => { try { worker.postMessage({ type: 'abort' }); } catch { /* ignore */ } finally { worker.terminate(); } },
       onWorkerMessage: (handler: (msg: unknown) => void) => { worker.on('message', handler as (message: { type: string }) => void); }
