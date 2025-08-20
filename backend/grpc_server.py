@@ -1499,21 +1499,18 @@ class GeospatialServicer(main_service_pb2_grpc.GeospatialServiceServicer):
                 mapping.is_coordinate = mapping_dict['is_coordinate']
             
             # Calculate and add data boundaries for efficient chart scaling
-            # Always calculate for chart visualization (page_size <= 15000)
-            if request.page_size <= 15000:  
-                print(f"📐 Calculating boundaries for dataset {request.dataset_id}")
-                boundaries = self.db.get_dataset_boundaries(request.dataset_id)
-                print(f"📐 Found {len(boundaries)} column boundaries: {list(boundaries.keys())}")
-                
-                for col_name, boundary_data in boundaries.items():
-                    boundary = response.data_boundaries.add()
-                    boundary.column_name = col_name
-                    boundary.min_value = boundary_data['min_value']
-                    boundary.max_value = boundary_data['max_value']
-                    boundary.valid_count = boundary_data['valid_count']
-                    print(f"   📐 {col_name}: {boundary_data['min_value']:.2f} to {boundary_data['max_value']:.2f} ({boundary_data['valid_count']} values)")
-            else:
-                print(f"📐 Skipping boundaries calculation for large request (page_size={request.page_size})")
+            # Now using optimized SQL-based calculation that works with large datasets
+            print(f"📐 Calculating SQL-based boundaries for dataset {request.dataset_id}")
+            boundaries = self.db.get_dataset_boundaries(request.dataset_id)
+            print(f"📐 Found {len(boundaries)} column boundaries: {list(boundaries.keys())}")
+            
+            for col_name, boundary_data in boundaries.items():
+                boundary = response.data_boundaries.add()
+                boundary.column_name = col_name
+                boundary.min_value = boundary_data['min_value']
+                boundary.max_value = boundary_data['max_value']
+                boundary.valid_count = boundary_data['valid_count']
+                print(f"   📐 {col_name}: {boundary_data['min_value']:.2f} to {boundary_data['max_value']:.2f} ({boundary_data['valid_count']} values)")
             
             print(f"✅ Retrieved {len(rows)} dataset rows")
             return response

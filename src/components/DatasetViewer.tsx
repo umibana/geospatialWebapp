@@ -144,7 +144,7 @@ const DatasetViewer: React.FC<DatasetViewerProps> = ({ datasetId, datasetName, o
     // Cleanup function
     return () => {
       console.log('🧹 Cleaning up chart instance');
-      window.removeEventListener('resize', handleResize);
+      // window.removeEventListener('resize', handleResize);
       if (chartInstanceRef.current) {
         chartInstanceRef.current.dispose();
         chartInstanceRef.current = null;
@@ -161,16 +161,16 @@ const DatasetViewer: React.FC<DatasetViewerProps> = ({ datasetId, datasetName, o
       const response = await window.autoGrpc.getDatasetData({
         dataset_id: datasetId,
         page: 1,
-        page_size: 10000 // Request all points (increased limit for complete datasets)
+        page_size: 1000000 // Request all points (increased limit for complete datasets)
       });
 
-      console.log('Raw response:', response);
-      console.log('📊 Dataset loading summary:', {
-        requestedPageSize: 10000,
-        totalRowsInDataset: response.total_rows,
-        actualRowsReceived: response.rows?.length || 0,
-        gotAllPoints: (response.rows?.length || 0) >= response.total_rows
-      });
+      // console.log('Raw response:', response);
+      // console.log('📊 Dataset loading summary:', {
+      //   requestedPageSize: 10000,
+      //   totalRowsInDataset: response.total_rows,
+      //   actualRowsReceived: response.rows?.length || 0,
+      //   gotAllPoints: (response.rows?.length || 0) >= response.total_rows
+      // });
       
       if (response.rows && response.column_mappings) {
         // Parse the dataset structure
@@ -366,10 +366,36 @@ const DatasetViewer: React.FC<DatasetViewerProps> = ({ datasetId, datasetName, o
         xRange: [Math.min(...chartPoints.map(p => p.x)), Math.max(...chartPoints.map(p => p.x))],
         yRange: [Math.min(...chartPoints.map(p => p.y)), Math.max(...chartPoints.map(p => p.y))],
         valueRange: [Math.min(...chartPoints.map(p => p.value)), Math.max(...chartPoints.map(p => p.value))]
+      } : null,
+      // Debug: Check for duplicate coordinates
+      uniqueCoordinates: chartPoints.length > 0 ? new Set(chartPoints.map(p => `${p.x},${p.y}`)).size : 0,
+      coordinateDistribution: chartPoints.length > 0 ? {
+        xValues: [...new Set(chartPoints.map(p => p.x))].length,
+        yValues: [...new Set(chartPoints.map(p => p.y))].length,
+        xyPairs: new Set(chartPoints.map(p => `${p.x},${p.y}`)).size
       } : null
     });
     
-    setChartData(chartPoints);
+    // Apply jittering if many points have identical coordinates
+    const uniqueCoords = new Set(chartPoints.map(p => `${p.x},${p.y}`)).size;
+    const hasOverlapping = uniqueCoords < chartPoints.length * 0.8; // If <80% unique coordinates
+    
+    let finalChartPoints = chartPoints;
+    if (hasOverlapping && chartPoints.length > 10) {
+      console.log('🎯 Applying jittering to reduce overlapping points');
+      const xRange = Math.max(...chartPoints.map(p => p.x)) - Math.min(...chartPoints.map(p => p.x));
+      const yRange = Math.max(...chartPoints.map(p => p.y)) - Math.min(...chartPoints.map(p => p.y));
+      const jitterX = xRange * 0.01; // 1% of range
+      const jitterY = yRange * 0.01;
+      
+      finalChartPoints = chartPoints.map(point => ({
+        ...point,
+        x: point.x + (Math.random() - 0.5) * jitterX,
+        y: point.y + (Math.random() - 0.5) * jitterY
+      }));
+    }
+    
+    setChartData(finalChartPoints);
   };
 
   const updateChart = () => {
@@ -416,22 +442,49 @@ const DatasetViewer: React.FC<DatasetViewerProps> = ({ datasetId, datasetName, o
       }))
     });
 
+    // Calculate value range for visualMap
+    const valueRange = chartData.length > 0 ? {
+      min: Math.min(...chartData.map(p => p.value)),
+      max: Math.max(...chartData.map(p => p.value))
+    } : { min: 0, max: 100 };
+
     // 2D Scatter plot with user-selected axes and automatic scaling
     const option = {
+      animation: false,
       title: {
         text: `${datasetName} - Visualización 2D`,
+        subtext: `${chartData.length.toLocaleString()} puntos • ${new Set(chartData.map(p => `${p.x},${p.y}`)).size} coordenadas únicas`,
         left: 'center',
         textStyle: {
           fontSize: 16,
           fontWeight: 'bold'
         }
       },
+      visualMap: {
+        min: valueRange.min,
+        max: valueRange.max,
+        dimension: 2, // Use the third dimension (value) for color mapping
+        orient: 'vertical',
+        right: 10,
+        top: 'center',
+        text: ['ALTO', 'BAJO'],
+        calculable: true,
+        inRange: {
+          color: ['#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe', '#fef3c7', '#fcd34d', '#f59e0b', '#d97706', '#b45309']
+        },
+        textStyle: {
+          color: '#374151'
+        }
+      },
       tooltip: {
         trigger: 'item',
+        axisPointer: {
+          type: 'cross'
+        },
         formatter: function(params: any) {
           const data = params.data;
           return `
-            <strong>Point ${params.dataIndex + 1}</strong><br/>
+            <strong>Punto ${params.dataIndex + 1}</strong><br/>
             ${selectedXAxis}: ${data[0]}<br/>
             ${selectedYAxis}: ${data[1]}<br/>
             ${selectedValueColumn}: ${data[2]}
@@ -469,37 +522,48 @@ const DatasetViewer: React.FC<DatasetViewerProps> = ({ datasetId, datasetName, o
         }
       ],
       series: [{
+        name: `${selectedValueColumn} values`,
         type: 'scatter',
         data: chartData.map(point => [point.x, point.y, point.value]),
-        symbolSize: function(data: number[]) {
-          if (chartData.length === 0) return 8;
-          // Scale symbol size based on value
-          const minVal = Math.min(...chartData.map(p => Math.abs(p.value)));
-          const maxVal = Math.max(...chartData.map(p => Math.abs(p.value)));
-          const range = maxVal - minVal;
-          if (range === 0) return 8;
+        animation: false,
+        // symbolSize: function(data: number[]) {
+        //   // Variable symbol size based on dataset size and value
+        //   const minVal = Math.min(...chartData.map(p => Math.abs(p.value)));
+        //   const maxVal = Math.max(...chartData.map(p => Math.abs(p.value)));
+        //   const range = maxVal - minVal;
+        //   if (range === 0) return 8;
+
+        //   if (chartData.length === 0) return 8;
           
-          const normalizedValue = (Math.abs(data[2]) - minVal) / range * 15 + 5;
-          return Math.min(normalizedValue, 20);
-        },
+        //   const baseSize = chartData.length > 500 ? 4 : 8;
+        //   const uniqueCoords = new Set(chartData.map(p => `${p.x},${p.y}`)).size;
+        //   const overlapFactor = chartData.length / uniqueCoords;
+        //   // Increase size if many points overlap at same coordinates
+        //   const normalizedValue = (Math.abs(data[2]) - minVal) / range * 15 + 5;
+
+        //   return Math.min(baseSize + Math.log(overlapFactor) + normalizedValue, 10);
+        // },
         itemStyle: {
-          color: function(params: any) {
-            if (chartData.length === 0) return '#3b82f6';
-            // Color based on value
-            const value = params.data[2];
-            const minVal = Math.min(...chartData.map(p => p.value));
-            const maxVal = Math.max(...chartData.map(p => p.value));
-            const range = maxVal - minVal;
-            if (range === 0) return '#3b82f6';
-            
-            const normalized = (value - minVal) / range;
-            
-            // Blue to red gradient
-            const r = Math.floor(255 * normalized);
-            const b = Math.floor(255 * (1 - normalized));
-            return `rgb(${r}, 100, ${b})`;
+          opacity: 0.8,
+          borderWidth: 0,
+          animation: false
+        },
+        emphasis: {
+          animation: false,
+          itemStyle: {
+          animation: false,
+            borderColor: '#000',
+            borderWidth: 1,
+            opacity: 1.0
           }
-        }
+        },
+        large: true,
+        progressive: 100000,
+        progressiveThreshold: 20000,
+        progressiveChunkMode: 'sequential',
+        symbolSize: 2,
+        blendMode: 'lighter',
+        dimensions: [selectedXAxis, selectedYAxis, selectedValueColumn],
       }]
     };
     

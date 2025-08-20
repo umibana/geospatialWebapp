@@ -343,7 +343,8 @@ class DatabaseManager:
     
     def get_dataset_boundaries(self, dataset_id: str, column_names: List[str] = None) -> Dict[str, Dict[str, Union[float, int]]]:
         """
-        Calculate min/max boundaries for numeric columns in a dataset.
+        Calculate min/max boundaries for numeric columns using SQL aggregation.
+        This is much more efficient than loading all data into memory.
         
         Args:
             dataset_id: The dataset ID
@@ -352,6 +353,9 @@ class DatabaseManager:
         Returns:
             Dict mapping column names to {min_value, max_value, valid_count}
         """
+        import time
+        start_time = time.time()
+        
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -361,6 +365,7 @@ class DatabaseManager:
                 dataset_row = cursor.fetchone()
                 
                 if not dataset_row:
+                    print(f"📐 No dataset found with ID: {dataset_id}")
                     return {}
                 
                 column_mappings = json.loads(dataset_row[0])
@@ -378,7 +383,7 @@ class DatabaseManager:
                         if mapping['column_type'] in [1, 2] or mapping['is_coordinate']  # NUMERIC or CATEGORICAL or coordinates
                     ]
                 
-                print(f"📐 Database boundaries calculation:")
+                print(f"📐 SQL-based boundaries calculation:")
                 print(f"   Dataset: {dataset_id}")
                 print(f"   Column mappings: {len(column_mappings)}")
                 print(f"   Target columns: {target_columns}")
@@ -387,61 +392,73 @@ class DatabaseManager:
                     print(f"   ❌ No target columns found for boundaries calculation")
                     return {}
                 
-                # Get all dataset data for boundary calculation
-                cursor.execute('SELECT data FROM dataset_data WHERE dataset_id = ?', (dataset_id,))
+                # Get total row count for reference
+                cursor.execute('SELECT COUNT(*) FROM dataset_data WHERE dataset_id = ?', (dataset_id,))
+                total_rows = cursor.fetchone()[0]
+                print(f"   📊 Total rows in dataset: {total_rows:,}")
                 
-                # Initialize boundary tracking
                 boundaries = {}
+                
+                # Calculate boundaries for each column using SQL JSON functions
                 for col in target_columns:
-                    boundaries[col] = {
-                        'values': [],
-                        'min_value': float('inf'),
-                        'max_value': float('-inf'),
-                        'valid_count': 0
-                    }
-                
-                # Process all rows to calculate boundaries
-                for row in cursor.fetchall():
-                    data = json.loads(row[0])
+                    col_start_time = time.time()
                     
-                    for col in target_columns:
-                        if col in data:
-                            try:
-                                # Try to convert to float
-                                value = float(data[col])
-                                if not (math.isnan(value) or math.isinf(value)):
-                                    boundaries[col]['min_value'] = min(boundaries[col]['min_value'], value)
-                                    boundaries[col]['max_value'] = max(boundaries[col]['max_value'], value)
-                                    boundaries[col]['valid_count'] += 1
-                            except (ValueError, TypeError):
-                                # Skip non-numeric values
-                                pass
-                
-                # Clean up results and handle edge cases
-                result = {}
-                for col, boundary in boundaries.items():
-                    if boundary['valid_count'] > 0:
-                        # Handle single value case
-                        if boundary['min_value'] == boundary['max_value']:
-                            # Add small padding for single values
-                            padding = abs(boundary['min_value']) * 0.1 if boundary['min_value'] != 0 else 1.0
-                            result[col] = {
-                                'min_value': boundary['min_value'] - padding,
-                                'max_value': boundary['max_value'] + padding,
-                                'valid_count': boundary['valid_count']
+                    # Use SQL to calculate min/max directly from JSON data
+                    # This leverages database engine optimization
+                    cursor.execute('''
+                        SELECT 
+                            MIN(CAST(JSON_EXTRACT(data, '$.' || ? ) AS REAL)) as min_val,
+                            MAX(CAST(JSON_EXTRACT(data, '$.' || ? ) AS REAL)) as max_val,
+                            COUNT(CASE 
+                                WHEN JSON_EXTRACT(data, '$.' || ? ) IS NOT NULL 
+                                AND JSON_EXTRACT(data, '$.' || ? ) != '' 
+                                AND JSON_EXTRACT(data, '$.' || ? ) != 'null'
+                                THEN 1 
+                            END) as valid_count
+                        FROM dataset_data 
+                        WHERE dataset_id = ?
+                    ''', (col, col, col, col, col, dataset_id))
+                    
+                    result = cursor.fetchone()
+                    col_time = time.time() - col_start_time
+                    
+                    if result and result[0] is not None and result[1] is not None:
+                        min_val, max_val, valid_count = result
+                        
+                        # Validate the results
+                        if math.isnan(min_val) or math.isnan(max_val) or math.isinf(min_val) or math.isinf(max_val):
+                            print(f"   ⚠️  {col}: Invalid numeric values (NaN/Inf), skipping")
+                            continue
+                        
+                        # Add padding for better visualization
+                        if min_val == max_val:
+                            # Handle single value case
+                            padding = abs(min_val) * 0.1 if min_val != 0 else 1.0
+                            boundaries[col] = {
+                                'min_value': min_val - padding,
+                                'max_value': max_val + padding,
+                                'valid_count': valid_count
                             }
                         else:
                             # Add 5% padding to the range for better visualization
-                            value_range = boundary['max_value'] - boundary['min_value']
+                            value_range = max_val - min_val
                             padding = value_range * 0.05
-                            result[col] = {
-                                'min_value': boundary['min_value'] - padding,
-                                'max_value': boundary['max_value'] + padding,
-                                'valid_count': boundary['valid_count']
+                            boundaries[col] = {
+                                'min_value': min_val - padding,
+                                'max_value': max_val + padding,
+                                'valid_count': valid_count
                             }
+                        
+                        print(f"   ✅ {col}: {min_val:.2f} to {max_val:.2f} ({valid_count:,} valid values) [{col_time:.3f}s]")
+                    else:
+                        print(f"   ❌ {col}: No valid numeric data found [{col_time:.3f}s]")
                 
-                return result
+                total_time = time.time() - start_time
+                print(f"📐 SQL boundaries calculation completed in {total_time:.3f}s for {len(boundaries)} columns")
+                
+                return boundaries
                 
         except Exception as e:
-            print(f"Error calculating dataset boundaries: {e}")
+            total_time = time.time() - start_time
+            print(f"❌ Error calculating SQL-based dataset boundaries: {e} (after {total_time:.3f}s)")
             return {}
